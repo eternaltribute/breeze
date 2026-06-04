@@ -1,4 +1,4 @@
-import { useState } from 'react'
+/* import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
@@ -119,4 +119,23 @@ function App() {
   )
 }
 
-export default App
+export default App   */
+
+import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/clerk-react";
+
+function App() {
+  return (
+    <div>
+      <SignedIn>
+        <h1>Dashboard</h1>
+        <UserButton />
+      </SignedIn>
+
+      <SignedOut>
+        <SignIn />
+      </SignedOut>
+    </div>
+  );
+}
+
+export default App;
