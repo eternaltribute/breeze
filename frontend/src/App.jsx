@@ -1,9 +1,9 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom"
-import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/clerk-react"
-import Sidebar from "./components/Sidebar"
-import Dashboard from "./pages/Dashboard"
-import Profile from "./pages/Profile"
-import Settings from "./pages/Settings"
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/clerk-react";
+import Sidebar from "./components/Sidebar";
+import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 
 function App() {
   return (
@@ -25,7 +25,7 @@ function App() {
         </div>
       </SignedIn>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;
