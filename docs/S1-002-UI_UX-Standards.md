@@ -5,42 +5,42 @@
 
 ---
 
-## 1. Chosen Navigation Model 
+## 1. Navigation Model 
 
 ### Navigation Structure 
-#### (application uses a left sidebar navigation) 
+#### The application uses a persisten top navigation bar combined with a dashboard-first layout. 
 
-- Home
 - Dashboard 
-- Applications 
+- Documents 
 - Profile 
 - Settings 
-#### The sidebar remains visible at all times and may collapse to icon-only mode. Navigation labels must remain consistent across all pages. 
 
-#### If breadcrumbs are implemented it should not be used on top-level pages. 
+#### Behavior 
+- Top navigation remains fixed during scrolling.  
+- The active section is clearly highlighted. 
+- The navigation labels remain consistent across all pages. 
+- Supports responsive collapse into icon-only mode on smaller screens. 
 
 --- 
 
 ## 2. Dashboard Interaction Model 
 
-### Purpose: The dashboard is a data visualization serving as the user’s command center. Dashboard should be sync with an recent updates within the application tracking system. 
+### Purpose: The dashboard is a data visualization serving as the user’s command center. Dashboard should be sync with an recent updates within the application tracking system. Not a storage area.
+
+#### It provides: 
+
 - Recent Activity 
-- Applications 
-- Status 
+- Application status  
 - Follow-Ups 
-#### Example:  Applications -> Edit Application 
+- Quick access to documents 
 
-### Table Behaviour 
-#### All data tables should support search, sorting, pagination 
-#### Preferred columns: 
-- Role 
-- Document + Document Type
-- Date Applied 
-- Last Updates 
-- Company
-- Status 
-
-##### Tables should allow horizontal scrolling. If any, hide low-priority columns. 
+#### Interaction Pattern (Card-Based Scrolling System)
+- Primary content is presented as scrollable cards. 
+- Cards show: 
+    - Applications 
+    - Status changes 
+    - Documents updates 
+##### Card behavior has lightweight previews only and it is clickable entire card. 
 
 --- 
 
@@ -59,13 +59,6 @@
 #### Danger Buttons: 
 - Delete Application
 - Remove Document 
-
- 
-### Cards On Dashboard
-#### Contains minimal information  
-- Dashboard summary 
-- Application status 
-- Resume upload
 
 ### Notifications 
 #### Toast notifications 
@@ -121,47 +114,39 @@ Content Area
 
 ### Typography 
 ``` 
-Page Title: 
-32px 
-Bold 
+Page Title -> 32px Bold 
 
-Section Title: 
-24px 
-Semi-bold 
+Section Title -> 24px Semi-bold 
 
-Body Text:
-14-16px 
-Regular 
+Body Text -> 14-16px Regular 
 
-Helper Text: 
-12-14px 
-Regular 
+Helper Text -> 12-14px Regular 
 
 ```
 
-### Prioritize scannability over decoration. 
+### Priority: readability and scanning, no decorative typography.
+--- 
+## 5. Color System
 
-### Color System: 
-- Page color scheme is Red, Sand, Gray 
-
-#### Successful messages - Sand (#af9a58) 
-
-#### Warning messages, Pending actions -  Silver (#c0c0c0)
-
-#### Error messages, Delete action - Crimson (#dc143c)
+### Primary Brand Palette 
+- Deep Blue: #003C78
+- Ocean Blue: #046A97
+- Soft Background: #FDFFEA
+- Accent Coral: #FF6138
 
 --- 
 
-## 5. Consistency Rules  
+## 6. Consistency Rules  
  
 ### Theme Consistency 
-
-#### Both light and dark modes must provide similar functionality. 
-- Preserve hierarchy and spacing 
-- No feature different between themes 
+- Light and dark modes must preserve: 
+    - Layout structure 
+    - Spacing system 
+    - Component behavior 
+- No feature differences between themes. 
 
 ### Naming Consistency 
-#### Concepts that are similar should use the same label such as Application. 
+- Use consistent terms across systems. 
 
 ### Status Consistency 
 #### Status names should remain consistent. 
@@ -172,21 +157,16 @@ Regular
 - Withdrawn 
 
 ### Action Consistency 
-- Search should be above tables 
-- Filters should be beside Search 
-- Save button on right and Cancel button on left of Save 
+
+- Search -> Above Tables 
+- Filters -> Next to search 
+- Primary action -> top-right aligned 
+- Cancel -> left of Save button 
 
 ### Accessibility Rules 
-- Buttons must be labeled. 
+- All buttons must be labeled. 
 - Colors should be consistent with the color scheme. 
 - Keyboard navigation must be supported. 
-
-### Approved Component Libary (Shadcn) 
-#### Preferred Components: 
-- Cards
-- Button
-- Table 
-- Toast 
-- Select 
+ 
 
 --- 
