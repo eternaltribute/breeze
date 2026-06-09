@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
