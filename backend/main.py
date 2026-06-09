@@ -17,6 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # routers
 app.include_router(auth.router)  # registers auth router with FastAPI .
 
