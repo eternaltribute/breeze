@@ -1,7 +1,8 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-import os
+
+from app.routers import auth
 
 load_dotenv()
 
@@ -16,9 +17,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# routers
+app.include_router(auth.router)  # registers auth router with FastAPI
+
+
 @app.get("/")
 def root():
     return {"message": "Breeze API is running"}
+
 
 @app.get("/health")
 def health():
