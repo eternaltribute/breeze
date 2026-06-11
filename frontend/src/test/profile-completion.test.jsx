@@ -14,7 +14,12 @@ describe("Profile Completion Indicator", () => {
   });
 
   it("returns 100% when all required fields are filled", () => {
-    const profile = { firstName: "Jane", lastName: "Doe", email: "jane@example.com", summary: "Developer" };
+    const profile = {
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      summary: "Developer",
+    };
     expect(getCompletion(profile)).toBe(100);
   });
 
@@ -24,7 +29,13 @@ describe("Profile Completion Indicator", () => {
   });
 
   it("does not count phone as a required field", () => {
-    const profile = { firstName: "Jane", lastName: "Doe", email: "jane@example.com", summary: "Dev", phone: "" };
+    const profile = {
+      firstName: "Jane",
+      lastName: "Doe",
+      email: "jane@example.com",
+      summary: "Dev",
+      phone: "",
+    };
     expect(getCompletion(profile)).toBe(100);
   });
 });
