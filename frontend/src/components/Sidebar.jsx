@@ -5,7 +5,7 @@ function Sidebar() {
     <div
       style={{ width: "200px", borderRight: "1px solid #ccc", height: "100vh", padding: "20px" }}
     >
-      <h2>Breeze</h2>
+      <h2 style={{ color: "#003C78" }}>Breeze</h2>
       <nav>
         <ul style={{ listStyle: "none", padding: 0 }}>
           <li>

@@ -7,7 +7,7 @@
 :root {
   --text: #6b6375;
   --text-h: #08060d;
-  --bg: #fff;
+  --bg: #d9c0c0;
   --border: oklch(0.922 0 0);
   --code-bg: #f4f3ec;
   --accent: oklch(0.97 0 0);
