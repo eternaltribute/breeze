@@ -35,44 +35,33 @@ function Dashboard() {
   ];
 
   return (
-    <div
-      className="min-h-screen p-6 space-y-8"
-      style={{ backgroundColor: "#F8FAFC" }}
-    >
-  
+    <div className="min-h-screen p-6 space-y-8" style={{ backgroundColor: "#F8FAFC" }}>
+      {/* Hero Section */}
+      <section
+        className="rounded-2xl p-8 text-white shadow-sm"
+        style={{
+          background: "linear-gradient(135deg, #003C78 0%, #046A97 100%)",
+        }}
+      >
+        <h1 className="text-4xl font-bold">
+          Welcome Back{user?.firstName ? `, ${user.firstName}` : ""}
+        </h1>
 
-{/* Hero Section */}
-<section
-  className="rounded-2xl p-8 text-white shadow-sm"
-  style={{
-    background:
-      "linear-gradient(135deg, #003C78 0%, #046A97 100%)",
-  }}
->
-  <h1 className="text-4xl font-bold">
-    Welcome Back{user?.firstName ? `, ${user.firstName}` : ""}
-  </h1>
+        <p className="mt-3 text-white/90">
+          Track applications, manage documents, and stay on top of your career journey.
+        </p>
 
-  <p className="mt-3 text-white/90">
-    Track applications, manage documents, and stay
-    on top of your career journey.
-  </p>
-
-  <button
-    className="mt-6 rounded-lg px-5 py-2 font-medium text-white transition hover:opacity-90"
-    style={{ backgroundColor: "#FF6138" }}
-  >
-    Upload Resume
-  </button>
-</section>
-
+        <button
+          className="mt-6 rounded-lg px-5 py-2 font-medium text-white transition hover:opacity-90"
+          style={{ backgroundColor: "#FF6138" }}
+        >
+          Upload Resume
+        </button>
+      </section>
 
       {/* Recent Activity */}
       <section className="space-y-4">
-        <h2
-          className="text-2xl font-semibold"
-          style={{ color: "#046A97" }}
-        >
+        <h2 className="text-2xl font-semibold" style={{ color: "#046A97" }}>
           Recent Activity
         </h2>
 
@@ -85,13 +74,9 @@ function Dashboard() {
                 borderTop: "4px solid #046A97",
               }}
             >
-              <h3 className="font-semibold text-gray-900">
-                {card.title}
-              </h3>
+              <h3 className="font-semibold text-gray-900">{card.title}</h3>
 
-              <p className="mt-2 text-sm text-gray-600">
-                {card.description}
-              </p>
+              <p className="mt-2 text-sm text-gray-600">{card.description}</p>
             </div>
           ))}
         </div>
@@ -99,10 +84,7 @@ function Dashboard() {
 
       {/* Application Status */}
       <section className="space-y-4">
-        <h2
-          className="text-2xl font-semibold"
-          style={{ color: "#046A97" }}
-        >
+        <h2 className="text-2xl font-semibold" style={{ color: "#046A97" }}>
           Application Status
         </h2>
 
@@ -115,18 +97,13 @@ function Dashboard() {
                 borderTop: "4px solid #003C78",
               }}
             >
-              <h3 className="font-semibold text-gray-900">
-                {card.title}
-              </h3>
+              <h3 className="font-semibold text-gray-900">{card.title}</h3>
 
               <div className="mt-3">
                 <span
                   className="rounded-full px-3 py-1 text-sm font-medium text-white"
                   style={{
-                    backgroundColor:
-                      card.status === "Interview"
-                        ? "#FF6138"
-                        : "#046A97",
+                    backgroundColor: card.status === "Interview" ? "#FF6138" : "#046A97",
                   }}
                 >
                   {card.status}
@@ -139,10 +116,7 @@ function Dashboard() {
 
       {/* Document Updates */}
       <section className="space-y-4">
-        <h2
-          className="text-2xl font-semibold"
-          style={{ color: "#046A97" }}
-        >
+        <h2 className="text-2xl font-semibold" style={{ color: "#046A97" }}>
           Document Updates
         </h2>
 
@@ -155,13 +129,9 @@ function Dashboard() {
                 borderTop: "4px solid #FF6138",
               }}
             >
-              <h3 className="font-semibold text-gray-900">
-                {card.title}
-              </h3>
+              <h3 className="font-semibold text-gray-900">{card.title}</h3>
 
-              <p className="mt-2 text-sm text-gray-600">
-                {card.description}
-              </p>
+              <p className="mt-2 text-sm text-gray-600">{card.description}</p>
             </div>
           ))}
         </div>

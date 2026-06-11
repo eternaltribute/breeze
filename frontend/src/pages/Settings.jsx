@@ -1,15 +1,9 @@
 function Settings() {
   return (
-    <div
-      className="min-h-screen p-6 space-y-8"
-      style={{ backgroundColor: "#F8FAFC" }}
-    >
+    <div className="min-h-screen p-6 space-y-8" style={{ backgroundColor: "#F8FAFC" }}>
       {/* Page Header */}
       <section>
-        <h1
-          className="text-3xl font-bold"
-          style={{ color: "#003C78" }}
-        >
+        <h1 className="text-3xl font-bold" style={{ color: "#003C78" }}>
           Settings
         </h1>
 
@@ -24,8 +18,10 @@ function Settings() {
           Account Information
         </h2>
 
-        <div className="rounded-xl bg-white p-6 shadow-sm border-l-4"
-             style={{ borderColor: "#046A97" }}>
+        <div
+          className="rounded-xl bg-white p-6 shadow-sm border-l-4"
+          style={{ borderColor: "#046A97" }}
+        >
           <p className="font-medium text-gray-900">Name</p>
           <p className="text-sm text-gray-600">User Name Placeholder</p>
 
@@ -47,8 +43,10 @@ function Settings() {
           Profile Completion
         </h2>
 
-        <div className="rounded-xl bg-white p-6 shadow-sm border-l-4"
-             style={{ borderColor: "#003C78" }}>
+        <div
+          className="rounded-xl bg-white p-6 shadow-sm border-l-4"
+          style={{ borderColor: "#003C78" }}
+        >
           <p className="font-medium text-gray-900">Profile Status</p>
 
           <p className="text-sm text-gray-600">80% Complete</p>
@@ -67,8 +65,10 @@ function Settings() {
           Document Preferences
         </h2>
 
-        <div className="rounded-xl bg-white p-6 shadow-sm border-l-4"
-             style={{ borderColor: "#046A97" }}>
+        <div
+          className="rounded-xl bg-white p-6 shadow-sm border-l-4"
+          style={{ borderColor: "#046A97" }}
+        >
           <p className="font-medium text-gray-900">Default Resume</p>
           <p className="text-sm text-gray-600">Resume_v1.pdf</p>
         </div>
@@ -80,8 +80,10 @@ function Settings() {
           Application Preferences
         </h2>
 
-        <div className="rounded-xl bg-white p-6 shadow-sm border-l-4"
-             style={{ borderColor: "#003C78" }}>
+        <div
+          className="rounded-xl bg-white p-6 shadow-sm border-l-4"
+          style={{ borderColor: "#003C78" }}
+        >
           <p className="font-medium text-gray-900">Follow-Up Reminders</p>
           <p className="text-sm text-gray-600">Coming Soon</p>
 
@@ -98,8 +100,10 @@ function Settings() {
           Security
         </h2>
 
-        <div className="rounded-xl bg-white p-6 shadow-sm border-l-4"
-             style={{ borderColor: "#FF6138" }}>
+        <div
+          className="rounded-xl bg-white p-6 shadow-sm border-l-4"
+          style={{ borderColor: "#FF6138" }}
+        >
           <p className="font-medium text-gray-900">Password Management</p>
           <p className="text-sm text-gray-600">Managed by Clerk</p>
 
