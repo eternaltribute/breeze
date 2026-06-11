@@ -1,141 +1,99 @@
 import { useUser } from "@clerk/clerk-react";
-function Dashboard() {
-  const { user } = useUser();
-  const activityCards = [
-    {
-      title: "Application Updated",
-      description: "Software Engineer application status changed.",
-    },
-    {
-      title: "Interview Scheduled",
-      description: "Frontend Developer interview scheduled.",
-    },
-  ];
 
-  const statusCards = [
-    {
-      title: "Software Engineer",
-      status: "Applied",
-    },
-    {
-      title: "Frontend Developer",
-      status: "Interview",
-    },
-  ];
+const jobs = [
+  {
+    id: 1,
+    title: "Software Engineer",
+    company: "Google",
+    stage: "Interview",
+    lastActivity: "2026-06-09",
+  },
+  {
+    id: 2,
+    title: "Frontend Developer",
+    company: "Meta",
+    stage: "Applied",
+    lastActivity: "2026-06-08",
+  },
+  {
+    id: 3,
+    title: "Full Stack Developer",
+    company: "Spotify",
+    stage: "Interested",
+    lastActivity: "2026-06-07",
+  },
+  {
+    id: 4,
+    title: "React Developer",
+    company: "Netflix",
+    stage: "Offer",
+    lastActivity: "2026-06-06",
+  },
+];
 
-  const documentCards = [
-    {
-      title: "Resume.pdf",
-      description: "Updated 2 days ago",
-    },
-    {
-      title: "CoverLetter.pdf",
-      description: "Updated 5 days ago",
-    },
-  ];
+const stageColor = (stage) => {
+  if (stage === "Interview" || stage === "Offer") return "#FF6138";
+  if (stage === "Applied") return "#046A97";
+  return "#9ca3af";
+};
 
+function JobCard({ title, company, stage, lastActivity }) {
   return (
-    <div className="min-h-screen p-6 space-y-8" style={{ backgroundColor: "#F8FAFC" }}>
-      {/* Hero Section */}
-      <section
-        className="rounded-2xl p-8 text-white shadow-sm"
+    <div
+      style={{
+        backgroundColor: "white",
+        borderRadius: "12px",
+        padding: "20px",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        borderTop: "4px solid #003C78",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+      }}
+    >
+      <div>
+        <h3 style={{ margin: 0, color: "#003C78", fontSize: "16px", fontWeight: 600 }}>{title}</h3>
+        <p style={{ margin: "4px 0 0", color: "#6b7280", fontSize: "14px" }}>{company}</p>
+      </div>
+      <span
         style={{
-          background: "linear-gradient(135deg, #003C78 0%, #046A97 100%)",
+          display: "inline-block",
+          backgroundColor: stageColor(stage),
+          color: "white",
+          borderRadius: "999px",
+          padding: "3px 12px",
+          fontSize: "12px",
+          fontWeight: 500,
+          alignSelf: "flex-start",
         }}
       >
-        <h1 className="text-4xl font-bold">
-          Welcome Back{user?.firstName ? `, ${user.firstName}` : ""}
-        </h1>
+        {stage}
+      </span>
+      <p style={{ margin: 0, color: "#9ca3af", fontSize: "12px" }}>Last activity: {lastActivity}</p>
+    </div>
+  );
+}
 
-        <p className="mt-3 text-white/90">
-          Track applications, manage documents, and stay on top of your career journey.
-        </p>
+function Dashboard() {
+  const { user } = useUser();
 
-        <button
-          className="mt-6 rounded-lg px-5 py-2 font-medium text-white transition hover:opacity-90"
-          style={{ backgroundColor: "#FF6138" }}
-        >
-          Upload Resume
-        </button>
-      </section>
-
-      {/* Recent Activity */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-semibold" style={{ color: "#046A97" }}>
-          Recent Activity
-        </h2>
-
-        <div className="grid gap-4">
-          {activityCards.map((card, index) => (
-            <div
-              key={index}
-              className="rounded-xl bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer"
-              style={{
-                borderTop: "4px solid #046A97",
-              }}
-            >
-              <h3 className="font-semibold text-gray-900">{card.title}</h3>
-
-              <p className="mt-2 text-sm text-gray-600">{card.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Application Status */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-semibold" style={{ color: "#046A97" }}>
-          Application Status
-        </h2>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {statusCards.map((card, index) => (
-            <div
-              key={index}
-              className="rounded-xl bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer"
-              style={{
-                borderTop: "4px solid #003C78",
-              }}
-            >
-              <h3 className="font-semibold text-gray-900">{card.title}</h3>
-
-              <div className="mt-3">
-                <span
-                  className="rounded-full px-3 py-1 text-sm font-medium text-white"
-                  style={{
-                    backgroundColor: card.status === "Interview" ? "#FF6138" : "#046A97",
-                  }}
-                >
-                  {card.status}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Document Updates */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-semibold" style={{ color: "#046A97" }}>
-          Document Updates
-        </h2>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {documentCards.map((card, index) => (
-            <div
-              key={index}
-              className="rounded-xl bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md cursor-pointer"
-              style={{
-                borderTop: "4px solid #FF6138",
-              }}
-            >
-              <h3 className="font-semibold text-gray-900">{card.title}</h3>
-
-              <p className="mt-2 text-sm text-gray-600">{card.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+  return (
+    <div style={{ backgroundColor: "#ffffff", minHeight: "100vh", padding: "24px" }}>
+      <h1 style={{ color: "#003C78", marginBottom: "8px" }}>
+        Welcome back{user?.firstName ? `, ${user.firstName}` : ""}!
+      </h1>
+      <p style={{ color: "#6b7280", marginBottom: "24px" }}>Here are your active applications.</p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {jobs.map((job) => (
+          <JobCard key={job.id} {...job} />
+        ))}
+      </div>
     </div>
   );
 }
