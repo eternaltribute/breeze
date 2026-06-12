@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useSignUp } from "@clerk/clerk-react";
 import { useNavigate, Link } from "react-router-dom";
 
-function Signup() {
-  const { signUp, isLoaded } = useSignUp();
+function SignUp() {
+  const { signUp, isLoaded, setActive } = useSignUp();
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState("");
@@ -40,7 +40,6 @@ function Signup() {
       setPendingVerification(true);
     } catch (err) {
       console.error(err);
-
       setError(err.errors?.[0]?.message || "Unable to create account.");
     } finally {
       setLoading(false);
@@ -50,18 +49,28 @@ function Signup() {
   const handleVerification = async (e) => {
     e.preventDefault();
 
+    if (!isLoaded) return;
+
+    setLoading(true);
+    setError("");
+
     try {
       const result = await signUp.attemptEmailAddressVerification({
         code,
       });
 
       if (result.status === "complete") {
-        navigate("/login");
+        // 🔥 IMPORTANT FIX: activate session instead of redirecting blindly
+        await setActive({ session: result.createdSessionId });
+
+        // send user straight into app
+        navigate("/");
       }
     } catch (err) {
       console.error(err);
-
       setError(err.errors?.[0]?.message || "Verification failed.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,7 +86,11 @@ function Signup() {
             Enter the verification code sent to your email address.
           </p>
 
-          {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+          {error && (
+            <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleVerification}>
             <input
@@ -91,12 +104,13 @@ function Signup() {
 
             <button
               type="submit"
+              disabled={loading}
               className="w-full text-white rounded-lg p-3"
               style={{
                 background: "linear-gradient(135deg,#003C78,#046A97)",
               }}
             >
-              Verify Email
+              {loading ? "Verifying..." : "Verify Email"}
             </button>
           </form>
         </div>
@@ -113,58 +127,52 @@ function Signup() {
             Create Account
           </h1>
 
-          <p className="text-gray-500 mb-8">Join Breeze and start tracking applications.</p>
+          <p className="text-gray-500 mb-8">
+            Join Breeze and start tracking applications.
+          </p>
 
-          {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+          {error && (
+            <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSignup}>
-            <div className="mb-4">
-              <label className="block mb-2 font-medium">First Name</label>
+            <input
+              type="text"
+              placeholder="First Name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full border rounded-lg p-3 mb-4"
+              required
+            />
 
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="w-full border rounded-lg p-3"
-                required
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="Last Name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full border rounded-lg p-3 mb-4"
+              required
+            />
 
-            <div className="mb-4">
-              <label className="block mb-2 font-medium">Last Name</label>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border rounded-lg p-3 mb-4"
+              required
+            />
 
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full border rounded-lg p-3"
-                required
-              />
-            </div>
-
-            <div className="mb-4">
-              <label className="block mb-2 font-medium">Email</label>
-
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border rounded-lg p-3"
-                required
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block mb-2 font-medium">Password</label>
-
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full border rounded-lg p-3"
-                required
-              />
-            </div>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border rounded-lg p-3 mb-6"
+              required
+            />
 
             <button
               type="submit"
@@ -190,13 +198,12 @@ function Signup() {
       {/* Right Side */}
       <div
         className="hidden lg:flex lg:w-1/2 items-center justify-center"
-        style={{
-          background: "linear-gradient(135deg,#003C78,#046A97)",
-        }}
+        style={{ background: "linear-gradient(135deg,#003C78,#046A97)" }}
       >
         <div className="text-white max-w-md">
-          <h2 className="text-4xl font-bold mb-6">Start Your Career Journey</h2>
-
+          <h2 className="text-4xl font-bold mb-6">
+            Start Your Career Journey
+          </h2>
           <p>
             Create an account to organize applications, resumes, and opportunities in one place.
           </p>
@@ -206,4 +213,4 @@ function Signup() {
   );
 }
 
-export default Signup;
+export default SignUp;
