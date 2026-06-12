@@ -6,7 +6,7 @@ import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
-import Signup from "./pages/Signup";
+import SignUp from "./pages/SignUp";
 
 const clerkEnabled = import.meta.env.VITE_CLERK_ENABLED !== "false"; // "true" for Log in ON or "false" for OFF
 
@@ -19,7 +19,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Login />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
+              <Route path="/signUp" element={<SignUp />} />
             </Routes>
           </SignedOut>
           <SignedIn>
