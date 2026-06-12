@@ -12,9 +12,7 @@ const initialProfile = {
 };
 
 function getCompletion(profile) {
-  const filled = REQUIRED_FIELDS.filter(
-    (f) => profile[f].trim() !== ""
-  ).length;
+  const filled = REQUIRED_FIELDS.filter((f) => profile[f].trim() !== "").length;
   return Math.round((filled / REQUIRED_FIELDS.length) * 100);
 }
 
@@ -54,27 +52,27 @@ function Profile() {
       <div style={{ width: "100%", maxWidth: "700px" }}>
         {/* HEADER */}
         <h1
-  style={{
-    color: "#003C78",
-    marginBottom: "12px",
-    fontSize: "36px",
-    lineHeight: "1.2",
-    fontWeight: 700,
-  }}
->
-  My Profile
-</h1>
+          style={{
+            color: "#003C78",
+            marginBottom: "12px",
+            fontSize: "36px",
+            lineHeight: "1.2",
+            fontWeight: 700,
+          }}
+        >
+          My Profile
+        </h1>
 
         <p
-  style={{
-    color: "#6b7280",
-    marginBottom: "28px",
-    fontSize: "14px",
-    lineHeight: "1.5",
-  }}
->
-  Keep your profile up to date to get the best results.
-</p>
+          style={{
+            color: "#6b7280",
+            marginBottom: "28px",
+            fontSize: "14px",
+            lineHeight: "1.5",
+          }}
+        >
+          Keep your profile up to date to get the best results.
+        </p>
 
         {/* COMPLETION CARD */}
         <div
@@ -90,9 +88,7 @@ function Profile() {
               marginBottom: "10px",
             }}
           >
-            <span style={{ fontWeight: 600, color: "#003C78" }}>
-              Profile Completion
-            </span>
+            <span style={{ fontWeight: 600, color: "#003C78" }}>Profile Completion</span>
 
             <span
               style={{
@@ -111,9 +107,7 @@ function Profile() {
               ? "Your profile is complete! 🎉"
               : `Fill in ${
                   REQUIRED_FIELDS.length -
-                  REQUIRED_FIELDS.filter(
-                    (f) => profile[f].trim() !== ""
-                  ).length
+                  REQUIRED_FIELDS.filter((f) => profile[f].trim() !== "").length
                 } more required field(s) to complete your profile.`}
           </p>
         </div>
@@ -227,11 +221,7 @@ function Profile() {
             Save Profile
           </button>
 
-          {saved && (
-            <span style={{ color: "#046A97", fontSize: "14px" }}>
-              ✓ Profile saved!
-            </span>
-          )}
+          {saved && <span style={{ color: "#046A97", fontSize: "14px" }}>✓ Profile saved!</span>}
         </div>
       </div>
     </div>

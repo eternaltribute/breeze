@@ -41,10 +41,7 @@ function Signup() {
     } catch (err) {
       console.error(err);
 
-      setError(
-        err.errors?.[0]?.message ||
-          "Unable to create account."
-      );
+      setError(err.errors?.[0]?.message || "Unable to create account.");
     } finally {
       setLoading(false);
     }
@@ -54,10 +51,9 @@ function Signup() {
     e.preventDefault();
 
     try {
-      const result =
-        await signUp.attemptEmailAddressVerification({
-          code,
-        });
+      const result = await signUp.attemptEmailAddressVerification({
+        code,
+      });
 
       if (result.status === "complete") {
         navigate("/login");
@@ -65,10 +61,7 @@ function Signup() {
     } catch (err) {
       console.error(err);
 
-      setError(
-        err.errors?.[0]?.message ||
-          "Verification failed."
-      );
+      setError(err.errors?.[0]?.message || "Verification failed.");
     }
   };
 
@@ -76,23 +69,15 @@ function Signup() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-full max-w-md px-6">
-          <h1
-            className="text-3xl font-bold mb-4"
-            style={{ color: "#003C78" }}
-          >
+          <h1 className="text-3xl font-bold mb-4" style={{ color: "#003C78" }}>
             Verify Your Email
           </h1>
 
           <p className="text-gray-500 mb-6">
-            Enter the verification code sent to your
-            email address.
+            Enter the verification code sent to your email address.
           </p>
 
-          {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-              {error}
-            </div>
-          )}
+          {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
 
           <form onSubmit={handleVerification}>
             <input
@@ -108,8 +93,7 @@ function Signup() {
               type="submit"
               className="w-full text-white rounded-lg p-3"
               style={{
-                background:
-                  "linear-gradient(135deg,#003C78,#046A97)",
+                background: "linear-gradient(135deg,#003C78,#046A97)",
               }}
             >
               Verify Email
@@ -125,83 +109,58 @@ function Signup() {
       {/* Left Side */}
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-md">
-          <h1
-            className="text-4xl font-bold mb-2"
-            style={{ color: "#003C78" }}
-          >
+          <h1 className="text-4xl font-bold mb-2" style={{ color: "#003C78" }}>
             Create Account
           </h1>
 
-          <p className="text-gray-500 mb-8">
-            Join Breeze and start tracking applications.
-          </p>
+          <p className="text-gray-500 mb-8">Join Breeze and start tracking applications.</p>
 
-          {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-              {error}
-            </div>
-          )}
+          {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
 
           <form onSubmit={handleSignup}>
             <div className="mb-4">
-              <label className="block mb-2 font-medium">
-                First Name
-              </label>
+              <label className="block mb-2 font-medium">First Name</label>
 
               <input
                 type="text"
                 value={firstName}
-                onChange={(e) =>
-                  setFirstName(e.target.value)
-                }
+                onChange={(e) => setFirstName(e.target.value)}
                 className="w-full border rounded-lg p-3"
                 required
               />
             </div>
 
             <div className="mb-4">
-              <label className="block mb-2 font-medium">
-                Last Name
-              </label>
+              <label className="block mb-2 font-medium">Last Name</label>
 
               <input
                 type="text"
                 value={lastName}
-                onChange={(e) =>
-                  setLastName(e.target.value)
-                }
+                onChange={(e) => setLastName(e.target.value)}
                 className="w-full border rounded-lg p-3"
                 required
               />
             </div>
 
             <div className="mb-4">
-              <label className="block mb-2 font-medium">
-                Email
-              </label>
+              <label className="block mb-2 font-medium">Email</label>
 
               <input
                 type="email"
                 value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full border rounded-lg p-3"
                 required
               />
             </div>
 
             <div className="mb-6">
-              <label className="block mb-2 font-medium">
-                Password
-              </label>
+              <label className="block mb-2 font-medium">Password</label>
 
               <input
                 type="password"
                 value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full border rounded-lg p-3"
                 required
               />
@@ -212,23 +171,16 @@ function Signup() {
               disabled={loading}
               className="w-full text-white rounded-lg p-3"
               style={{
-                background:
-                  "linear-gradient(135deg,#003C78,#046A97)",
+                background: "linear-gradient(135deg,#003C78,#046A97)",
               }}
             >
-              {loading
-                ? "Creating Account..."
-                : "Create Account"}
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
           </form>
 
           <div className="text-center mt-6">
             Already have an account?{" "}
-            <Link
-              to="/login"
-              className="font-semibold"
-              style={{ color: "#FF6113" }}
-            >
+            <Link to="/login" className="font-semibold" style={{ color: "#FF6113" }}>
               Sign In
             </Link>
           </div>
@@ -239,18 +191,14 @@ function Signup() {
       <div
         className="hidden lg:flex lg:w-1/2 items-center justify-center"
         style={{
-          background:
-            "linear-gradient(135deg,#003C78,#046A97)",
+          background: "linear-gradient(135deg,#003C78,#046A97)",
         }}
       >
         <div className="text-white max-w-md">
-          <h2 className="text-4xl font-bold mb-6">
-            Start Your Career Journey
-          </h2>
+          <h2 className="text-4xl font-bold mb-6">Start Your Career Journey</h2>
 
           <p>
-            Create an account to organize applications,
-            resumes, and opportunities in one place.
+            Create an account to organize applications, resumes, and opportunities in one place.
           </p>
         </div>
       </div>

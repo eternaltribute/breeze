@@ -15,13 +15,13 @@ function App() {
     <BrowserRouter>
       {clerkEnabled ? (
         <>
-         <SignedOut>
-  <Routes>
-    <Route path="/" element={<Login />} />
-    <Route path="/login" element={<Login />} />
-    <Route path="/signup" element={<Signup />} />
-  </Routes>
-</SignedOut>
+          <SignedOut>
+            <Routes>
+              <Route path="/" element={<Login />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+            </Routes>
+          </SignedOut>
           <SignedIn>
             <div style={{ display: "flex" }}>
               <Sidebar />

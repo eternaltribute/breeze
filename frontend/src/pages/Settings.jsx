@@ -1,29 +1,26 @@
 function Settings() {
   const cardStyle = {
-  backgroundColor: "white",
-  borderRadius: "12px",
-  padding: "20px",
-  marginBottom: "24px",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-};
+    backgroundColor: "white",
+    borderRadius: "12px",
+    padding: "20px",
+    marginBottom: "24px",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+  };
   return (
-    <div
-      className="min-h-screen p-6 space-y-8"
-      style={{ backgroundColor: "#F8FAFC" }}
-    >
+    <div className="min-h-screen p-6 space-y-8" style={{ backgroundColor: "#F8FAFC" }}>
       {/* Page Header */}
       <section className="space-y-2">
         <h1
-  style={{
-    color: "#003C78",
-    marginBottom: "12px",
-    fontSize: "36px",
-    lineHeight: "1.2",
-    fontWeight: 700,
-  }}
->
-  Settings
-</h1>
+          style={{
+            color: "#003C78",
+            marginBottom: "12px",
+            fontSize: "36px",
+            lineHeight: "1.2",
+            fontWeight: 700,
+          }}
+        >
+          Settings
+        </h1>
 
         <p className="text-sm text-gray-600">
           Manage your account preferences and application settings.
@@ -36,10 +33,7 @@ function Settings() {
           Account Information
         </h2>
 
-        <div
-         
-          style={{ ...cardStyle, borderLeft: "4px solid #046A97"}}
-        >
+        <div style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}>
           <div>
             <p className="font-medium text-gray-900">Name</p>
             <p className="text-sm text-gray-600">User Name Placeholder</p>
@@ -51,9 +45,7 @@ function Settings() {
           </div>
 
           <div>
-            <p className="font-medium text-gray-900">
-              Authentication Provider
-            </p>
+            <p className="font-medium text-gray-900">Authentication Provider</p>
             <p className="text-sm text-gray-600">Clerk</p>
           </div>
         </div>
@@ -65,10 +57,7 @@ function Settings() {
           Profile Completion
         </h2>
 
-        <div
-         
-          style={{ ...cardStyle, borderLeft: "4px solid #046A97"}}
-        >
+        <div style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}>
           <div>
             <p className="font-medium text-gray-900">Profile Status</p>
             <p className="text-sm text-gray-600">80% Complete</p>
@@ -88,9 +77,7 @@ function Settings() {
           Document Preferences
         </h2>
 
-        <div
-          style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}
-        >
+        <div style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}>
           <p className="font-medium text-gray-900">Default Resume</p>
           <p className="text-sm text-gray-600">Resume_v1.pdf</p>
         </div>
@@ -102,19 +89,14 @@ function Settings() {
           Application Preferences
         </h2>
 
-        <div
-         
-          style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}
-        >
+        <div style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}>
           <div>
             <p className="font-medium text-gray-900">Follow-Up Reminders</p>
             <p className="text-sm text-gray-600">Coming Soon</p>
           </div>
 
           <div>
-            <p className="font-medium text-gray-900">
-              Notification Preferences
-            </p>
+            <p className="font-medium text-gray-900">Notification Preferences</p>
             <p className="text-sm text-gray-600">Coming Soon</p>
           </div>
         </div>
@@ -126,19 +108,14 @@ function Settings() {
           Security
         </h2>
 
-        <div
-          className="border-l-4"
-          style={{ ...cardStyle, borderLeft: "4px solid #FF6138" }}
-        >
+        <div className="border-l-4" style={{ ...cardStyle, borderLeft: "4px solid #FF6138" }}>
           <div>
             <p className="font-medium text-gray-900">Password Management</p>
             <p className="text-sm text-gray-600">Managed by Clerk</p>
           </div>
 
           <div>
-            <p className="font-medium text-gray-900">
-              Two-Factor Authentication
-            </p>
+            <p className="font-medium text-gray-900">Two-Factor Authentication</p>
             <p className="text-sm text-gray-600">Coming Soon</p>
           </div>
         </div>
