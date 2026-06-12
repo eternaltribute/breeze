@@ -6,6 +6,7 @@ import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
 const clerkEnabled = import.meta.env.VITE_CLERK_ENABLED !== "false"; // "true" for Log in ON or "false" for OFF
 
@@ -14,9 +15,13 @@ function App() {
     <BrowserRouter>
       {clerkEnabled ? (
         <>
-          <SignedOut>
-            <Login />
-          </SignedOut>
+         <SignedOut>
+  <Routes>
+    <Route path="/" element={<Login />} />
+    <Route path="/login" element={<Login />} />
+    <Route path="/signup" element={<Signup />} />
+  </Routes>
+</SignedOut>
           <SignedIn>
             <div style={{ display: "flex" }}>
               <Sidebar />
