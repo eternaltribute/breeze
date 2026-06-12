@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, protected
+from app.routers import auth, jobs, protected
 
 load_dotenv()
 
@@ -20,6 +20,7 @@ app.add_middleware(
 # routers
 app.include_router(auth.router)  # registers auth router with FastAPI .
 app.include_router(protected.router)  # registers protected router with FastAPI S1-014
+app.include_router(jobs.router)  # registers jobs router with FastAPI S1-015
 
 
 @app.get("/")
