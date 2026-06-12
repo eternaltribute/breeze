@@ -86,11 +86,7 @@ function SignUp() {
             Enter the verification code sent to your email address.
           </p>
 
-          {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-              {error}
-            </div>
-          )}
+          {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
 
           <form onSubmit={handleVerification}>
             <input
@@ -127,15 +123,9 @@ function SignUp() {
             Create Account
           </h1>
 
-          <p className="text-gray-500 mb-8">
-            Join Breeze and start tracking applications.
-          </p>
+          <p className="text-gray-500 mb-8">Join Breeze and start tracking applications.</p>
 
-          {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-              {error}
-            </div>
-          )}
+          {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
 
           <form onSubmit={handleSignup}>
             <input
@@ -201,9 +191,7 @@ function SignUp() {
         style={{ background: "linear-gradient(135deg,#003C78,#046A97)" }}
       >
         <div className="text-white max-w-md">
-          <h2 className="text-4xl font-bold mb-6">
-            Start Your Career Journey
-          </h2>
+          <h2 className="text-4xl font-bold mb-6">Start Your Career Journey</h2>
           <p>
             Create an account to organize applications, resumes, and opportunities in one place.
           </p>
