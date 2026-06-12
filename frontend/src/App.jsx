@@ -1,9 +1,10 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import Login from "./pages/Login";
 
 const clerkEnabled = import.meta.env.VITE_CLERK_ENABLED !== "false"; // "true" for Log in ON or "false" for OFF
 
@@ -13,7 +14,7 @@ function App() {
       {clerkEnabled ? (
         <>
           <SignedOut>
-            <SignIn />
+            <Login />
           </SignedOut>
           <SignedIn>
             <div style={{ display: "flex" }}>
