@@ -18,9 +18,12 @@ function Analytics() {
       >
         Analytics
       </h1>
-      <p style={{ 
-        color: "var(--color-subtext, #6b7280)", 
-        fontSize: "16px" }}>
+      <p
+        style={{
+          color: "var(--color-subtext, #6b7280)",
+          fontSize: "16px",
+        }}
+      >
         Job application metrics coming soon.
       </p>
     </div>

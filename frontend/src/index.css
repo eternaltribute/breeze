@@ -5,16 +5,37 @@
 @import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
+
+/* ============================================
+   BREEZE DESIGN TOKENS
+   All colors live here. Components use these
+   variables instead of hardcoded hex values.
+   ============================================ */
+
 :root {
+  /* Breeze semantic tokens - light mode */
+  --color-heading: #003c78;
+  --color-subtext: #6b7280;
+  --color-label: #374151;
+  --color-card-bg: #ffffff;
+  --color-page-bg: #f8fafc;
+  --color-border-default: #d1d5db;
+  --color-sidebar-bg: #ffffff;
+
+  /* Breeze brand colors (same in both modes) */
+  --brand-deep: #003c78;
+  --brand-ocean: #046a97;
+  --brand-coral: #ff6138;
+  --brand-soft: #fdffea;
+
+  /* Legacy vars (used by some components) */
   --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #d9c0c0;
+  --text-h: #003c78;
+  --bg: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
   --border: oklch(0.922 0 0);
   --code-bg: #f4f3ec;
-  --accent: oklch(0.97 0 0);
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
   --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
   --sans: system-ui, "Segoe UI", Roboto, sans-serif;
@@ -35,88 +56,125 @@
     font-size: 16px;
   }
 
+  /* Shadcn tokens - light mode */
   --background: oklch(1 0 0);
-
   --foreground: oklch(0.145 0 0);
-
   --card: oklch(1 0 0);
-
   --card-foreground: oklch(0.145 0 0);
-
   --popover: oklch(1 0 0);
-
   --popover-foreground: oklch(0.145 0 0);
-
   --primary: oklch(0.508 0.118 165.612);
-
   --primary-foreground: oklch(0.979 0.021 166.113);
-
   --secondary: oklch(0.967 0.001 286.375);
-
   --secondary-foreground: oklch(0.21 0.006 285.885);
-
   --muted: oklch(0.97 0 0);
-
   --muted-foreground: oklch(0.556 0 0);
-
   --accent-foreground: oklch(0.205 0 0);
-
   --destructive: oklch(0.577 0.245 27.325);
-
   --input: oklch(0.922 0 0);
-
   --ring: oklch(0.708 0 0);
-
   --chart-1: oklch(0.87 0 0);
-
   --chart-2: oklch(0.556 0 0);
-
   --chart-3: oklch(0.439 0 0);
-
   --chart-4: oklch(0.371 0 0);
-
   --chart-5: oklch(0.269 0 0);
-
   --radius: 0.625rem;
-
   --sidebar: oklch(0.985 0 0);
-
   --sidebar-foreground: oklch(0.145 0 0);
-
   --sidebar-primary: oklch(0.596 0.145 163.225);
-
   --sidebar-primary-foreground: oklch(0.979 0.021 166.113);
-
   --sidebar-accent: oklch(0.97 0 0);
-
   --sidebar-accent-foreground: oklch(0.205 0 0);
-
   --sidebar-border: oklch(0.922 0 0);
-
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* ============================================
+   DARK MODE — system preference
+   ============================================ */
 @media (prefers-color-scheme: dark) {
   :root {
+    --color-heading: #7db8e0;
+    --color-subtext: #9ca3af;
+    --color-label: #cbd5e1;
+    --color-card-bg: #1e3a5f;
+    --color-page-bg: #162032;
+    --color-border-default: #2a4a6e;
+    --color-sidebar-bg: #0e1829;
     --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --text-h: #e2e8f0;
+    --bg: #162032;
+    --bg-card: #1e3a5f;
+    --bg-sidebar: #0e1829;
+    --border: #2a4a6e;
+    --code-bg: #161b22;
+    --brand-ocean-muted: #0f3460;
+    --brand-ocean-text: #7db8e0;
+    --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
   }
+}
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+/* ============================================
+   DARK MODE — class toggle (Shadcn)
+   ============================================ */
+.dark {
+  /* Breeze semantic tokens */
+  --color-heading: #7db8e0;
+  --color-subtext: #9ca3af;
+  --color-label: #cbd5e1;
+  --color-card-bg: #1e3a5f;
+  --color-page-bg: #162032;
+  --color-border-default: #2a4a6e;
+  --color-sidebar-bg: #0e1829;
+
+  /* Legacy vars */
+  --text: #9ca3af;
+  --text-h: #e2e8f0;
+  --bg: #162032;
+  --bg-card: #1e3a5f;
+  --bg-sidebar: #0e1829;
+  --border: #2a4a6e;
+  --code-bg: #161b22;
+  --brand-ocean-muted: #0f3460;
+  --brand-ocean-text: #7db8e0;
+  --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
+
+  /* Shadcn tokens - dark mode */
+  --background: #162032;
+  --foreground: oklch(0.985 0 0);
+  --card: #1e3a5f;
+  --card-foreground: oklch(0.985 0 0);
+  --popover: #1e3a5f;
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.432 0.095 166.913);
+  --primary-foreground: oklch(0.979 0.021 166.113);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: #0e1829;
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.696 0.17 162.48);
+  --sidebar-primary-foreground: oklch(0.262 0.051 172.552);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 body {
   margin: 0;
+  background-color: var(--bg, #f8fafc);
 }
 
 #root {
@@ -124,7 +182,6 @@ body {
   max-width: 100%;
   margin: 0 auto;
   text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -135,7 +192,7 @@ h1,
 h2 {
   font-family: var(--heading);
   font-weight: 500;
-  color: var(--text-h);
+  color: var(--color-heading);
 }
 
 h1 {
@@ -147,6 +204,7 @@ h1 {
     margin: 20px 0;
   }
 }
+
 h2 {
   font-size: 24px;
   line-height: 118%;
@@ -156,19 +214,16 @@ h2 {
     font-size: 20px;
   }
 }
+
 p {
   margin: 0;
 }
 
-code,
-.counter {
+code {
   font-family: var(--mono);
   display: inline-flex;
   border-radius: 4px;
   color: var(--text-h);
-}
-
-code {
   font-size: 15px;
   line-height: 135%;
   padding: 4px 8px;
@@ -218,40 +273,6 @@ code {
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.432 0.095 166.913);
-  --primary-foreground: oklch(0.979 0.021 166.113);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.696 0.17 162.48);
-  --sidebar-primary-foreground: oklch(0.262 0.051 172.552);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -262,4 +283,19 @@ code {
   html {
     @apply font-sans;
   }
+}
+
+/* Tailwind class overrides for dark mode */
+.dark .text-gray-900 {
+  color: #e2e8f0;
+}
+.dark .text-gray-600 {
+  color: #9ca3af;
+}
+
+.dark .sidebar-nav-item {
+  color: #e2e8f0;
+}
+.dark .sidebar-nav-item.active {
+  color: #003c78;
 }

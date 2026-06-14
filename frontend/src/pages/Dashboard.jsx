@@ -93,7 +93,9 @@ function JobCard({ title, company, stage, lastActivity }) {
         {stage}
       </span>
 
-      <p style={{ margin: 0, color: "var(--text-h, #9ca3af)", fontSize: "12px" }}>Last activity: {lastActivity}</p>
+      <p style={{ margin: 0, color: "var(--text-h, #9ca3af)", fontSize: "12px" }}>
+        Last activity: {lastActivity}
+      </p>
     </div>
   );
 }
@@ -126,8 +128,9 @@ function Dashboard() {
         Welcome back{user?.firstName ? `, ${user.firstName}` : ""}!
       </h1>
 
-      
-      <p style={{ color: "var(--color-subtext, #6b7280)", marginBottom: "24px" }}>Here are your active applications.</p>
+      <p style={{ color: "var(--color-subtext, #6b7280)", marginBottom: "24px" }}>
+        Here are your active applications.
+      </p>
 
       {/* Job Grid */}
       <div

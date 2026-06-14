@@ -71,7 +71,9 @@ function Sidebar() {
         >
           B
         </div>
-        <span style={{ fontWeight: "700", fontSize: "18px", color: "var(--text-h, #003C78)" }}>Breeze</span>
+        <span style={{ fontWeight: "700", fontSize: "18px", color: "var(--text-h, #003C78)" }}>
+          Breeze
+        </span>
       </div>
 
       {/* Nav Groups */}
@@ -117,7 +119,9 @@ function Sidebar() {
                         fontSize: "14px",
                         fontWeight: isActive ? "600" : "400",
                         color: isActive ? "#1b68b6" : "var(--text-h, #6b7280)",
-                        backgroundColor: isActive ? "var(--brand-ocean-muted, #EFF6FF)" : "transparent",
+                        backgroundColor: isActive
+                          ? "var(--brand-ocean-muted, #EFF6FF)"
+                          : "transparent",
                         transition: "background-color 0.15s, color 0.15s",
                       }}
                     >
@@ -252,7 +256,9 @@ function Sidebar() {
       )}
 
       {/* User Card */}
-      <div style={{ borderTop: "1px solid var(--color-border-default, #e5e7eb)", paddingTop: "12px" }}>
+      <div
+        style={{ borderTop: "1px solid var(--color-border-default, #e5e7eb)", paddingTop: "12px" }}
+      >
         <div
           onClick={() => setPopupOpen(!popupOpen)}
           style={{
