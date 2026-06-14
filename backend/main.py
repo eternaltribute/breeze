@@ -5,7 +5,7 @@ from sqlmodel import text, Session
 from fastapi import Depends
 
 
-from app.routers import auth
+from app.routers import auth, jobs, protected
 from app.database import init_db
 from app.database import get_db
 from app.routers import jobs
@@ -24,7 +24,9 @@ app.add_middleware(
 )
 
 # routers
-app.include_router(auth.router)  # registers auth router with FastAPI
+app.include_router(auth.router)  # registers auth router with FastAPI .
+app.include_router(protected.router)  # registers protected router with FastAPI S1-014
+app.include_router(jobs.router)  # registers jobs router with FastAPI S1-015
 app.include_router(jobs.router)
 @app.on_event("startup")
 def on_startup():
