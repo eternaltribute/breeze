@@ -1,8 +1,14 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlmodel import text, Session
+from fastapi import Depends
+
 
 from app.routers import auth
+from app.database import init_db
+from app.database import get_db
+from app.routers import jobs
 
 load_dotenv()
 
@@ -19,7 +25,10 @@ app.add_middleware(
 
 # routers
 app.include_router(auth.router)  # registers auth router with FastAPI
-
+app.include_router(jobs.router)
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 @app.get("/")
 def root():
@@ -29,3 +38,11 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/health/db")
+def db_health(db: Session = Depends(get_db)):
+    try:
+        db.exec(text("SELECT 1"))
+        return {"database": "connected"}
+    except Exception as e:
+        return {"database": "error", "detail": str(e)}
