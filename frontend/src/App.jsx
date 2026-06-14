@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SignedIn, SignedOut, UserButton, useAuth } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
@@ -35,9 +35,7 @@ function App() {
             <div style={{ display: "flex" }}>
               <Sidebar />
 
-              <div style={{ marginLeft: "260px", padding: "20px", flex: 1 }}>
-                <UserButton />
-
+              <div style={{ marginLeft: "260px", flex: 1, minHeight: "100vh" }}>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/profile" element={<Profile />} />
@@ -52,7 +50,7 @@ function App() {
       ) : (
         <div style={{ display: "flex" }}>
           <Sidebar />
-          <div style={{ padding: "20px", flex: 1 }}>
+          <div style={{ flex: 1, minHeight: "100vh", backgroundColor: "var(--bg, #F8FAFC)" }}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
