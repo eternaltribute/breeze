@@ -5,6 +5,7 @@ from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
+
 class JobStage(str, Enum):
     INTERESTED = "interested"
     APPLIED = "applied"
@@ -34,5 +35,22 @@ class Job(SQLModel, table=True):
     salary_range: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
 
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class User(SQLModel, table=True):
+    __tablename__ = "users"
+
+    id: str = Field(primary_key=True)
+    email: str = Field(unique=True)
+    first_name: str
+    last_name: str
+    phone_number: Optional[str] = None
+    professional_summary: Optional[str] = None
+    desired_role: Optional[str] = None
+    desired_location: Optional[str] = None
+    desired_salary_min: Optional[int] = None
+    desired_salary_max: Optional[int] = None
+    open_to_relocation: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

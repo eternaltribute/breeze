@@ -1,4 +1,6 @@
 import os
+import requests
+from functools import lru_cache
 
 from dotenv import load_dotenv
 from fastapi import HTTPException, Security  # for return error responses
@@ -13,11 +15,15 @@ from jose import (
 
 load_dotenv()
 
-CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")  # reads clerk values from .env file
 CLERK_ISSUER_URL = os.getenv("CLERK_ISSUER_URL")
 
 security = HTTPBearer()  # creates bearer token extractor
 
+@lru_cache(maxsize=1)
+def get_jwks():
+    #fetch Clerk's public keys (cached so we only hit the endpoint once)
+    url = f"{CLERK_ISSUER_URL}/.well-known/jwks.json"
+    return requests.get(url).json()
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Security(security),
@@ -26,9 +32,10 @@ def get_current_user(
     try:
         payload = jwt.decode(
             token,
-            CLERK_SECRET_KEY,
+            get_jwks(),
             algorithms=["RS256"],
             issuer=CLERK_ISSUER_URL,
+            options={"leeway": 60},
         )
         return payload
     except JWTError:
