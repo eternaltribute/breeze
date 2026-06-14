@@ -1,4 +1,5 @@
 import { useUser } from "@clerk/clerk-react";
+import { useState, useEffect } from "react";
 
 const jobs = [
   {

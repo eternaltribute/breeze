@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useEffect } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import { Progress } from "@/components/ui/progress";
 
 const REQUIRED_FIELDS = ["firstName", "lastName", "email", "summary"];
@@ -17,9 +19,41 @@ function getCompletion(profile) {
 }
 
 function Profile() {
+  const { getToken } = useAuth();
   const [profile, setProfile] = useState(initialProfile);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  const BASE = import.meta.env.VITE_API_BASE_URL;
+
+  // Load existing profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProfile({
+            firstName: data.first_name ?? "",
+            lastName: data.last_name ?? "",
+            email: data.email ?? "",
+            phone: data.phone_number ?? "",
+            summary: data.professional_summary ?? "",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+  
   const completion = getCompletion(profile);
 
   const handleChange = (e) => {
@@ -27,8 +61,35 @@ function Profile() {
     setProfile({ ...profile, [e.target.name]: e.target.value });
   };
 
-  const handleSave = () => {
-    setSaved(true);
+  const handleSave = async () => {
+    try {
+      setError(null);
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/auth/profile`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          first_name: profile.firstName,
+          last_name: profile.lastName,
+          email: profile.email,
+          phone_number: profile.phone || null,
+          professional_summary: profile.summary || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setSaved(true);
+    } catch (err) {
+      setError("Failed to save profile. Try again.");
+    }
+    const { user } = useUser();
+
+    await user.update({
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+    });
   };
 
   const cardStyle = {

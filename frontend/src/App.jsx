@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SignedIn, SignedOut, UserButton, useAuth } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, UserButton, useAuth, useUser } from "@clerk/clerk-react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
@@ -11,9 +12,35 @@ import SignUp from "./pages/SignUp";
 const clerkEnabled = import.meta.env.VITE_CLERK_ENABLED !== "false";
 
 function App() {
-  const { isLoaded } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
+  useEffect(() => {
+    if (!isSignedIn || !user) return;
 
-  if (!isLoaded) {
+    const sync = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/sync`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: user.primaryEmailAddress?.emailAddress ?? "",
+            first_name: user.firstName ?? "",
+            last_name: user.lastName ?? "",
+          }),
+        });
+      } catch (err) {
+        console.error("User sync failed:", err);
+      }
+    };
+
+    sync();
+  }, [isSignedIn, user?.id]);
+
+  if (clerkEnabled && !isLoaded) {
     return <div>Loading...</div>;
   }
 
