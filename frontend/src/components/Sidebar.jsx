@@ -34,7 +34,7 @@ function Sidebar() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const [popupOpen, setPopupOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
 
   return (
     <div
@@ -44,7 +44,7 @@ function Sidebar() {
         position: "fixed",
         top: 0,
         left: 0,
-        backgroundColor: "#ffffff",
+        backgroundColor: "var(--bg-sidebar, #ffffff)",
         borderRight: "1px solid #e5e7eb",
         display: "flex",
         flexDirection: "column",
@@ -71,7 +71,9 @@ function Sidebar() {
         >
           B
         </div>
-        <span style={{ fontWeight: "700", fontSize: "18px", color: "#003C78" }}>Breeze</span>
+        <span style={{ fontWeight: "700", fontSize: "18px", color: "var(--text-h, #003C78)" }}>
+          Breeze
+        </span>
       </div>
 
       {/* Nav Groups */}
@@ -82,7 +84,7 @@ function Sidebar() {
               style={{
                 fontSize: "11px",
                 fontWeight: "600",
-                color: "#9ca3af",
+                color: "var(--color-subtext, #9ca3af)",
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
                 padding: "0 12px",
@@ -116,8 +118,10 @@ function Sidebar() {
                         textDecoration: "none",
                         fontSize: "14px",
                         fontWeight: isActive ? "600" : "400",
-                        color: isActive ? "#003C78" : "#6b7280",
-                        backgroundColor: isActive ? "#EFF6FF" : "transparent",
+                        color: isActive ? "#1b68b6" : "var(--text-h, #6b7280)",
+                        backgroundColor: isActive
+                          ? "var(--brand-ocean-muted, #EFF6FF)"
+                          : "transparent",
                         transition: "background-color 0.15s, color 0.15s",
                       }}
                     >
@@ -146,8 +150,8 @@ function Sidebar() {
               bottom: "90px",
               left: "12px",
               right: "12px",
-              backgroundColor: "white",
-              border: "1px solid #e5e7eb",
+              backgroundColor: "var(--bg-sidebar, white)",
+              border: "1px solid var(--color-border-default, #e5e7eb)",
               borderRadius: "12px",
               boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
               zIndex: 20,
@@ -161,7 +165,7 @@ function Sidebar() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "12px 16px",
-                borderBottom: "1px solid #f3f4f6",
+                borderBottom: "1px solid var(--color-border-default, #f3f4f6)",
               }}
             >
               <div
@@ -170,14 +174,18 @@ function Sidebar() {
                   alignItems: "center",
                   gap: "10px",
                   fontSize: "14px",
-                  color: "#374151",
+                  color: "var(--text-h, #374151)",
                 }}
               >
                 {darkMode ? <Moon size={16} /> : <Sun size={16} />}
                 Dark mode
               </div>
               <button
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={() => {
+                  const next = !darkMode;
+                  setDarkMode(next);
+                  document.documentElement.classList.toggle("dark", next);
+                }}
                 style={{
                   width: "36px",
                   height: "20px",
@@ -214,9 +222,9 @@ function Sidebar() {
                 gap: "10px",
                 padding: "12px 16px",
                 fontSize: "14px",
-                color: "#374151",
+                color: "var(--text-h, #374151)",
                 textDecoration: "none",
-                borderBottom: "1px solid #f3f4f6",
+                borderBottom: "1px solid var(--color-border-default, #f3f4f6)",
               }}
             >
               <Settings size={16} />
@@ -248,7 +256,9 @@ function Sidebar() {
       )}
 
       {/* User Card */}
-      <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "12px" }}>
+      <div
+        style={{ borderTop: "1px solid var(--color-border-default, #e5e7eb)", paddingTop: "12px" }}
+      >
         <div
           onClick={() => setPopupOpen(!popupOpen)}
           style={{
@@ -257,7 +267,7 @@ function Sidebar() {
             gap: "10px",
             padding: "10px 12px",
             borderRadius: "8px",
-            backgroundColor: popupOpen ? "#EFF6FF" : "#f9fafb",
+            backgroundColor: "var(--bg-sidebar, #f9fafb)",
             cursor: "pointer",
             transition: "background-color 0.15s",
           }}
@@ -267,7 +277,7 @@ function Sidebar() {
               width: "36px",
               height: "36px",
               borderRadius: "50%",
-              backgroundColor: "#046A97",
+              backgroundColor: "var(--color-accent, #046A97)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -294,7 +304,7 @@ function Sidebar() {
                 margin: 0,
                 fontSize: "13px",
                 fontWeight: "600",
-                color: "#111827",
+                color: "var(--text-h, #111827)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -306,7 +316,7 @@ function Sidebar() {
               style={{
                 margin: 0,
                 fontSize: "11px",
-                color: "#6b7280",
+                color: "var(--color-subtext, #6b7280)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",

@@ -33,12 +33,12 @@ class JobUpdate(BaseModel):
     notes: Optional[str] = None
 
 @router.get("", response_model=List[Job])
-def list_jobs(
+def get_jobs(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    owner_id = current_user.get("sub")
-    return db.exec(select(Job).where(Job.owner_id == owner_id)).all()
+    user_id = current_user.get("sub")
+    return db.exec(select(Job).where(Job.user_id == user_id)).all()
 
 
 @router.post("", response_model=Job, status_code=201)
@@ -47,8 +47,8 @@ def create_job(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    owner_id = current_user.get("sub")
-    job = Job(owner_id=owner_id, **payload.model_dump())
+    user_id = current_user.get("sub")
+    job = Job(user_id=user_id, **payload.model_dump())
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -61,10 +61,12 @@ def get_job(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    owner_id = current_user.get("sub")
-    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == owner_id)).first()
+    user_id = current_user.get("sub")
+    job = db.exec(select(Job).where(Job.id == job_id, Job.user_id == user_id)).first()
+
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+
     return job
 
 
@@ -75,8 +77,8 @@ def update_job(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    owner_id = current_user.get("sub")
-    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == owner_id)).first()
+    user_id = current_user.get("sub")
+    job = db.exec(select(Job).where(Job.id == job_id, Job.user_id == user_id)).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -94,8 +96,8 @@ def delete_job(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    owner_id = current_user.get("sub")
-    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == owner_id)).first()
+    user_id = current_user.get("sub")
+    job = db.exec(select(Job).where(Job.id == job_id, Job.user_id == user_id)).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     db.delete(job)

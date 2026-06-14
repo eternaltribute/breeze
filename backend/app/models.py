@@ -38,19 +38,35 @@ class Job(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+
+class LocationType(str, Enum):
+    REMOTE = "remote"
+    HYBRID = "hybrid"
+    ON_SITE = "on_site"
+
+
+class EmploymentType(str, Enum):
+    FULL_TIME = "full_time"
+    PART_TIME = "part_time"
+    CONTRACT = "contract"
+    INTERNSHIP = "internship"
+
+
 class User(SQLModel, table=True):
     __tablename__ = "users"
 
-    id: str = Field(primary_key=True)
-    email: str = Field(unique=True)
-    first_name: str
-    last_name: str
-    phone_number: Optional[str] = None
-    professional_summary: Optional[str] = None
-    desired_role: Optional[str] = None
-    desired_location: Optional[str] = None
-    desired_salary_min: Optional[int] = None
-    desired_salary_max: Optional[int] = None
-    open_to_relocation: bool = Field(default=False)
+    id: str = Field(primary_key=True)  # Clerk user_id
+    email: str = Field(nullable=False, unique=True)
+    first_name: Optional[str] = Field(default=None)
+    last_name: Optional[str] = Field(default=None)
+    phone_number: Optional[str] = Field(default=None)
+    professional_summary: Optional[str] = Field(default=None)
+    desired_role: Optional[str] = Field(default=None)
+    location_type: Optional[LocationType] = Field(default=None)
+    desired_location: Optional[str] = Field(default=None)
+    employment_type: Optional[EmploymentType] = Field(default=None)
+    desired_salary_min: Optional[int] = Field(default=None)
+    desired_salary_max: Optional[int] = Field(default=None)
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

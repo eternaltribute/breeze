@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+<<<<<<< HEAD
 import { SignedIn, SignedOut, UserButton, useAuth, useUser } from "@clerk/clerk-react";
+=======
+import { SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
+>>>>>>> 4255936ff15d43e890f272cc98c4822d9b86a8ce
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
@@ -8,6 +12,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
 
 const clerkEnabled = import.meta.env.VITE_CLERK_ENABLED !== "false";
 
@@ -53,6 +58,7 @@ function App() {
               <Route path="/" element={<Login />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signUp" element={<SignUp />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
             </Routes>
           </SignedOut>
 
@@ -60,14 +66,13 @@ function App() {
             <div style={{ display: "flex" }}>
               <Sidebar />
 
-              <div style={{ marginLeft: "260px", padding: "20px", flex: 1 }}>
-                <UserButton />
-
+              <div style={{ marginLeft: "260px", flex: 1, minHeight: "100vh" }}>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
                 </Routes>
               </div>
             </div>
@@ -76,12 +81,13 @@ function App() {
       ) : (
         <div style={{ display: "flex" }}>
           <Sidebar />
-          <div style={{ padding: "20px", flex: 1 }}>
+          <div style={{ flex: 1, minHeight: "100vh", backgroundColor: "var(--bg, #F8FAFC)" }}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
             </Routes>
           </div>
         </div>

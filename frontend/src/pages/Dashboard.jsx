@@ -39,7 +39,7 @@ const stageColor = (stage) => {
 };
 
 const cardStyle = {
-  backgroundColor: "white",
+  backgroundColor: "var(--bg-card, white)",
   borderRadius: "12px",
   padding: "20px",
   boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
@@ -50,7 +50,7 @@ function JobCard({ title, company, stage, lastActivity }) {
     <div
       style={{
         ...cardStyle,
-        borderLeft: "4px solid #003C78",
+        borderLeft: "4px solid var(--color-heading, #003C78)  ",
         display: "flex",
         flexDirection: "column",
         gap: "12px",
@@ -60,7 +60,7 @@ function JobCard({ title, company, stage, lastActivity }) {
         <h3
           style={{
             margin: 0,
-            color: "#003C78",
+            color: "var(--color-heading, #003C78)",
             fontSize: "16px",
             fontWeight: 600,
           }}
@@ -71,7 +71,7 @@ function JobCard({ title, company, stage, lastActivity }) {
         <p
           style={{
             margin: "4px 0 0",
-            color: "#6b7280",
+            color: "var(--color-subtext, #6b7280)",
             fontSize: "14px",
           }}
         >
@@ -94,7 +94,9 @@ function JobCard({ title, company, stage, lastActivity }) {
         {stage}
       </span>
 
-      <p style={{ margin: 0, color: "#9ca3af", fontSize: "12px" }}>Last activity: {lastActivity}</p>
+      <p style={{ margin: 0, color: "var(--text-h, #9ca3af)", fontSize: "12px" }}>
+        Last activity: {lastActivity}
+      </p>
     </div>
   );
 }
@@ -105,17 +107,21 @@ function Dashboard() {
   return (
     <div
       style={{
-        backgroundColor: "#F8FAFC",
+        backgroundColor: "var(--bg, #F8FAFC)",
         minHeight: "100vh",
-        padding: "24px",
+        padding: "40px 60px",
+        maxWidth: "1000px",
+        margin: "0 auto",
+        width: "100%",
+        boxSizing: "border-box",
       }}
     >
       {/* Page Header */}
       <h1
         style={{
-          color: "#003C78",
+          color: "var(--color-heading, #003C78)",
           marginBottom: "12px",
-          fontSize: "36px",
+          fontSize: "40px",
           lineHeight: "1.2",
           fontWeight: 700,
         }}
@@ -123,7 +129,9 @@ function Dashboard() {
         Welcome back{user?.firstName ? `, ${user.firstName}` : ""}!
       </h1>
 
-      <p style={{ color: "#6b7280", marginBottom: "24px" }}>Here are your active applications.</p>
+      <p style={{ color: "var(--color-subtext, #6b7280)", marginBottom: "24px" }}>
+        Here are your active applications.
+      </p>
 
       {/* Job Grid */}
       <div

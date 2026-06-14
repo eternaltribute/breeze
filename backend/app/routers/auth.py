@@ -45,11 +45,30 @@ def sync_user(payload: UserSyncPayload, current_user: dict = Depends(get_current
     db.refresh(user)
     return {"user_id": user.id, "email": user.email}
 
+# S1-010: User Self-Registration (sync)
+# On first authenticated request, create a users row if one doesn't exist
+# for this Clerk user_id. Subsequent requests just return the existing record.
 @router.get("/me")
-def get_me(current_user: dict = Depends(get_current_user)):
+def get_me(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+    email = current_user.get("email")
+
+    user = db.exec(select(User).where(User.id == user_id)).first()
+
+    if not user:
+        user = User(id=user_id, email=email)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
     return {
-        "user_id": current_user.get("sub"),
-        "email": current_user.get("email"),
+        "user_id": user.id,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
     }
 
 

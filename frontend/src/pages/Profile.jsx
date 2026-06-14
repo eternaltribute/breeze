@@ -93,7 +93,7 @@ function Profile() {
   };
 
   const cardStyle = {
-    backgroundColor: "white",
+    backgroundColor: "var(--bg-card, white)",
     borderRadius: "12px",
     padding: "20px",
     marginBottom: "24px",
@@ -103,7 +103,7 @@ function Profile() {
   return (
     <div
       style={{
-        backgroundColor: "#F8FAFC",
+        backgroundColor: "var(--bg, #F8FAFC)",
         minHeight: "100vh",
         padding: "32px",
         display: "flex",
@@ -114,9 +114,9 @@ function Profile() {
         {/* HEADER */}
         <h1
           style={{
-            color: "#003C78",
+            color: "var(--color-heading, #003C78)",
             marginBottom: "12px",
-            fontSize: "36px",
+            fontSize: "40px",
             lineHeight: "1.2",
             fontWeight: 700,
           }}
@@ -126,35 +126,40 @@ function Profile() {
 
         <p
           style={{
-            color: "#6b7280",
+            color: "var(--color-subtext, #6b7280)",
             marginBottom: "28px",
-            fontSize: "14px",
+            fontSize: "16px",
             lineHeight: "1.5",
           }}
         >
-          Keep your profile up to date to get the best results.
+          Keep your profile up to date to get the best results!
         </p>
 
         {/* COMPLETION CARD */}
         <div
           style={{
             ...cardStyle,
-            borderLeft: "4px solid #046A97",
+            borderLeft: "4px solid var(--color-accent, #046A97) ",
           }}
         >
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              marginBottom: "10px",
+              marginBottom: "12px",
             }}
           >
-            <span style={{ fontWeight: 600, color: "#003C78" }}>Profile Completion</span>
+            <span style={{ fontWeight: 600, color: "var(--color-heading, #003C78)" }}>
+              Profile Completion
+            </span>
 
             <span
               style={{
                 fontWeight: 600,
-                color: completion === 100 ? "#046A97" : "#FF6138",
+                color:
+                  completion === 100
+                    ? "var(--color-accent, #046A97)"
+                    : "var(--color-error, #FF6138)",
               }}
             >
               {completion}%
@@ -163,7 +168,9 @@ function Profile() {
 
           <Progress value={completion} />
 
-          <p style={{ marginTop: "10px", fontSize: "12px", color: "#6b7280" }}>
+          <p
+            style={{ marginTop: "10px", fontSize: "12px", color: "var(--color-subtext, #6b7280)" }}
+          >
             {completion === 100
               ? "Your profile is complete! 🎉"
               : `Fill in ${
@@ -177,7 +184,7 @@ function Profile() {
         <div style={cardStyle}>
           <h2
             style={{
-              color: "#003C78",
+              color: "var(--color-heading, #003C78)",
               fontSize: "16px",
               marginBottom: "16px",
             }}
@@ -242,7 +249,7 @@ function Profile() {
         <div style={cardStyle}>
           <h2
             style={{
-              color: "#003C78",
+              color: "var(--color-heading, #003C78)",
               fontSize: "16px",
               marginBottom: "16px",
             }}
@@ -269,7 +276,7 @@ function Profile() {
           <button
             onClick={handleSave}
             style={{
-              backgroundColor: "#003C78",
+              backgroundColor: "var(--brand-deep, #003C78)",
               color: "white",
               border: "none",
               borderRadius: "8px",
@@ -295,7 +302,7 @@ export default Profile;
 
 const labelStyle = {
   fontSize: "13px",
-  color: "#374151",
+  color: "var(--color-label, #cbd5e1)",
   fontWeight: 500,
 };
 
@@ -305,7 +312,7 @@ const inputStyle = {
   marginTop: "4px",
   padding: "10px 12px",
   borderRadius: "8px",
-  border: "1px solid #d1d5db",
+  border: "1px solid var(--border, #d1d5db)",
   fontSize: "14px",
   boxSizing: "border-box",
 };
