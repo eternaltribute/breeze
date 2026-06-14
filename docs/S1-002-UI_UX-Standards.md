@@ -8,39 +8,33 @@
 ## 1. Navigation Model 
 
 ### Navigation Structure 
-#### The application uses a persisten top navigation bar combined with a dashboard-first layout. 
+#### The application uses a persistent left sidebar navigation combined with a dashboard-first layout. 
 
 - Dashboard 
-- Documents 
+- Analytics 
 - Profile 
 - Settings 
 
 #### Behavior 
-- Top navigation remains fixed during scrolling.  
-- The active section is clearly highlighted. 
-- The navigation labels remain consistent across all pages. 
-- Supports responsive collapse into icon-only mode on smaller screens. 
+- Sidebar remains visible on desktop screens. 
+- Active section is clearly highlighted. 
+- Navigation labels remain consistent across all pages. 
+- Navigation state persists between page transitions. 
 
 --- 
 
 ## 2. Dashboard Interaction Model 
 
 ### Purpose: The dashboard is a data visualization serving as the user’s command center. Dashboard should be sync with an recent updates within the application tracking system. Not a storage area.
-
+- Primary content is presented as scrollable cards. 
 #### It provides: 
-
 - Recent Activity 
 - Application status  
 - Follow-Ups 
 - Quick access to documents 
 
-#### Interaction Pattern (Card-Based Scrolling System)
-- Primary content is presented as scrollable cards. 
-- Cards show: 
-    - Applications 
-    - Status changes 
-    - Documents updates 
-##### Card behavior has lightweight previews only and it is clickable entire card. 
+ 
+##### Card behavior has lightweight previews only.
 
 --- 
 
@@ -131,7 +125,7 @@ Helper Text -> 12-14px Regular
 ### Primary Brand Palette 
 - Deep Blue: #003C78
 - Ocean Blue: #046A97
-- Soft Background: #FDFFEA
+- Soft Background: #F8FAFC
 - Accent Coral: #FF6138
 
 --- 
