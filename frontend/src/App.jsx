@@ -7,6 +7,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
 
 const clerkEnabled = import.meta.env.VITE_CLERK_ENABLED !== "false";
 
@@ -26,6 +27,7 @@ function App() {
               <Route path="/" element={<Login />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signUp" element={<SignUp />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
             </Routes>
           </SignedOut>
 
@@ -41,6 +43,7 @@ function App() {
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
                 </Routes>
               </div>
             </div>
@@ -55,6 +58,7 @@ function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
             </Routes>
           </div>
         </div>

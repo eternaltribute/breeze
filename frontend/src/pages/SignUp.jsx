@@ -10,15 +10,51 @@ function SignUp() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword] = useState(false);
 
+  const [success, setSuccess] = useState("");
   const [code, setCode] = useState("");
   const [pendingVerification, setPendingVerification] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const getPasswordStrength = () => {
+    if (password.length < 8) return "Weak";
 
+    const hasLetter = /[A-Za-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+
+    if (hasLetter && hasNumber && password.length >= 10) {
+      return "Strong";
+    }
+
+    return "Medium";
+  };
+  const getSignupError = (err) => {
+    const code = err.errors?.[0]?.code;
+
+    switch (code) {
+      case "form_identifier_exists":
+        return "An account already exists with this email address.";
+
+      case "form_password_too_short":
+        return "Password must be at least 8 characters long.";
+
+      case "form_password_pwned":
+        return "This password has appeared in a known data breach. Please choose another password.";
+
+      default:
+        return err.errors?.[0]?.message || "Unable to create account.";
+    }
+  };
   const handleSignup = async (e) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
 
     if (!isLoaded) return;
 
@@ -36,11 +72,11 @@ function SignUp() {
       await signUp.prepareEmailAddressVerification({
         strategy: "email_code",
       });
-
+      setSuccess("Verification code sent. Check your email to complete registration.");
       setPendingVerification(true);
     } catch (err) {
       console.error(err);
-      setError(err.errors?.[0]?.message || "Unable to create account.");
+      setError(getSignupError(err));
     } finally {
       setLoading(false);
     }
@@ -60,7 +96,6 @@ function SignUp() {
       });
 
       if (result.status === "complete") {
-        // 🔥 IMPORTANT FIX: activate session instead of redirecting blindly
         await setActive({ session: result.createdSessionId });
 
         // send user straight into app
@@ -73,8 +108,13 @@ function SignUp() {
       setLoading(false);
     }
   };
-
+  {
+    success && <div className="bg-green-100 text-green-700 p-3 rounded mb-4">{success}</div>;
+  }
   if (pendingVerification) {
+    {
+      success && <div className="bg-green-100 text-green-700 p-3 rounded mb-4">{success}</div>;
+    }
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-full max-w-md px-6">
@@ -163,7 +203,36 @@ function SignUp() {
               className="w-full border rounded-lg p-3 mb-6"
               required
             />
+            <p className="text-sm text-gray-500 mt-2 mb-2">
+              Password must be at least 8 characters and contain a mix of letters and numbers.
+            </p>
+            {password && (
+              <p className="mt-2 text-sm text-gray-600">
+                Password Strength: <strong>{getPasswordStrength()}</strong>
+              </p>
+            )}
+            <div className="mb-6">
+              <label className="block mb-2 font-medium">Confirm Password</label>
 
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full border rounded-lg p-3"
+                required
+              />
+
+              {confirmPassword && (
+                <p
+                  className="mt-2 text-sm"
+                  style={{
+                    color: password === confirmPassword ? "#065F46" : "#991B1B",
+                  }}
+                >
+                  {password === confirmPassword ? "✓ Passwords match" : "Passwords do not match"}
+                </p>
+              )}
+            </div>
             <button
               type="submit"
               disabled={loading}

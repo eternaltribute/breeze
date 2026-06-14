@@ -4,13 +4,13 @@ import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 function Login() {
-  const { signIn, setActive } = useSignIn();
-
+  const { signIn, setActive, isLoaded } = useSignIn();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  if (!isLoaded) return;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -156,7 +156,15 @@ function Login() {
                 </button>
               </div>
             </div>
-
+            <div className="mb-6 text-right">
+              <Link
+                to="/forgot-password"
+                className="text-sm hover:underline"
+                style={{ color: "#FF6113" }}
+              >
+                Forgot Password?
+              </Link>
+            </div>
             {/* Submit */}
             <button
               type="submit"
