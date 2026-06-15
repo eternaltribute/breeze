@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
 from datetime import datetime
-
 from typing import Optional
-from app.dependencies import get_current_user
-from app.database import get_db
-from app.models import User
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlmodel import Session, select
+
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models import User
 
 
 class UserSyncPayload(BaseModel):

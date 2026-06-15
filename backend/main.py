@@ -1,14 +1,10 @@
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import text, Session
-from fastapi import Depends
+from sqlmodel import Session, text
 
-
+from app.database import get_db, init_db
 from app.routers import auth, jobs, protected
-from app.database import init_db
-from app.database import get_db
-from app.routers import jobs
 
 load_dotenv()
 

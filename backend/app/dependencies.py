@@ -1,5 +1,4 @@
 import os
-import requests
 from functools import lru_cache
 
 import requests
@@ -11,7 +10,6 @@ from fastapi.security import (
 )  # prompt fastapi to look for token in the auth header
 from jose import (
     JWTError,
-    jwk,
     jwt,
 )  # jwt decodes and verifies the token, jwt is for exceptions
 
