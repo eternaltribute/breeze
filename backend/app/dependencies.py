@@ -33,7 +33,6 @@ def get_current_user(
 ):  # dependency fucntion,any route with this parameter will require a valid token
     token = credentials.credentials
     try:
-        signing_key = get_signing_key(token)
         payload = jwt.decode(
             token,
             get_jwks(),

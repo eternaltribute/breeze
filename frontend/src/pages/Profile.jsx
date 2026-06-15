@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useEffect } from "react";
-import { useAuth } from "@clerk/clerk-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { Progress } from "@/components/ui/progress";
 
 const REQUIRED_FIELDS = ["firstName", "lastName", "email", "summary"];
@@ -20,6 +20,7 @@ function getCompletion(profile) {
 
 function Profile() {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const [profile, setProfile] = useState(initialProfile);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -27,7 +28,7 @@ function Profile() {
 
   const BASE = import.meta.env.VITE_API_BASE_URL;
 
-  // Load existing profile on mount
+  // Load existing profile
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -80,16 +81,14 @@ function Profile() {
         }),
       });
       if (!res.ok) throw new Error("Save failed");
+      await user.update({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+      });
       setSaved(true);
     } catch (err) {
       setError("Failed to save profile. Try again.");
     }
-    const { user } = useUser();
-
-    await user.update({
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-    });
   };
 
   const cardStyle = {

@@ -1,10 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-<<<<<<< HEAD
 import { SignedIn, SignedOut, UserButton, useAuth, useUser } from "@clerk/clerk-react";
-=======
-import { SignedIn, SignedOut, useAuth } from "@clerk/clerk-react";
->>>>>>> 4255936ff15d43e890f272cc98c4822d9b86a8ce
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";

@@ -37,8 +37,6 @@ def sync_user(payload: UserSyncPayload, current_user: dict = Depends(get_current
         db.add(user)
     else:
         user.email = payload.email
-        user.first_name = payload.first_name
-        user.last_name = payload.last_name
         user.updated_at = datetime.utcnow()
 
     db.commit()
