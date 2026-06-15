@@ -6,4 +6,5 @@ from main import app
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        yield TestClient(app)
