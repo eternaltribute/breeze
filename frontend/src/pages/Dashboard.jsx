@@ -18,14 +18,13 @@ function canTransition(currentStage, nextStage) {
 const initialJobs = [
   {
     id: 1,
-    company: "Google",
-    title: "Software Engineer",
-    jobPostingBody: "Seeking a software engineer with React and backend experience.",
-    stage: "Interview",
-    lastActivity: "2026-06-09",
+    title: "Sample Job",
+    company: "Company Name",
+    jobPostingBody: "Job description placeholder...",
+    stage: "Applied",
+    lastActivity: "—",
   },
 ];
-
 const stageColor = (stage) => {
   if (stage === "Interview" || stage === "Offer") return "#FF6138";
   if (stage === "Applied") return "#046A97";
