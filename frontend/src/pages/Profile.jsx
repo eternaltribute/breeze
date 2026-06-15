@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth, useUser } from "@clerk/clerk-react";
 import { Progress } from "@/components/ui/progress";
 
 const REQUIRED_FIELDS = ["firstName", "lastName", "email", "summary"];
@@ -17,8 +18,37 @@ function getCompletion(profile) {
 }
 
 function Profile() {
+  const { getToken } = useAuth();
+  const { user } = useUser();
   const [profile, setProfile] = useState(initialProfile);
   const [saved, setSaved] = useState(false);
+
+  const BASE = import.meta.env.VITE_API_BASE_URL;
+
+  // Load existing profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProfile({
+            firstName: data.first_name ?? "",
+            lastName: data.last_name ?? "",
+            email: data.email ?? "",
+            phone: data.phone_number ?? "",
+            summary: data.professional_summary ?? "",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load profile:", err);
+      }
+    };
+    fetchProfile();
+  }, [BASE, getToken]);
 
   const completion = getCompletion(profile);
 
@@ -27,8 +57,32 @@ function Profile() {
     setProfile({ ...profile, [e.target.name]: e.target.value });
   };
 
-  const handleSave = () => {
-    setSaved(true);
+  const handleSave = async () => {
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/auth/profile`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          first_name: profile.firstName,
+          last_name: profile.lastName,
+          email: profile.email,
+          phone_number: profile.phone || null,
+          professional_summary: profile.summary || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      await user.update({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+      });
+      setSaved(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const cardStyle = {
