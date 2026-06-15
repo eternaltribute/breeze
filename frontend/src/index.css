@@ -20,6 +20,9 @@
   --color-card-bg: #ffffff;
   --color-page-bg: #f8fafc;
   --color-border-default: #d1d5db;
+  --color-input-bg: #ffffff;
+  --color-input-text: #111827;
+  --color-placeholder: #6b7280;
   --color-sidebar-bg: #ffffff;
 
   /* Breeze brand colors (same in both modes) */
@@ -125,6 +128,9 @@
   --color-card-bg: #1e3a5f;
   --color-page-bg: #162032;
   --color-border-default: #2a4a6e;
+  --color-input-bg: #23436f;
+  --color-input-text: #f8fafc;
+  --color-placeholder: #d1d5db;
   --color-sidebar-bg: #0e1829;
 
   /* Legacy vars */
@@ -298,4 +304,9 @@ code {
 }
 .dark .sidebar-nav-item.active {
   color: #003c78;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-placeholder);
+  opacity: 1;
 }
