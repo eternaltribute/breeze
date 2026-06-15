@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Progress } from "@/components/ui/progress";
 
@@ -23,8 +22,6 @@ function Profile() {
   const { user } = useUser();
   const [profile, setProfile] = useState(initialProfile);
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -48,8 +45,6 @@ function Profile() {
         }
       } catch (err) {
         console.error("Failed to load profile:", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchProfile();
@@ -64,7 +59,6 @@ function Profile() {
 
   const handleSave = async () => {
     try {
-      setError(null);
       const token = await getToken({ skipCache: true });
       const res = await fetch(`${BASE}/auth/profile`, {
         method: "PUT",
@@ -87,7 +81,6 @@ function Profile() {
       });
       setSaved(true);
     } catch (err) {
-      setError("Failed to save profile. Try again.");
       console.error(err);
     }
   };
