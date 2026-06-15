@@ -11,6 +11,7 @@ from app.models import Job, JobStage
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
+
 class JobCreate(BaseModel):
     company: str
     title: str
@@ -31,6 +32,7 @@ class JobUpdate(BaseModel):
     job_url: Optional[str] = None
     salary_range: Optional[str] = None
     notes: Optional[str] = None
+
 
 @router.get("", response_model=List[Job])
 def get_jobs(

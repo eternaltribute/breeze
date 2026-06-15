@@ -53,8 +53,8 @@ function Profile() {
       }
     };
     fetchProfile();
-  }, []);
-  
+  }, [BASE, getToken]);
+
   const completion = getCompletion(profile);
 
   const handleChange = (e) => {
@@ -88,6 +88,7 @@ function Profile() {
       setSaved(true);
     } catch (err) {
       setError("Failed to save profile. Try again.");
+      console.error(err);
     }
   };
 

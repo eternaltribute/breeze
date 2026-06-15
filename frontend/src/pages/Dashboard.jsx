@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useUser } from "@clerk/clerk-react";
 import { useState, useEffect } from "react";
 import JobForm from "../components/JobForm";

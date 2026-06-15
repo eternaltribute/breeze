@@ -28,9 +28,12 @@ app.include_router(auth.router)  # registers auth router with FastAPI .
 app.include_router(protected.router)  # registers protected router with FastAPI S1-014
 app.include_router(jobs.router)  # registers jobs router with FastAPI S1-015
 app.include_router(jobs.router)
+
+
 @app.on_event("startup")
 def on_startup():
     init_db()
+
 
 @app.get("/")
 def root():
@@ -40,6 +43,7 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 @app.get("/health/db")
 def db_health(db: Session = Depends(get_db)):
