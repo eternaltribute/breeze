@@ -1,6 +1,8 @@
-import { useUser } from "@clerk/clerk-react";
-import { useState } from "react";
+import { useUser, useAuth } from "@clerk/clerk-react";
+import { useState, useEffect } from "react";
 import JobForm from "../components/JobForm";
+
+const BASE = import.meta.env.VITE_API_BASE_URL;
 
 const allowedTransitions = {
   Interested: ["Applied", "Rejected"],
@@ -15,16 +17,27 @@ function canTransition(currentStage, nextStage) {
   return allowedTransitions[currentStage]?.includes(nextStage);
 }
 
-const initialJobs = [
-  {
-    id: 1,
-    company: "Google",
-    title: "Software Engineer",
-    jobPostingBody: "Seeking a software engineer with React and backend experience.",
-    stage: "Interview",
-    lastActivity: "2026-06-09",
-  },
-];
+//backend uses snakcCase whilst front uses camelCase
+function fromApi(job){
+  const stage = job.stage.charAt(0).toUpperCase() + job.stage.slice(1);
+  return {
+    id: job.id,
+    company: job.company,
+    title: job.title,
+    jobPostingBody: job.job_posting_body,
+    stage: job.stage.charAt(0).toUpperCase() + job.stage.slice(1).toLowerCase(),
+    lastActivity: (job.updated_at ?? job.created_at)?.split("T")[0] ?? "",
+  };
+}
+//does reverse
+function toApi(form) {
+  return {
+    company: form.company,
+    title: form.title,
+    job_posting_body: form.jobPostingBody,
+    stage: form.stage.toUpperCase(),
+  };
+}
 
 const stageColor = (stage) => {
   if (stage === "Interview" || stage === "Offer") return "#FF6138";
@@ -128,10 +141,27 @@ function JobCard({ title, company, jobPostingBody, stage, lastActivity, onEdit }
 
 function Dashboard() {
   const { user } = useUser();
+  const { getToken } = useAuth();
 
-  const [jobs, setJobs] = useState(initialJobs);
+  const [jobs, setJobs] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
+
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try{
+        const token = await getToken({skipCache: true});
+        const res = await fetch(`${BASE}/jobs`, {headers: { Authorization: `Bearer ${token}` },});
+        if(res.ok){
+          const data = await res.json();
+          setJobs(data.map(fromApi));
+        } 
+      } catch (err){
+        console.error("Failed to fetch jobs:", err)
+      }
+      };
+      fetchJobs();
+  }, [getToken]);
 
   const handleAddJob = () => {
     setSelectedJob(null);
@@ -143,59 +173,56 @@ function Dashboard() {
     setShowForm(true);
   };
 
-  const handleUpdateJob = (updatedJob) => {
-    if (selectedJob) {
-      const originalJob = jobs.find((job) => job.id === selectedJob.id);
-
-      if (
-        originalJob &&
-        originalJob.stage !== updatedJob.stage &&
-        !canTransition(originalJob.stage, updatedJob.stage)
-      ) {
-        const confirmed = window.confirm(
-          `Moving from ${originalJob.stage} to ${updatedJob.stage}
-is not part of the normal workflow.
-
-Do you want to continue?`
-        );
-
-        if (!confirmed) {
+  const handleUpdateJob = async(formData) => {
+    if (selectedJob && selectedJob.stage != formData.stage) {
+      if(!canTransition(selectedJob.stage, formData.stage)){
+        const confirmed = window.confirm(`Moving from ${selectedJob.stage} to ${formData.stage} is not part of the normal workflow. Do you want to continue?`);
+        if(!confirmed){
           return;
         }
 
-        // Override logging
         console.log({
           userId: user?.id,
           userName: user?.fullName,
           timestamp: new Date().toISOString(),
-          fromStage: originalJob.stage,
-          toStage: updatedJob.stage,
+          fromStage: selectedJob.stage,
+          toStage: formData.stage,
         });
       }
-
-      setJobs(
-        jobs.map((job) =>
-          job.id === selectedJob.id
-            ? {
-                ...job,
-                ...updatedJob,
-                lastActivity: new Date().toISOString().split("T")[0],
-              }
-            : job
-        )
-      );
-    } else {
-      const newJob = {
-        ...updatedJob,
-        id: Date.now(),
-        lastActivity: new Date().toISOString().split("T")[0],
-      };
-
-      setJobs([...jobs, newJob]);
     }
 
-    setShowForm(false);
-    setSelectedJob(null);
+    try {
+      const token = await getToken({ skipCache: true });
+
+      if (selectedJob) {
+        const res = await fetch(`${BASE}/jobs/${selectedJob.id}`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
+          body: JSON.stringify(toApi(formData)),
+        });
+        if(!res.ok) {
+          throw new Error("Updating of this job failed");
+        }
+        const updated = await res.json();
+        setJobs(jobs.map((j) => (j.id === selectedJob.id ? fromApi(updated) : j)));
+      } else{
+        const res = await fetch(`${BASE}/jobs`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify(toApi(formData)),
+        });
+        if(!res.ok) {
+          throw new Error("Creation of this job failed");
+        }
+        const created = await res.json();
+        setJobs([...jobs, fromApi(created)]);      
+      }
+
+      setShowForm(false);
+      setSelectedJob(null);
+    } catch(err){
+      console.error("Failed to save job:", err);
+    }
   };
   return (
     <div
