@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import Job, JobStage
+from app.models import Job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -16,7 +16,7 @@ class JobCreate(BaseModel):
     company: str
     title: str
     job_posting_body: str
-    stage: JobStage = JobStage.INTERESTED
+    stage: str = "interested"
     location: Optional[str] = None
     job_url: Optional[str] = None
     salary_range: Optional[str] = None
@@ -27,7 +27,7 @@ class JobUpdate(BaseModel):
     company: Optional[str] = None
     title: Optional[str] = None
     job_posting_body: Optional[str] = None
-    stage: Optional[JobStage] = None
+    stage: Optional[str] = None
     location: Optional[str] = None
     job_url: Optional[str] = None
     salary_range: Optional[str] = None
@@ -40,7 +40,7 @@ def get_jobs(
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
-    return db.exec(select(Job).where(Job.user_id == user_id)).all()
+    return db.exec(select(Job).where(Job.owner_id == user_id)).all()
 
 
 @router.post("", response_model=Job, status_code=201)
@@ -50,7 +50,7 @@ def create_job(
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
-    job = Job(user_id=user_id, **payload.model_dump())
+    job = Job(owner_id=user_id, **payload.model_dump())
     db.add(job)
     db.commit()
     db.refresh(job)
@@ -64,7 +64,7 @@ def get_job(
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
-    job = db.exec(select(Job).where(Job.id == job_id, Job.user_id == user_id)).first()
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -80,7 +80,7 @@ def update_job(
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
-    job = db.exec(select(Job).where(Job.id == job_id, Job.user_id == user_id)).first()
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
@@ -99,7 +99,7 @@ def delete_job(
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
-    job = db.exec(select(Job).where(Job.id == job_id, Job.user_id == user_id)).first()
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     db.delete(job)
