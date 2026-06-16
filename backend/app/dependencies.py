@@ -38,7 +38,10 @@ def get_current_user(
             get_jwks(),
             algorithms=["RS256"],
             issuer=CLERK_ISSUER_URL,
-            options={"leeway": 60, "verify_aud": False}, #lee way incase our clock is off, and skips audience checking
+            options={
+                "leeway": 60,
+                "verify_aud": False,
+            },  # lee way incase our clock is off, and skips audience checking
         )
         return payload
     except JWTError:

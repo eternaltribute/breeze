@@ -21,18 +21,22 @@ function App() {
     const sync = async () => {
       try {
         const token = await getToken({ skipCache: true });
-        await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/sync`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+        await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/auth/sync`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: user.primaryEmailAddress?.emailAddress ?? "",
+              first_name: user.firstName ?? "",
+              last_name: user.lastName ?? "",
+            }),
           },
-          body: JSON.stringify({
-            email: user.primaryEmailAddress?.emailAddress ?? "",
-            first_name: user.firstName ?? "",
-            last_name: user.lastName ?? "",
-          }),
-        });
+          [isSignedIn, user?.id, getToken, user]
+        );
       } catch (err) {
         console.error("User sync failed:", err);
       }

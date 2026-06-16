@@ -18,14 +18,14 @@ function canTransition(currentStage, nextStage) {
 }
 
 //backend uses snakcCase whilst front uses camelCase
-function fromApi(job){
+function fromApi(job) {
   const stage = job.stage.charAt(0).toUpperCase() + job.stage.slice(1);
   return {
     id: job.id,
     company: job.company,
     title: job.title,
     jobPostingBody: job.job_posting_body,
-    stage: job.stage.charAt(0).toUpperCase() + job.stage.slice(1).toLowerCase(),
+    stage,
     lastActivity: (job.updated_at ?? job.created_at)?.split("T")[0] ?? "",
   };
 }
@@ -149,18 +149,18 @@ function Dashboard() {
 
   useEffect(() => {
     const fetchJobs = async () => {
-      try{
-        const token = await getToken({skipCache: true});
-        const res = await fetch(`${BASE}/jobs`, {headers: { Authorization: `Bearer ${token}` },});
-        if(res.ok){
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/jobs`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
           const data = await res.json();
           setJobs(data.map(fromApi));
-        } 
-      } catch (err){
-        console.error("Failed to fetch jobs:", err)
+        }
+      } catch (err) {
+        console.error("Failed to fetch jobs:", err);
       }
-      };
-      fetchJobs();
+    };
+    fetchJobs();
   }, [getToken]);
 
   const handleAddJob = () => {
@@ -173,11 +173,13 @@ function Dashboard() {
     setShowForm(true);
   };
 
-  const handleUpdateJob = async(formData) => {
+  const handleUpdateJob = async (formData) => {
     if (selectedJob && selectedJob.stage != formData.stage) {
-      if(!canTransition(selectedJob.stage, formData.stage)){
-        const confirmed = window.confirm(`Moving from ${selectedJob.stage} to ${formData.stage} is not part of the normal workflow. Do you want to continue?`);
-        if(!confirmed){
+      if (!canTransition(selectedJob.stage, formData.stage)) {
+        const confirmed = window.confirm(
+          `Moving from ${selectedJob.stage} to ${formData.stage} is not part of the normal workflow. Do you want to continue?`
+        );
+        if (!confirmed) {
           return;
         }
 
@@ -197,30 +199,30 @@ function Dashboard() {
       if (selectedJob) {
         const res = await fetch(`${BASE}/jobs/${selectedJob.id}`, {
           method: "PUT",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json"},
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           body: JSON.stringify(toApi(formData)),
         });
-        if(!res.ok) {
+        if (!res.ok) {
           throw new Error("Updating of this job failed");
         }
         const updated = await res.json();
         setJobs(jobs.map((j) => (j.id === selectedJob.id ? fromApi(updated) : j)));
-      } else{
+      } else {
         const res = await fetch(`${BASE}/jobs`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           body: JSON.stringify(toApi(formData)),
         });
-        if(!res.ok) {
+        if (!res.ok) {
           throw new Error("Creation of this job failed");
         }
         const created = await res.json();
-        setJobs([...jobs, fromApi(created)]);      
+        setJobs([...jobs, fromApi(created)]);
       }
 
       setShowForm(false);
       setSelectedJob(null);
-    } catch(err){
+    } catch (err) {
       console.error("Failed to save job:", err);
     }
   };

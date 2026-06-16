@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import Job, JobStage
+from app.models import Job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -16,7 +16,7 @@ class JobCreate(BaseModel):
     company: str
     title: str
     job_posting_body: str
-    stage: str = 'interested'
+    stage: str = "interested"
     location: Optional[str] = None
     job_url: Optional[str] = None
     salary_range: Optional[str] = None
