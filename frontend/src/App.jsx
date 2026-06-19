@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SignedIn, SignedOut, useAuth, useUser } from "@clerk/clerk-react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
@@ -12,31 +12,57 @@ import ForgotPassword from "./pages/ForgotPassword";
 
 const clerkEnabled = import.meta.env.VITE_CLERK_ENABLED !== "false";
 
+function LoadingScreen() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        backgroundColor: "var(--bg, #F8FAFC)",
+        flexDirection: "column",
+        gap: "16px",
+      }}
+    >
+      <div
+        style={{
+          width: "40px",
+          height: "40px",
+          border: "3px solid var(--color-border-default, #e5e7eb)",
+          borderTop: "3px solid var(--color-heading, #003C78)",
+          borderRadius: "50%",
+          animation: "spin 0.8s linear infinite",
+        }}
+      />
+      <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "14px" }}>Loading Breeze...</p>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 function App() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { user } = useUser();
+
   useEffect(() => {
     if (!isSignedIn || !user) return;
 
     const sync = async () => {
       try {
         const token = await getToken({ skipCache: true });
-        await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/auth/sync`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              email: user.primaryEmailAddress?.emailAddress ?? "",
-              first_name: user.firstName ?? "",
-              last_name: user.lastName ?? "",
-            }),
+        await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/sync`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
-          [isSignedIn, user?.id, getToken, user]
-        );
+          body: JSON.stringify({
+            email: user.primaryEmailAddress?.emailAddress ?? "",
+            first_name: user.firstName ?? "",
+            last_name: user.lastName ?? "",
+          }),
+        });
       } catch (err) {
         console.error("User sync failed:", err);
       }
@@ -46,7 +72,7 @@ function App() {
   }, [isSignedIn, user?.id]);
 
   if (clerkEnabled && !isLoaded) {
-    return <div>Loading...</div>;
+    return <LoadingScreen />;
   }
 
   return (
@@ -59,20 +85,23 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signUp" element={<SignUp />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </SignedOut>
 
           <SignedIn>
             <div style={{ display: "flex" }}>
               <Sidebar />
-
               <div style={{ marginLeft: "260px", flex: 1, minHeight: "100vh" }}>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/settings" element={<Settings />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/login" element={<Navigate to="/" replace />} />
+                  <Route path="/signUp" element={<Navigate to="/" replace />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </div>
             </div>
@@ -87,7 +116,7 @@ function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/settings" element={<Settings />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>
         </div>
