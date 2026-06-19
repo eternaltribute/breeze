@@ -552,12 +552,28 @@ function Profile() {
               Save Profile
             </button>
             {saved && (
-              <span style={{ color: "#22c55e", fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+              <span
+                style={{
+                  color: "#22c55e",
+                  fontSize: "13px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
                 ✓ Profile saved!
               </span>
             )}
             {showBanner && !saved && (
-              <span style={{ color: "var(--color-error, #FF6138)", fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+              <span
+                style={{
+                  color: "var(--color-error, #FF6138)",
+                  fontSize: "13px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
                 ✕ Please fill out all required fields.
               </span>
             )}
