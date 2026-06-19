@@ -535,7 +535,7 @@ function Profile() {
           </div>
 
           {/* SAVE BUTTON */}
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
             <button
               onClick={handleSave}
               style={{
@@ -552,8 +552,13 @@ function Profile() {
               Save Profile
             </button>
             {saved && (
-              <span style={{ color: "var(--color-accent, #046A97)", fontSize: "14px" }}>
+              <span style={{ color: "#22c55e", fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
                 ✓ Profile saved!
+              </span>
+            )}
+            {showBanner && !saved && (
+              <span style={{ color: "var(--color-error, #FF6138)", fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+                ✕ Please fill out all required fields.
               </span>
             )}
           </div>
