@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 function JobForm({ onSubmit, initialData = null }) {
   const [form, setForm] = useState({
@@ -7,6 +7,16 @@ function JobForm({ onSubmit, initialData = null }) {
     jobPostingBody: initialData?.jobPostingBody || "",
     stage: initialData?.stage || "Interested",
   });
+useEffect(() => {
+  if (initialData) {
+    setForm({
+      company: initialData.company || "",
+      title: initialData.title || "",
+      jobPostingBody: initialData.jobPostingBody || "",
+      stage: initialData.stage || "Interested",
+    });
+  }
+}, [initialData]);
 
   const handleChange = (e) => {
     setForm({

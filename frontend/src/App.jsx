@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SignedIn, SignedOut, useAuth, useUser } from "@clerk/clerk-react";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
+import AddJob from "./pages/AddJob";
+import EditJob from "./pages/EditJob";
 import Analytics from "./pages/Analytics";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
@@ -96,6 +98,8 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/jobs/new" element={<AddJob />} />
+  <Route path="/jobs/:id/edit" element={<EditJob />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/settings" element={<Settings />} />
