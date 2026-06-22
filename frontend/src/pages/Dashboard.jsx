@@ -28,7 +28,6 @@ function fromApi(job) {
   };
 }
 
-
 const stageColor = (stage) => {
   if (stage === "Interview" || stage === "Offer") return "#FF6138";
   if (stage === "Applied") return "#046A97";
@@ -132,17 +131,14 @@ function JobCard({ title, company, jobPostingBody, stage, lastActivity, onEdit }
 function Dashboard() {
   const { user } = useUser();
   const { getToken } = useAuth();
-const navigate = useNavigate();
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
-
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const token = await getToken({ skipCache: true });        
+        const token = await getToken({ skipCache: true });
         const res = await fetch(`${BASE}/jobs`, { headers: { Authorization: `Bearer ${token}` } });
-
-
 
         if (res.ok) {
           const data = await res.json();
@@ -155,13 +151,13 @@ const navigate = useNavigate();
     fetchJobs();
   }, [getToken]);
 
-const handleAddJob = () => {
-  navigate("/jobs/new");
-};
+  const handleAddJob = () => {
+    navigate("/jobs/new");
+  };
 
-const handleEditJob = (job) => {
-  navigate(`/jobs/${job.id}/edit`);
-};
+  const handleEditJob = (job) => {
+    navigate(`/jobs/${job.id}/edit`);
+  };
 
   return (
     <div

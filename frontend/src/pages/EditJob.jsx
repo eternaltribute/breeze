@@ -82,7 +82,7 @@ function EditJob() {
           company: formData.company,
           title: formData.title,
           job_posting_body: formData.jobPostingBody,
-          stage: formData.stage.toLowerCase(), 
+          stage: formData.stage.toLowerCase(),
         }),
       });
 

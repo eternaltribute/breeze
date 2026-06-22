@@ -71,7 +71,7 @@ function App() {
     };
 
     sync();
-  }, [isSignedIn, user?.id]);
+  }, [isSignedIn, user, getToken]);
 
   if (clerkEnabled && !isLoaded) {
     return <LoadingScreen />;
