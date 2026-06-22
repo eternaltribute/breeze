@@ -1,0 +1,6 @@
+name: local
+variables:
+  - name: base_url
+    value: http://localhost:8000
+  - secret: true
+    name: jwt_token

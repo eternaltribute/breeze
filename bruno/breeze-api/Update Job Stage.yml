@@ -1,0 +1,15 @@
+info:
+  name: Update Job Stage
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{base_url}}/jobs/f13a04bb-4608-47e3-a0c8-30a11b2cc823"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
