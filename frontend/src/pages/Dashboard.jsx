@@ -139,8 +139,11 @@ const navigate = useNavigate();
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const token = await getToken({ skipCache: true });
+        const token = await getToken({ skipCache: true });        
         const res = await fetch(`${BASE}/jobs`, { headers: { Authorization: `Bearer ${token}` } });
+
+
+
         if (res.ok) {
           const data = await res.json();
           setJobs(data.map(fromApi));

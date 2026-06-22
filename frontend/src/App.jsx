@@ -99,7 +99,7 @@ function App() {
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/jobs/new" element={<AddJob />} />
-  <Route path="/jobs/:id/edit" element={<EditJob />} />
+                  <Route path="/jobs/:id/edit" element={<EditJob />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/settings" element={<Settings />} />
