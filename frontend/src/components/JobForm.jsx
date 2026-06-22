@@ -1,24 +1,31 @@
 import { useState } from "react";
 
-function JobForm({ onSubmit, initialData = null }) {
-  const [form, setForm] = useState({
-    company: initialData?.company || "",
-    title: initialData?.title || "",
-    jobPostingBody: initialData?.jobPostingBody || "",
-    stage: initialData?.stage || "Interested",
-  });
+const Required = () => <span style={{ color: "red" }}> *</span>;
+
+function JobForm({ onSubmit, initialData }) {
+  const [form, setForm] = useState(() => ({
+    company: initialData?.company ?? "",
+    title: initialData?.title ?? "",
+    jobPostingBody: initialData?.jobPostingBody ?? "",
+    stage: initialData?.stage ?? "interested",
+  }));
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
+    setForm((prev) => ({
+      ...prev,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     onSubmit(form);
+  };
+
+  const labelStyle = {
+    fontWeight: 600,
+    marginBottom: "4px",
+    display: "block",
   };
 
   return (
@@ -30,101 +37,74 @@ function JobForm({ onSubmit, initialData = null }) {
         gap: "12px",
       }}
     >
-      <input
-        name="company"
-        placeholder="Company"
-        value={form.company}
-        onChange={handleChange}
-        required
-        className="
-  w-full
-  px-3
-  py-2
-  rounded-md
-  border
-  bg-white
-  text-gray-900
-  dark:bg-gray-800
-  dark:text-white
-  dark:border-gray-700
-"
-      />
-      <input
-        name="title"
-        placeholder="Job Title"
-        value={form.title}
-        onChange={handleChange}
-        required
-        className="
-  w-full
-  px-3
-  py-2
-  rounded-md
-  border
-  bg-white
-  text-gray-900
-  dark:bg-gray-800
-  dark:text-white
-  dark:border-gray-700
-"
-      />
+      {/* Company */}
+      <div>
+        <label style={labelStyle}>
+          Company <Required />
+        </label>
+        <input
+          name="company"
+          value={form.company}
+          onChange={handleChange}
+          required
+          className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 dark:bg-gray-800 dark:text-white dark:border-gray-700"
+        />
+      </div>
 
-      <textarea
-        name="jobPostingBody"
-        placeholder="Paste full job posting here"
-        value={form.jobPostingBody}
-        onChange={handleChange}
-        rows={10}
-        required
-        className="
-  w-full
-  px-3
-  py-2
-  rounded-md
-  border
-  bg-white
-  text-gray-900
-  dark:bg-gray-800
-  dark:text-white
-  dark:border-gray-700
-"
-      />
+      {/* Title */}
+      <div>
+        <label style={labelStyle}>
+          Job Title <Required />
+        </label>
+        <input
+          name="title"
+          value={form.title}
+          onChange={handleChange}
+          required
+          className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 dark:bg-gray-800 dark:text-white dark:border-gray-700"
+        />
+      </div>
 
-      <select
-        name="stage"
-        value={form.stage}
-        onChange={handleChange}
-        className="
-    w-full 
-    px-3 
-    py-2 
-    rounded-md 
-    border 
-    bg-white 
-    text-gray-900 
-    dark:bg-gray-800 
-    dark:text-white 
-    dark:border-gray-700
-    focus:outline-none 
-    focus:ring-2 
-    focus:ring-blue-500
-  "
-      >
-        <option value="Interested">Interested</option>
-        <option value="Applied">Applied</option>
-        <option value="Interview">Interview</option>
-        <option value="Offer">Offer</option>
-        <option value="Rejected">Rejected</option>
-        <option value="Archived">Archived</option>
-      </select>
+      {/* Description */}
+      <div>
+        <label style={labelStyle}>
+          Job Description <Required />
+        </label>
+        <textarea
+          name="jobPostingBody"
+          value={form.jobPostingBody}
+          onChange={handleChange}
+          required
+          rows={10}
+          className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 dark:bg-gray-800 dark:text-white dark:border-gray-700"
+        />
+      </div>
 
+      {/* Stage */}
+      <div>
+        <label style={labelStyle}>Stage</label>
+        <select
+          name="stage"
+          value={form.stage}
+          onChange={handleChange}
+          className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 dark:bg-gray-800 dark:text-white dark:border-gray-700"
+        >
+          <option value="interested">Interested</option>
+          <option value="applied">Applied</option>
+          <option value="interview">Interview</option>
+          <option value="offer">Offer</option>
+          <option value="rejected">Rejected</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
+
+      {/* Submit */}
       <div
         style={{
           marginTop: "16px",
           padding: "16px",
-          border: "1px solid var(--border-color, #e5e7eb)",
+          border: "1px solid #e5e7eb",
           borderRadius: "12px",
-          backgroundColor: "var(--bg-card, white)",
           display: "flex",
           justifyContent: "flex-end",
         }}
@@ -132,13 +112,13 @@ function JobForm({ onSubmit, initialData = null }) {
         <button
           type="submit"
           style={{
-            backgroundColor: "var(--color-heading, #003C78)",
+            backgroundColor: "#003C78",
             color: "white",
             border: "none",
             borderRadius: "8px",
             padding: "10px 16px",
-            cursor: "pointer",
             fontWeight: 600,
+            cursor: "pointer",
           }}
         >
           Save Job

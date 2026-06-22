@@ -1,25 +1,23 @@
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { useState, useEffect } from "react";
-import JobForm from "../components/JobForm";
+import { useNavigate } from "react-router-dom";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
+const normalizeStage = (stage) => {
+  const map = {
+    interested: "Interested",
+    applied: "Applied",
+    interview: "Interview",
+    offer: "Offer",
+    rejected: "Rejected",
+    archived: "Archived",
+  };
 
-const allowedTransitions = {
-  Interested: ["Applied", "Rejected"],
-  Applied: ["Interview", "Rejected"],
-  Interview: ["Offer", "Rejected"],
-  Offer: ["Archived", "Rejected"],
-  Rejected: [],
-  Archived: [],
+  return map[stage] || "Interested";
 };
 
-function canTransition(currentStage, nextStage) {
-  return allowedTransitions[currentStage]?.includes(nextStage);
-}
-
-//backend uses snakcCase whilst front uses camelCase
 function fromApi(job) {
-  const stage = job.stage.charAt(0).toUpperCase() + job.stage.slice(1);
+  const stage = normalizeStage(job.stage);
   return {
     id: job.id,
     company: job.company,
@@ -27,15 +25,6 @@ function fromApi(job) {
     jobPostingBody: job.job_posting_body,
     stage,
     lastActivity: (job.updated_at ?? job.created_at)?.split("T")[0] ?? "",
-  };
-}
-//does reverse
-function toApi(form) {
-  return {
-    company: form.company,
-    title: form.title,
-    job_posting_body: form.jobPostingBody,
-    stage: form.stage.toUpperCase(),
   };
 }
 
@@ -142,16 +131,15 @@ function JobCard({ title, company, jobPostingBody, stage, lastActivity, onEdit }
 function Dashboard() {
   const { user } = useUser();
   const { getToken } = useAuth();
-
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [selectedJob, setSelectedJob] = useState(null);
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         const token = await getToken({ skipCache: true });
         const res = await fetch(`${BASE}/jobs`, { headers: { Authorization: `Bearer ${token}` } });
+
         if (res.ok) {
           const data = await res.json();
           setJobs(data.map(fromApi));
@@ -164,68 +152,13 @@ function Dashboard() {
   }, [getToken]);
 
   const handleAddJob = () => {
-    setSelectedJob(null);
-    setShowForm(true);
+    navigate("/jobs/new");
   };
 
   const handleEditJob = (job) => {
-    setSelectedJob(job);
-    setShowForm(true);
+    navigate(`/jobs/${job.id}/edit`);
   };
 
-  const handleUpdateJob = async (formData) => {
-    if (selectedJob && selectedJob.stage != formData.stage) {
-      if (!canTransition(selectedJob.stage, formData.stage)) {
-        const confirmed = window.confirm(
-          `Moving from ${selectedJob.stage} to ${formData.stage} is not part of the normal workflow. Do you want to continue?`
-        );
-        if (!confirmed) {
-          return;
-        }
-
-        console.log({
-          userId: user?.id,
-          userName: user?.fullName,
-          timestamp: new Date().toISOString(),
-          fromStage: selectedJob.stage,
-          toStage: formData.stage,
-        });
-      }
-    }
-
-    try {
-      const token = await getToken({ skipCache: true });
-
-      if (selectedJob) {
-        const res = await fetch(`${BASE}/jobs/${selectedJob.id}`, {
-          method: "PUT",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify(toApi(formData)),
-        });
-        if (!res.ok) {
-          throw new Error("Updating of this job failed");
-        }
-        const updated = await res.json();
-        setJobs(jobs.map((j) => (j.id === selectedJob.id ? fromApi(updated) : j)));
-      } else {
-        const res = await fetch(`${BASE}/jobs`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify(toApi(formData)),
-        });
-        if (!res.ok) {
-          throw new Error("Creation of this job failed");
-        }
-        const created = await res.json();
-        setJobs([...jobs, fromApi(created)]);
-      }
-
-      setShowForm(false);
-      setSelectedJob(null);
-    } catch (err) {
-      console.error("Failed to save job:", err);
-    }
-  };
   return (
     <div
       style={{
@@ -282,38 +215,6 @@ function Dashboard() {
           + Add Job
         </button>
       </div>
-
-      {showForm && (
-        <div
-          style={{
-            backgroundColor: "var(--bg-card)",
-            border: "1px solid var(--color-border-default)",
-            padding: "20px",
-            borderRadius: "12px",
-            marginBottom: "24px",
-            boxShadow: "var(--shadow)",
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>{selectedJob ? "Edit Job" : "Add Job"}</h2>
-
-          <JobForm initialData={selectedJob} onSubmit={handleUpdateJob} />
-
-          <button
-            onClick={() => setShowForm(false)}
-            style={{
-              marginTop: "12px",
-              backgroundColor: "var(--bg-card)",
-              color: "var(--color-heading)",
-              border: "1px solid var(--color-border-default)",
-              borderRadius: "8px",
-              padding: "10px 16px",
-              cursor: "pointer",
-            }}
-          >
-            Close
-          </button>
-        </div>
-      )}
 
       {/* Job Grid */}
       <div
