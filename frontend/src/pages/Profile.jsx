@@ -196,7 +196,7 @@ function SortableSkillRow({
               const val = e.target.value;
               // Auto-assign the category when a skill is picked
               const group = skillCategories.find((c) => c.skills.includes(val));
-const cat = group ? group.label : editValues.category;
+              const cat = group ? group.label : editValues.category;
               onEditChange({ ...editValues, name: val, category: cat });
             }}
             style={{
@@ -343,7 +343,6 @@ const cat = group ? group.label : editValues.category;
 // which now uses SortableSkillRow + DndContext for drag-and-drop.
 // ─────────────────────────────────────────────────────────────────────────────
 function Profile() {
-
   const { getToken } = useAuth();
   const { user } = useUser();
   const [profile, setProfile] = useState(initialProfile);
@@ -1087,28 +1086,26 @@ function Profile() {
                 disabled={isAnyEditing || !newSkill.name || !newSkill.proficiency}
                 style={{
                   backgroundColor:
-                    !newSkill.name || !newSkill.proficiency
+                    isAnyEditing || !newSkill.name || !newSkill.proficiency
                       ? "var(--color-border-default, #d1d5db)"
                       : "var(--brand-deep, #003C78)",
+
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
                   padding: "10px 20px",
                   fontSize: "14px",
                   fontWeight: 600,
-                  cursor: !newSkill.name || !newSkill.proficiency ? "not-allowed" : "pointer",
-                  
+
+                  cursor: isAnyEditing
+                    ? "not-allowed"
+                    : !newSkill.name || !newSkill.proficiency
+                      ? "not-allowed"
+                      : "pointer",
+
+                  opacity: isAnyEditing ? 0.5 : !newSkill.name || !newSkill.proficiency ? 0.7 : 1,
+
                   whiteSpace: "nowrap",
-                 opacity: isAnyEditing
-  ? 0.5
-  : !newSkill.name || !newSkill.proficiency
-  ? 0.7
-  : 1,
-cursor: isAnyEditing
-  ? "not-allowed"
-  : !newSkill.name || !newSkill.proficiency
-  ? "not-allowed"
-  : "pointer",
                   transition: "opacity 0.2s, background-color 0.2s",
                 }}
               >
