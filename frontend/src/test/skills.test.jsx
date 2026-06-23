@@ -41,10 +41,11 @@ function deleteSkill(skills, id) {
 // Everything else in the list stays the same.
 // Returns the updated list.
 function editSkill(skills, id, updatedValues) {
-  return skills.map((s) =>
-    s.id === id
-      ? { ...s, ...updatedValues } // replace this skill's values
-      : s                          // leave all other skills unchanged
+  return skills.map(
+    (s) =>
+      s.id === id
+        ? { ...s, ...updatedValues } // replace this skill's values
+        : s // leave all other skills unchanged
   );
 }
 
@@ -54,14 +55,13 @@ function editSkill(skills, id, updatedValues) {
 function reorderSkills(skills, fromIndex, toIndex) {
   const result = [...skills];
   const [moved] = result.splice(fromIndex, 1); // remove from old position
-  result.splice(toIndex, 0, moved);            // insert at new position
+  result.splice(toIndex, 0, moved); // insert at new position
   return result;
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("Skills CRUD — S2-018", () => {
-
   // ── ADD ───────────────────────────────────────────────────────────────────
 
   it("adds a new skill to an empty list", () => {
@@ -78,9 +78,7 @@ describe("Skills CRUD — S2-018", () => {
   });
 
   it("adds a second skill to a list that already has one", () => {
-    const skills = [
-      { id: 1, name: "React", category: "Frontend", proficiency: "Advanced" },
-    ];
+    const skills = [{ id: 1, name: "React", category: "Frontend", proficiency: "Advanced" }];
     const newSkill = { id: 2, name: "Python", category: "Backend", proficiency: "Intermediate" };
 
     const result = addSkill(skills, newSkill);
@@ -94,9 +92,7 @@ describe("Skills CRUD — S2-018", () => {
 
   it("blocks adding a duplicate skill — S2-BR-016", () => {
     // React is already in the list
-    const skills = [
-      { id: 1, name: "React", category: "Frontend", proficiency: "Advanced" },
-    ];
+    const skills = [{ id: 1, name: "React", category: "Frontend", proficiency: "Advanced" }];
     // Try to add React again
     const duplicate = { id: 2, name: "React", category: "Frontend", proficiency: "Beginner" };
 
@@ -122,9 +118,7 @@ describe("Skills CRUD — S2-018", () => {
   });
 
   it("returns the same list if the id does not exist", () => {
-    const skills = [
-      { id: 1, name: "React", category: "Frontend", proficiency: "Advanced" },
-    ];
+    const skills = [{ id: 1, name: "React", category: "Frontend", proficiency: "Advanced" }];
 
     const result = deleteSkill(skills, 99); // id 99 doesn't exist
 
@@ -150,9 +144,7 @@ describe("Skills CRUD — S2-018", () => {
   });
 
   it("edits both the skill name and proficiency", () => {
-    const skills = [
-      { id: 1, name: "CSS", category: "Frontend", proficiency: "Beginner" },
-    ];
+    const skills = [{ id: 1, name: "CSS", category: "Frontend", proficiency: "Beginner" }];
 
     const result = editSkill(skills, 1, {
       name: "TypeScript",
@@ -177,8 +169,8 @@ describe("Skills CRUD — S2-018", () => {
     const result = reorderSkills(skills, 2, 0);
 
     expect(result[0].name).toBe("React"); // React is now first
-    expect(result[1].name).toBe("HTML");  // HTML moved down
-    expect(result[2].name).toBe("CSS");   // CSS moved down
+    expect(result[1].name).toBe("HTML"); // HTML moved down
+    expect(result[2].name).toBe("CSS"); // CSS moved down
   });
 
   it("moving a skill to the same position changes nothing", () => {
@@ -192,5 +184,4 @@ describe("Skills CRUD — S2-018", () => {
     expect(result[0].name).toBe("HTML");
     expect(result[1].name).toBe("CSS");
   });
-
 });

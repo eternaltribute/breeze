@@ -7,13 +7,7 @@ import { Progress } from "@/components/ui/progress";
 // closestCenter: the algorithm that decides where to drop something
 // PointerSensor: detects mouse/touch drag gestures
 // useSensor/useSensors: registers which input methods can trigger a drag
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 // arrayMove: a helper that takes an array and moves one item to a new position
 // SortableContext: wraps the list and tells dnd-kit which items are sortable
 // useSortable: gives one individual row its drag powers
@@ -76,12 +70,12 @@ function SortableSkillRow({
   // useSortable gives this specific row its drag-and-drop powers.
   // It needs the skill's id so dnd-kit can track which item is which.
   const {
-    attributes,  // accessibility attributes (aria labels etc)
-    listeners,   // event listeners that detect when a drag starts
-    setNodeRef,  // connects this DOM element to dnd-kit's tracking system
-    transform,   // how far this row has moved while being dragged (x/y numbers)
-    transition,  // the CSS transition for smooth snapping animation
-    isDragging,  // true while this specific row is being actively dragged
+    attributes, // accessibility attributes (aria labels etc)
+    listeners, // event listeners that detect when a drag starts
+    setNodeRef, // connects this DOM element to dnd-kit's tracking system
+    transform, // how far this row has moved while being dragged (x/y numbers)
+    transition, // the CSS transition for smooth snapping animation
+    isDragging, // true while this specific row is being actively dragged
   } = useSortable({ id: skill.id });
 
   // Convert the transform numbers into an actual CSS transform string
@@ -125,8 +119,8 @@ function SortableSkillRow({
           color: "var(--color-subtext, #6b7280)",
           fontSize: "18px",
           padding: "0 4px",
-          userSelect: "none",  // prevents text from being highlighted while dragging
-          flexShrink: 0,       // keeps the handle from shrinking on small screens
+          userSelect: "none", // prevents text from being highlighted while dragging
+          flexShrink: 0, // keeps the handle from shrinking on small screens
           lineHeight: 1,
         }}
       >
@@ -135,38 +129,46 @@ function SortableSkillRow({
 
       {/* ── NORMAL MODE: show skill name, category badge, proficiency badge ── */}
       {!isEditing && (
-        <div style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          flexWrap: "wrap",
-        }}>
-          <span style={{
-            fontWeight: 600,
-            fontSize: "14px",
-            color: "var(--color-heading, #003C78)",
-          }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            flexWrap: "wrap",
+          }}
+        >
+          <span
+            style={{
+              fontWeight: 600,
+              fontSize: "14px",
+              color: "var(--color-heading, #003C78)",
+            }}
+          >
             {skill.name}
           </span>
 
           {skill.category && (
-            <span style={{
-              fontSize: "12px",
-              color: "var(--color-subtext, #6b7280)",
-            }}>
+            <span
+              style={{
+                fontSize: "12px",
+                color: "var(--color-subtext, #6b7280)",
+              }}
+            >
               {skill.category}
             </span>
           )}
 
           {skill.proficiency && (
-            <span style={{
-              fontSize: "12px",
-              padding: "2px 8px",
-              borderRadius: "20px",
-              backgroundColor: "var(--color-accent, #046A97)",
-              color: "white",
-            }}>
+            <span
+              style={{
+                fontSize: "12px",
+                padding: "2px 8px",
+                borderRadius: "20px",
+                backgroundColor: "var(--color-accent, #046A97)",
+                color: "white",
+              }}
+            >
               {skill.proficiency}
             </span>
           )}
@@ -178,13 +180,15 @@ function SortableSkillRow({
           The user can change both the skill name and the proficiency.
       ────────────────────────────────────────────────────────────────── */}
       {isEditing && (
-        <div style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          flexWrap: "wrap",
-        }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            flexWrap: "wrap",
+          }}
+        >
           {/* Skill name dropdown — shows the same grouped options as + Add */}
           <select
             value={editValues.name}
@@ -208,7 +212,9 @@ function SortableSkillRow({
             {skillCategories.map((group) => (
               <optgroup key={group.label} label={group.label}>
                 {group.skills.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
                 ))}
               </optgroup>
             ))}
@@ -243,7 +249,6 @@ function SortableSkillRow({
           are disabled so only one edit can happen at a time.
       ────────────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-
         {/* Normal mode buttons */}
         {!isEditing && (
           <>
@@ -419,21 +424,24 @@ function Profile() {
   const handleEditSave = () => {
     if (!editValues.name) return; // don't save if no skill selected
     // Check for duplicates — but allow saving the same skill name as before
-    const isDuplicate = skills.some(
-      (s) => s.name === editValues.name && s.id !== editingSkillId
-    );
+    const isDuplicate = skills.some((s) => s.name === editValues.name && s.id !== editingSkillId);
     if (isDuplicate) return; // silently block (could add error message here)
 
     // Update the skills array: keep everything the same except the row being edited
     setSkills((prev) =>
       prev.map((s) =>
         s.id === editingSkillId
-          ? { ...s, name: editValues.name, category: editValues.category, proficiency: editValues.proficiency }
+          ? {
+              ...s,
+              name: editValues.name,
+              category: editValues.category,
+              proficiency: editValues.proficiency,
+            }
           : s
       )
     );
     setEditingSkillId(null); // close edit mode
-    setSkillsSaved(false);   // mark as unsaved
+    setSkillsSaved(false); // mark as unsaved
   };
 
   // Called when Cancel is clicked — just closes edit mode, no changes saved
@@ -631,39 +639,44 @@ function Profile() {
         }}
       >
         <div style={{ width: "100%", maxWidth: "700px" }}>
-
           {/* HEADER */}
-          <h1 style={{
-            color: "var(--color-heading, #003C78)",
-            marginBottom: "12px",
-            fontSize: "40px",
-            lineHeight: "1.2",
-            fontWeight: 700,
-          }}>
+          <h1
+            style={{
+              color: "var(--color-heading, #003C78)",
+              marginBottom: "12px",
+              fontSize: "40px",
+              lineHeight: "1.2",
+              fontWeight: 700,
+            }}
+          >
             My Profile
           </h1>
 
-          <p style={{
-            color: "var(--color-subtext, #6b7280)",
-            marginBottom: "28px",
-            fontSize: "16px",
-            lineHeight: "1.5",
-          }}>
+          <p
+            style={{
+              color: "var(--color-subtext, #6b7280)",
+              marginBottom: "28px",
+              fontSize: "16px",
+              lineHeight: "1.5",
+            }}
+          >
             Keep your profile up to date to get the best results!
           </p>
 
           {/* VALIDATION BANNER */}
           {showBanner && (
-            <div style={{
-              backgroundColor: "rgba(255, 97, 56, 0.08)",
-              border: "1px solid var(--color-error, #FF6138)",
-              borderRadius: "8px",
-              padding: "12px 16px",
-              marginBottom: "24px",
-              color: "var(--color-error, #FF6138)",
-              fontSize: "14px",
-              fontWeight: 500,
-            }}>
+            <div
+              style={{
+                backgroundColor: "rgba(255, 97, 56, 0.08)",
+                border: "1px solid var(--color-error, #FF6138)",
+                borderRadius: "8px",
+                padding: "12px 16px",
+                marginBottom: "24px",
+                color: "var(--color-error, #FF6138)",
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
               * Please complete all required fields before saving.
             </div>
           )}
@@ -674,17 +687,26 @@ function Profile() {
               <span style={{ fontWeight: 600, color: "var(--color-heading, #003C78)" }}>
                 Profile Completion
               </span>
-              <span style={{
-                fontWeight: 600,
-                color: completion === 100
-                  ? "var(--color-accent, #046A97)"
-                  : "var(--color-error, #FF6138)",
-              }}>
+              <span
+                style={{
+                  fontWeight: 600,
+                  color:
+                    completion === 100
+                      ? "var(--color-accent, #046A97)"
+                      : "var(--color-error, #FF6138)",
+                }}
+              >
                 {completion}%
               </span>
             </div>
             <Progress value={completion} />
-            <p style={{ marginTop: "10px", fontSize: "12px", color: "var(--color-subtext, #6b7280)" }}>
+            <p
+              style={{
+                marginTop: "10px",
+                fontSize: "12px",
+                color: "var(--color-subtext, #6b7280)",
+              }}
+            >
               {completion === 100
                 ? "Your profile is complete! 🎉"
                 : `Fill in ${
@@ -696,36 +718,72 @@ function Profile() {
 
           {/* IDENTITY & CONTACT — unchanged */}
           <div style={cardStyle}>
-            <h2 style={{ color: "var(--color-heading, #003C78)", fontSize: "16px", marginBottom: "16px" }}>
+            <h2
+              style={{
+                color: "var(--color-heading, #003C78)",
+                fontSize: "16px",
+                marginBottom: "16px",
+              }}
+            >
               Identity & Contact
             </h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <div>
                 <label style={labelStyle}>First Name *</label>
-                <input name="firstName" value={profile.firstName} onChange={handleChange} placeholder="Jane" style={getInputStyle("firstName")} />
+                <input
+                  name="firstName"
+                  value={profile.firstName}
+                  onChange={handleChange}
+                  placeholder="Jane"
+                  style={getInputStyle("firstName")}
+                />
                 {errors.firstName && <p style={errorTextStyle}>{errors.firstName}</p>}
               </div>
               <div>
                 <label style={labelStyle}>Last Name *</label>
-                <input name="lastName" value={profile.lastName} onChange={handleChange} placeholder="Doe" style={getInputStyle("lastName")} />
+                <input
+                  name="lastName"
+                  value={profile.lastName}
+                  onChange={handleChange}
+                  placeholder="Doe"
+                  style={getInputStyle("lastName")}
+                />
                 {errors.lastName && <p style={errorTextStyle}>{errors.lastName}</p>}
               </div>
             </div>
             <div style={{ marginTop: "16px" }}>
               <label style={labelStyle}>Email *</label>
-              <input name="email" value={profile.email} onChange={handleChange} placeholder="jane@example.com" style={getInputStyle("email")} />
+              <input
+                name="email"
+                value={profile.email}
+                onChange={handleChange}
+                placeholder="jane@example.com"
+                style={getInputStyle("email")}
+              />
               {errors.email && <p style={errorTextStyle}>{errors.email}</p>}
             </div>
             <div style={{ marginTop: "16px" }}>
               <label style={labelStyle}>Phone</label>
-              <input name="phone" value={profile.phone} onChange={handleChange} placeholder="(555) 000-0000" style={getInputStyle("phone")} />
+              <input
+                name="phone"
+                value={profile.phone}
+                onChange={handleChange}
+                placeholder="(555) 000-0000"
+                style={getInputStyle("phone")}
+              />
               {errors.phone && <p style={errorTextStyle}>{errors.phone}</p>}
             </div>
           </div>
 
           {/* SUMMARY — unchanged */}
           <div style={cardStyle}>
-            <h2 style={{ color: "var(--color-heading, #003C78)", fontSize: "16px", marginBottom: "16px" }}>
+            <h2
+              style={{
+                color: "var(--color-heading, #003C78)",
+                fontSize: "16px",
+                marginBottom: "16px",
+              }}
+            >
               Professional Summary *
             </h2>
             <textarea
@@ -747,7 +805,13 @@ function Profile() {
               - Each SortableSkillRow is one draggable row
           ────────────────────────────────────────────────────────────────── */}
           <div style={cardStyle}>
-            <h2 style={{ color: "var(--color-heading, #003C78)", fontSize: "16px", marginBottom: "16px" }}>
+            <h2
+              style={{
+                color: "var(--color-heading, #003C78)",
+                fontSize: "16px",
+                marginBottom: "16px",
+              }}
+            >
               Skills
             </h2>
 
@@ -775,7 +839,9 @@ function Profile() {
                 {skillCategories.map((group) => (
                   <optgroup key={group.label} label={group.label}>
                     {group.skills.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
                     ))}
                   </optgroup>
                 ))}
@@ -802,7 +868,9 @@ function Profile() {
                 onClick={handleAddSkill}
                 disabled={isAnyEditing}
                 style={{
-                  backgroundColor: isAnyEditing ? "var(--color-subtext, #6b7280)" : "var(--brand-deep, #003C78)",
+                  backgroundColor: isAnyEditing
+                    ? "var(--color-subtext, #6b7280)"
+                    : "var(--brand-deep, #003C78)",
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
@@ -820,7 +888,13 @@ function Profile() {
             </div>
 
             {skillError && (
-              <p style={{ color: "var(--color-error, #FF6138)", fontSize: "13px", marginBottom: "12px" }}>
+              <p
+                style={{
+                  color: "var(--color-error, #FF6138)",
+                  fontSize: "13px",
+                  marginBottom: "12px",
+                }}
+              >
                 {skillError}
               </p>
             )}
@@ -915,17 +989,32 @@ function Profile() {
               Save Profile
             </button>
             {saved && (
-              <span style={{ color: "#22c55e", fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+              <span
+                style={{
+                  color: "#22c55e",
+                  fontSize: "13px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
                 ✓ Profile saved!
               </span>
             )}
             {showBanner && !saved && (
-              <span style={{ color: "var(--color-error, #FF6138)", fontSize: "13px", display: "flex", alignItems: "center", gap: "4px" }}>
+              <span
+                style={{
+                  color: "var(--color-error, #FF6138)",
+                  fontSize: "13px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
                 ✕ Please fill out all required fields.
               </span>
             )}
           </div>
-
         </div>
       </div>
     </>
