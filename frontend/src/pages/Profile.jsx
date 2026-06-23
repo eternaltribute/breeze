@@ -63,6 +63,144 @@ function Profile() {
     console.log("Saving skills:", skills);
     setSkillsSaved(true);
   };
+  // ── Experiences ──────────────────────────────────────────
+  const [experiences, setExperiences] = useState([]);
+  const [experienceErrors, setExperienceErrors] = useState({});
+  const [experienceSaved, setExperienceSaved] = useState(false);
+
+  const handleAddExperience = () => {
+    setExperiences([
+      ...experiences,
+      {
+        id: crypto.randomUUID(),
+        title: "",
+        company: "",
+        startDate: "",
+        endDate: "",
+        description: "",
+        saved: false,
+        collapsed: false,
+        hasStartedEditing: false,
+      },
+    ]);
+  };
+  const validateExperience = (exp) => {
+    const errors = {};
+
+    if (!exp.title.trim()) errors.title = "Job Title is required.";
+    if (!exp.company.trim()) errors.company = "Company is required.";
+    if (!exp.startDate) errors.startDate = "Start date is required.";
+    if (!exp.endDate) errors.endDate = "End date is required.";
+    if (!exp.description.trim()) errors.description = "Description is required.";
+
+    if (exp.startDate && exp.endDate && new Date(exp.endDate) < new Date(exp.startDate)) {
+      errors.endDate = "End date cannot be earlier than start date.";
+    }
+
+    return errors;
+  };
+  const updateExperience = (id, field, value) => {
+    setExperienceSaved(false);
+
+    setExperiences((prev) =>
+      prev.map((exp) => {
+        if (exp.id !== id) return exp;
+
+        const updated = {
+          ...exp,
+          [field]: value,
+          hasStartedEditing: true,
+        };
+
+        const errors = validateExperience(updated);
+
+        setExperienceErrors((prevErrors) => ({
+          ...prevErrors,
+          [id]: errors,
+        }));
+
+        return updated;
+      })
+    );
+  };
+
+  const deleteExperience = (id) => {
+    setExperienceSaved(false);
+
+    setExperiences(experiences.filter((exp) => exp.id !== id));
+  };
+
+  const moveExperienceUp = (index) => {
+    if (index === 0) return;
+
+    const copy = [...experiences];
+
+    [copy[index - 1], copy[index]] = [copy[index], copy[index - 1]];
+
+    setExperiences(copy);
+  };
+
+  const moveExperienceDown = (index) => {
+    if (index === experiences.length - 1) return;
+
+    const copy = [...experiences];
+
+    [copy[index], copy[index + 1]] = [copy[index + 1], copy[index]];
+
+    setExperiences(copy);
+  };
+
+  const handleSaveExperiences = () => {
+    const errors = {};
+
+    experiences.forEach((exp) => {
+      const fieldErrors = {};
+
+      if (!exp.title.trim()) {
+        fieldErrors.title = "Job Title is required.";
+      }
+
+      if (!exp.company.trim()) {
+        fieldErrors.company = "Company is required.";
+      }
+
+      if (!exp.startDate) {
+        fieldErrors.startDate = "Start date is required.";
+      }
+
+      if (!exp.endDate) {
+        fieldErrors.endDate = "End date is required.";
+      }
+
+      if (!exp.description.trim()) {
+        fieldErrors.description = "Description is required.";
+      }
+
+      if (exp.startDate && exp.endDate && new Date(exp.endDate) < new Date(exp.startDate)) {
+        fieldErrors.endDate = "End date cannot be earlier than start date.";
+      }
+
+      if (Object.keys(fieldErrors).length > 0) {
+        errors[exp.id] = fieldErrors;
+      }
+    });
+
+    setExperienceErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    console.log("Saving experiences:", experiences);
+    setExperienceSaved(true);
+    setExperiences(
+      experiences.map((exp) => ({
+        ...exp,
+        saved: true,
+        collapsed: true,
+      }))
+    );
+  };
 
   const BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -179,9 +317,23 @@ function Profile() {
     border: errors[field]
       ? "1px solid var(--color-error, #FF6138)"
       : "1px solid var(--border, #d1d5db)",
-    backgroundColor: errors[field] ? "rgba(255, 97, 56, 0.05)" : "white",
+    backgroundColor: errors[field] ? "rgba(255, 97, 56, 0.05)" : "var(--color-input-bg)",
     animation: shaking[field] ? "shake 0.4s ease" : "none",
   });
+
+  const hasOpenExperience = experiences.some((exp) => !exp.collapsed);
+  const openExperience = experiences.find((exp) => !exp.collapsed);
+  const canSaveExperiences =
+    hasOpenExperience &&
+    experiences.length > 0 &&
+    experiences.every(
+      (exp) =>
+        exp.title.trim() &&
+        exp.company.trim() &&
+        exp.startDate &&
+        exp.endDate &&
+        exp.description.trim()
+    );
 
   return (
     <>
@@ -247,7 +399,7 @@ function Profile() {
           )}
 
           {/* COMPLETION CARD */}
-          <div style={{ ...cardStyle, borderLeft: "4px solid var(--color-accent, #046A97)" }}>
+          <div style={{ ...cardStyle, borderLeft: "4px solid var(--section-border)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
               <span style={{ fontWeight: 600, color: "var(--color-heading, #003C78)" }}>
                 Profile Completion
@@ -282,7 +434,12 @@ function Profile() {
           </div>
 
           {/* IDENTITY & CONTACT */}
-          <div style={cardStyle}>
+          <div
+            style={{
+              ...cardStyle,
+              borderLeft: "4px solid var(--section-border)",
+            }}
+          >
             <h2
               style={{
                 color: "var(--color-heading, #003C78)",
@@ -290,7 +447,7 @@ function Profile() {
                 marginBottom: "16px",
               }}
             >
-              Identity & Contact
+              Identity & Contact *
             </h2>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
@@ -333,45 +490,106 @@ function Profile() {
 
             <div style={{ marginTop: "16px" }}>
               <label style={labelStyle}>Phone</label>
-              <input
-                name="phone"
-                value={profile.phone}
-                onChange={handleChange}
-                placeholder="(555) 000-0000"
-                style={getInputStyle("phone")}
-              />
+
+              <div
+                style={{
+                  position: "relative",
+                  marginTop: "4px",
+                }}
+              >
+                <input
+                  name="phone"
+                  value={profile.phone}
+                  onChange={handleChange}
+                  placeholder="(000) 000-0000"
+                  style={{
+                    ...getInputStyle("phone"),
+                    paddingLeft: "12px",
+                  }}
+                />
+              </div>
+
               {errors.phone && <p style={errorTextStyle}>{errors.phone}</p>}
+            </div>
+
+            {/* Divider */}
+            <hr
+              style={{
+                border: "none",
+                borderTop: "1px solid var(--border)",
+                margin: "24px 0",
+              }}
+            />
+            {/* SUMMARY */}
+            <div>
+              <h2
+                style={{
+                  color: "var(--color-heading, #003C78)",
+                  fontSize: "16px",
+                  marginBottom: "16px",
+                }}
+              >
+                Professional Summary *
+              </h2>
+              <textarea
+                name="summary"
+                value={profile.summary}
+                onChange={handleChange}
+                placeholder="Tell us about yourself and your career goals..."
+                rows={5}
+                style={{
+                  ...getInputStyle("summary"),
+                  resize: "vertical",
+                  minHeight: "120px",
+                }}
+              />
+              {errors.summary && <p style={errorTextStyle}>{errors.summary}</p>}
+            </div>
+            <div
+              style={{
+                marginTop: "20px",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                onClick={handleSave}
+                style={{
+                  backgroundColor: "var(--brand-deep, #003C78)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 24px",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Save Profile Information
+              </button>
+
+              {saved && (
+                <span
+                  style={{
+                    color: "#22c55e",
+                    fontSize: "13px",
+                  }}
+                >
+                  ✓ Profile information saved!
+                </span>
+              )}
             </div>
           </div>
 
-          {/* SUMMARY */}
-          <div style={cardStyle}>
-            <h2
-              style={{
-                color: "var(--color-heading, #003C78)",
-                fontSize: "16px",
-                marginBottom: "16px",
-              }}
-            >
-              Professional Summary *
-            </h2>
-            <textarea
-              name="summary"
-              value={profile.summary}
-              onChange={handleChange}
-              placeholder="Tell us about yourself and your career goals..."
-              rows={5}
-              style={{
-                ...getInputStyle("summary"),
-                resize: "vertical",
-                minHeight: "120px",
-              }}
-            />
-            {errors.summary && <p style={errorTextStyle}>{errors.summary}</p>}
-          </div>
-
           {/* SKILLS */}
-          <div style={cardStyle}>
+          <div
+            style={{
+              ...cardStyle,
+              borderLeft: "4px solid var(--section-border)",
+            }}
+          >
             <h2
               style={{
                 color: "var(--color-heading, #003C78)",
@@ -417,15 +635,20 @@ function Profile() {
 
               <button
                 onClick={handleAddSkill}
+                disabled={!newSkill.name || !newSkill.proficiency}
                 style={{
-                  backgroundColor: "var(--brand-deep, #003C78)",
+                  backgroundColor:
+                    !newSkill.name || !newSkill.proficiency
+                      ? "var(--color-border-default, #d1d5db)"
+                      : "var(--brand-deep, #003C78)",
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
                   padding: "10px 20px",
                   fontSize: "14px",
                   fontWeight: 600,
-                  cursor: "pointer",
+                  cursor: !newSkill.name || !newSkill.proficiency ? "not-allowed" : "pointer",
+                  opacity: !newSkill.name || !newSkill.proficiency ? 0.7 : 1,
                   whiteSpace: "nowrap",
                 }}
               >
@@ -534,49 +757,356 @@ function Profile() {
             </div>
           </div>
 
-          {/* SAVE BUTTON */}
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-            <button
-              onClick={handleSave}
+          {/* EXPERIENCE */}
+          <div
+            style={{
+              ...cardStyle,
+              borderLeft: "4px solid var(--section-border)",
+            }}
+          >
+            <h2
               style={{
-                backgroundColor: "var(--brand-deep, #003C78)",
+                color: "var(--color-heading, #003C78)",
+                fontSize: "16px",
+                marginBottom: "16px",
+              }}
+            >
+              Experience
+            </h2>
+
+            <button
+              onClick={handleAddExperience}
+              disabled={hasOpenExperience}
+              style={{
+                backgroundColor: hasOpenExperience
+                  ? "var(--color-border-default, #d1d5db)"
+                  : "var(--brand-deep, #003C78)",
                 color: "white",
                 border: "none",
                 borderRadius: "8px",
-                padding: "10px 24px",
-                fontSize: "14px",
-                fontWeight: 600,
-                cursor: "pointer",
+                padding: "10px 20px",
+                cursor: hasOpenExperience ? "not-allowed" : "pointer",
+                opacity: hasOpenExperience ? 0.7 : 1,
+                marginBottom: "16px",
               }}
             >
-              Save Profile
+              + Add Experience
             </button>
-            {saved && (
-              <span
+            {hasOpenExperience && (
+              <p
                 style={{
-                  color: "#22c55e",
-                  fontSize: "13px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
+                  fontSize: "12px",
+                  color: "var(--color-subtext)",
+                  marginBottom: "12px",
                 }}
               >
-                ✓ Profile saved!
-              </span>
+                Save or finish editing the current experience before adding another.
+              </p>
             )}
-            {showBanner && !saved && (
-              <span
+            {experiences.length === 0 ? (
+              <p
                 style={{
-                  color: "var(--color-error, #FF6138)",
-                  fontSize: "13px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
+                  color: "var(--color-subtext, #6b7280)",
                 }}
               >
-                ✕ Please fill out all required fields.
-              </span>
+                No experience entries yet.
+              </p>
+            ) : (
+              experiences.map((exp, index) => {
+                return (
+                  <div key={exp.id}>
+                    {" "}
+                    {exp.collapsed ? (
+                      <div
+                        style={{
+                          border: "2px solid #f59e0b",
+                          borderRadius: "10px",
+                          padding: "16px",
+                          marginBottom: "16px",
+                          backgroundColor: "var(--color-card-bg)",
+                        }}
+                      >
+                        <h3
+                          style={{
+                            margin: 0,
+                            color: "var(--color-heading)",
+                            fontSize: "18px",
+                          }}
+                        >
+                          {exp.title || "Untitled Position"}
+                        </h3>
+
+                        <p
+                          style={{
+                            marginTop: "4px",
+                            color: "var(--color-subtext)",
+                          }}
+                        >
+                          {exp.company}
+                        </p>
+                        {exp.saved && (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              marginTop: "6px",
+                              padding: "4px 10px",
+                              borderRadius: "999px",
+                              backgroundColor: "#22c55e",
+                              color: "white",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Saved
+                          </span>
+                        )}
+                        <p
+                          style={{
+                            marginTop: "4px",
+                            color: "var(--color-subtext)",
+                            fontSize: "14px",
+                          }}
+                        >
+                          {exp.startDate} – {exp.endDate}
+                        </p>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            marginTop: "12px",
+                          }}
+                        >
+                          {" "}
+                          <button
+                            onClick={() => moveExperienceUp(index)}
+                            style={{
+                              backgroundColor: "var(--bg-card)",
+                              border: "1px solid var(--border)",
+                              borderRadius: "6px",
+                              width: "40px",
+                              height: "40px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            ▲
+                          </button>
+                          <button
+                            onClick={() => moveExperienceDown(index)}
+                            style={{
+                              backgroundColor: "var(--bg-card)",
+                              border: "1px solid var(--border)",
+                              borderRadius: "6px",
+                              width: "40px",
+                              height: "40px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            ▼
+                          </button>
+                          <button
+                            disabled={!!openExperience}
+                            onClick={() => {
+                              setExperienceSaved(false);
+                              updateExperience(exp.id, "collapsed", false);
+                            }}
+                            style={{
+                              backgroundColor: !openExperience ? "#94a3b8" : "var(--brand-deep)",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "8px",
+                              padding: "8px 14px",
+                              cursor: !openExperience ? "not-allowed" : "pointer",
+                              opacity: !openExperience ? 0.7 : 1,
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => deleteExperience(exp.id)}
+                            style={{
+                              backgroundColor: "#FF6138",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "8px",
+                              padding: "8px 14px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          border: "2px solid #f59e0b",
+                          borderRadius: "10px",
+                          padding: "16px",
+                          marginBottom: "16px",
+                          backgroundColor: "var(--color-card-bg)",
+                        }}
+                      >
+                        <label style={labelStyle}>Job Title *</label>
+                        <input
+                          placeholder="Job Title"
+                          value={exp.title}
+                          onChange={(e) => updateExperience(exp.id, "title", e.target.value)}
+                          style={inputStyle}
+                        />
+
+                        {exp.hasStartedEditing && experienceErrors[exp.id]?.title && (
+                          <p style={errorTextStyle}>{experienceErrors[exp.id].title}</p>
+                        )}
+                        <label style={labelStyle}>Company *</label>
+                        <input
+                          placeholder="Company"
+                          value={exp.company}
+                          onChange={(e) => updateExperience(exp.id, "company", e.target.value)}
+                          style={inputStyle}
+                        />
+
+                        {exp.hasStartedEditing && experienceErrors[exp.id]?.company && (
+                          <p style={errorTextStyle}>{experienceErrors[exp.id].company}</p>
+                        )}
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "16px",
+                            marginTop: "12px",
+                          }}
+                        >
+                          <div>
+                            <label
+                              style={{
+                                ...labelStyle,
+                                display: "block",
+                                marginBottom: "6px",
+                              }}
+                            >
+                              Start Date *
+                            </label>
+                            <input
+                              type="date"
+                              value={exp.startDate}
+                              onChange={(e) =>
+                                updateExperience(exp.id, "startDate", e.target.value)
+                              }
+                              style={inputStyle}
+                            />
+                            {exp.hasStartedEditing && experienceErrors[exp.id]?.startDate && (
+                              <p style={errorTextStyle}>{experienceErrors[exp.id].startDate}</p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label
+                              style={{
+                                ...labelStyle,
+                                display: "block",
+                                marginBottom: "6px",
+                              }}
+                            >
+                              End Date *
+                            </label>
+
+                            <input
+                              type="date"
+                              value={exp.endDate}
+                              onChange={(e) => updateExperience(exp.id, "endDate", e.target.value)}
+                              style={inputStyle}
+                            />
+                            {exp.hasStartedEditing && experienceErrors[exp.id]?.endDate && (
+                              <p style={errorTextStyle}>{experienceErrors[exp.id].endDate}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <label style={labelStyle}>Describe your responsibilities *</label>
+                        <textarea
+                          value={exp.description}
+                          onChange={(e) => updateExperience(exp.id, "description", e.target.value)}
+                          rows={4}
+                          style={{
+                            ...inputStyle,
+                            marginTop: "10px",
+                          }}
+                        />
+                        {exp.hasStartedEditing && experienceErrors[exp.id]?.description && (
+                          <p style={errorTextStyle}>{experienceErrors[exp.id].description}</p>
+                        )}
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            marginTop: "12px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <button
+                            onClick={() => deleteExperience(exp.id)}
+                            style={{
+                              backgroundColor: "#FF6138",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "8px",
+                              padding: "10px 16px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
+
+            <div style={{ marginTop: "16px" }}>
+              <button
+                onClick={handleSaveExperiences}
+                disabled={!canSaveExperiences}
+                style={{
+                  backgroundColor: canSaveExperiences
+                    ? "var(--brand-deep, #003C78)"
+                    : "var(--color-border-default, #d1d5db)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 20px",
+                  cursor: canSaveExperiences ? "pointer" : "not-allowed",
+                  opacity: canSaveExperiences ? 1 : 0.7,
+                }}
+              >
+                Save Experience
+              </button>
+              {!canSaveExperiences && experiences.length > 0 && (
+                <p
+                  style={{
+                    marginTop: "8px",
+                    fontSize: "12px",
+                    color: "var(--color-subtext)",
+                  }}
+                >
+                  Complete all experience fields before saving.
+                </p>
+              )}
+
+              {experienceSaved && !hasOpenExperience && (
+                <span
+                  style={{
+                    marginLeft: "12px",
+                    color: "#22c55e",
+                  }}
+                >
+                  ✓ Experience saved!
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -600,9 +1130,12 @@ const inputStyle = {
   marginTop: "4px",
   padding: "10px 12px",
   borderRadius: "8px",
-  border: "1px solid var(--border, #d1d5db)",
+  border: "1px solid var(--border)",
   fontSize: "14px",
   boxSizing: "border-box",
+
+  backgroundColor: "var(--color-input-bg)",
+  color: "var(--color-input-text)",
 };
 
 const errorTextStyle = {
