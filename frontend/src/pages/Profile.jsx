@@ -36,25 +36,28 @@ function getCompletion(profile) {
   return Math.round((filled / REQUIRED_FIELDS.length) * 100);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SortableSkillRow
-// This is a single row in the skills list.
-// Think of it like a flashcard: it has a "front" (normal display mode)
-// and a "back" (edit mode with dropdowns). Only one card can be flipped
-// at a time.
-//
-// Props it receives:
-//   skill          — the skill object { id, name, category, proficiency }
-//   isEditing      — true if THIS row is currently flipped to edit mode
-//   isAnyEditing   — true if ANY row is in edit mode (used to disable other buttons)
-//   editValues     — the current draft values in the edit form
-//   onEditStart    — called when the pencil button is clicked
-//   onEditChange   — called when a dropdown changes in edit mode
-//   onEditSave     — called when Save is clicked
-//   onEditCancel   — called when Cancel is clicked
-//   onDelete       — called when × is clicked
-//   skillCategories — the grouped list of skills for the dropdown
-// ─────────────────────────────────────────────────────────────────────────────
+function SortableExperience({ exp, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: exp.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({
+        dragHandleProps: {
+          ...attributes,
+          ...listeners,
+        },
+      })}
+    </div>
+  );
+}
+
 function SortableSkillRow({
   skill,
   isEditing,
@@ -88,7 +91,6 @@ function SortableSkillRow({
     // Sit on top of other rows while dragging
     zIndex: isDragging ? 10 : "auto",
   };
-
   return (
     <div
       ref={setNodeRef}
@@ -337,11 +339,6 @@ function SortableSkillRow({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Profile — the main page component
-// Everything below is the same as before except the Skills section,
-// which now uses SortableSkillRow + DndContext for drag-and-drop.
-// ─────────────────────────────────────────────────────────────────────────────
 function Profile() {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -503,7 +500,20 @@ function Profile() {
   const [experiences, setExperiences] = useState([]);
   const [experienceErrors, setExperienceErrors] = useState({});
   const [experienceSaved, setExperienceSaved] = useState(false);
+  const handleExperienceDragEnd = (event) => {
+    const { active, over } = event;
 
+    if (!over || active.id === over.id) return;
+
+    setExperiences((prev) => {
+      const oldIndex = prev.findIndex((e) => e.id === active.id);
+      const newIndex = prev.findIndex((e) => e.id === over.id);
+
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+
+    setExperienceSaved(false);
+  };
   const handleAddExperience = () => {
     setExperiences([
       ...experiences,
@@ -564,26 +574,6 @@ function Profile() {
     setExperienceSaved(false);
 
     setExperiences(experiences.filter((exp) => exp.id !== id));
-  };
-
-  const moveExperienceUp = (index) => {
-    if (index === 0) return;
-
-    const copy = [...experiences];
-
-    [copy[index - 1], copy[index]] = [copy[index], copy[index - 1]];
-
-    setExperiences(copy);
-  };
-
-  const moveExperienceDown = (index) => {
-    if (index === experiences.length - 1) return;
-
-    const copy = [...experiences];
-
-    [copy[index], copy[index + 1]] = [copy[index + 1], copy[index]];
-
-    setExperiences(copy);
   };
 
   const handleSaveExperiences = () => {
@@ -1237,258 +1227,275 @@ function Profile() {
                 No experience entries yet.
               </p>
             ) : (
-              experiences.map((exp, index) => {
-                return (
-                  <div key={exp.id}>
-                    {" "}
-                    {exp.collapsed ? (
-                      <div
-                        style={{
-                          border: "2px solid #f59e0b",
-                          borderRadius: "10px",
-                          padding: "16px",
-                          marginBottom: "16px",
-                          backgroundColor: "var(--color-card-bg)",
-                        }}
-                      >
-                        <h3
-                          style={{
-                            margin: 0,
-                            color: "var(--color-heading)",
-                            fontSize: "18px",
-                          }}
-                        >
-                          {exp.title || "Untitled Position"}
-                        </h3>
-
-                        <p
-                          style={{
-                            marginTop: "4px",
-                            color: "var(--color-subtext)",
-                          }}
-                        >
-                          {exp.company}
-                        </p>
-                        {exp.saved && (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              marginTop: "6px",
-                              padding: "4px 10px",
-                              borderRadius: "999px",
-                              backgroundColor: "#22c55e",
-                              color: "white",
-                              fontSize: "12px",
-                              fontWeight: 600,
-                            }}
-                          >
-                            Saved
-                          </span>
-                        )}
-                        <p
-                          style={{
-                            marginTop: "4px",
-                            color: "var(--color-subtext)",
-                            fontSize: "14px",
-                          }}
-                        >
-                          {exp.startDate} – {exp.endDate}
-                        </p>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "8px",
-                            marginTop: "12px",
-                          }}
-                        >
-                          {" "}
-                          <button
-                            onClick={() => moveExperienceUp(index)}
-                            style={{
-                              backgroundColor: "var(--bg-card)",
-                              border: "1px solid var(--border)",
-                              borderRadius: "6px",
-                              width: "40px",
-                              height: "40px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            ▲
-                          </button>
-                          <button
-                            onClick={() => moveExperienceDown(index)}
-                            style={{
-                              backgroundColor: "var(--bg-card)",
-                              border: "1px solid var(--border)",
-                              borderRadius: "6px",
-                              width: "40px",
-                              height: "40px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            ▼
-                          </button>
-                          <button
-                            disabled={!!openExperience}
-                            onClick={() => {
-                              setExperienceSaved(false);
-                              updateExperience(exp.id, "collapsed", false);
-                            }}
-                            style={{
-                              backgroundColor: !openExperience ? "#94a3b8" : "var(--brand-deep)",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "8px",
-                              padding: "8px 14px",
-                              cursor: !openExperience ? "not-allowed" : "pointer",
-                              opacity: !openExperience ? 0.7 : 1,
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => deleteExperience(exp.id)}
-                            style={{
-                              backgroundColor: "#FF6138",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "8px",
-                              padding: "8px 14px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          border: "2px solid #f59e0b",
-                          borderRadius: "10px",
-                          padding: "16px",
-                          marginBottom: "16px",
-                          backgroundColor: "var(--color-card-bg)",
-                        }}
-                      >
-                        <label style={labelStyle}>Job Title *</label>
-                        <input
-                          placeholder="Job Title"
-                          value={exp.title}
-                          onChange={(e) => updateExperience(exp.id, "title", e.target.value)}
-                          style={inputStyle}
-                        />
-
-                        {exp.hasStartedEditing && experienceErrors[exp.id]?.title && (
-                          <p style={errorTextStyle}>{experienceErrors[exp.id].title}</p>
-                        )}
-                        <label style={labelStyle}>Company *</label>
-                        <input
-                          placeholder="Company"
-                          value={exp.company}
-                          onChange={(e) => updateExperience(exp.id, "company", e.target.value)}
-                          style={inputStyle}
-                        />
-
-                        {exp.hasStartedEditing && experienceErrors[exp.id]?.company && (
-                          <p style={errorTextStyle}>{experienceErrors[exp.id].company}</p>
-                        )}
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr 1fr",
-                            gap: "16px",
-                            marginTop: "12px",
-                          }}
-                        >
-                          <div>
-                            <label
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleExperienceDragEnd}
+              >
+                <SortableContext
+                  items={experiences.map((e) => e.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {experiences.map((exp) => {
+                    return (
+                      <SortableExperience key={exp.id} exp={exp}>
+                        {({ dragHandleProps }) =>
+                          exp.collapsed ? (
+                            <div
                               style={{
-                                ...labelStyle,
-                                display: "block",
-                                marginBottom: "6px",
+                                border: "2px solid #f59e0b",
+                                borderRadius: "10px",
+                                padding: "16px",
+                                marginBottom: "16px",
+                                backgroundColor: "var(--color-card-bg)",
                               }}
                             >
-                              Start Date *
-                            </label>
-                            <input
-                              type="date"
-                              value={exp.startDate}
-                              onChange={(e) =>
-                                updateExperience(exp.id, "startDate", e.target.value)
-                              }
-                              style={inputStyle}
-                            />
-                            {exp.hasStartedEditing && experienceErrors[exp.id]?.startDate && (
-                              <p style={errorTextStyle}>{experienceErrors[exp.id].startDate}</p>
-                            )}
-                          </div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                }}
+                              >
+                                <span
+                                  {...dragHandleProps}
+                                  title="Drag to reorder"
+                                  style={{
+                                    cursor: "grab",
+                                    fontSize: "18px",
+                                    color: "var(--color-subtext)",
+                                    userSelect: "none",
+                                  }}
+                                >
+                                  ☰
+                                </span>
 
-                          <div>
-                            <label
+                                <h3
+                                  style={{
+                                    margin: 0,
+                                    color: "var(--color-heading)",
+                                    fontSize: "18px",
+                                  }}
+                                >
+                                  {exp.title || "Untitled Position"}
+                                </h3>
+                              </div>
+
+                              <p
+                                style={{
+                                  marginTop: "4px",
+                                  color: "var(--color-subtext)",
+                                }}
+                              >
+                                {exp.company}
+                              </p>
+                              {exp.saved && (
+                                <span
+                                  style={{
+                                    display: "inline-block",
+                                    marginTop: "6px",
+                                    padding: "4px 10px",
+                                    borderRadius: "999px",
+                                    backgroundColor: "#22c55e",
+                                    color: "white",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Saved
+                                </span>
+                              )}
+                              <p
+                                style={{
+                                  marginTop: "4px",
+                                  color: "var(--color-subtext)",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                {exp.startDate} – {exp.endDate}
+                              </p>
+
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "8px",
+                                  marginTop: "12px",
+                                }}
+                              >
+                                {" "}
+                                <button
+                                  disabled={hasOpenExperience && exp.collapsed}
+                                  onClick={() => {
+                                    setExperienceSaved(false);
+                                    updateExperience(exp.id, "collapsed", false);
+                                  }}
+                                  style={{
+                                    backgroundColor: openExperience
+                                      ? "#94a3b8"
+                                      : "var(--brand-deep)",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "8px 14px",
+                                    cursor: openExperience ? "not-allowed" : "pointer",
+                                    opacity: openExperience ? 0.7 : 1,
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deleteExperience(exp.id)}
+                                  style={{
+                                    backgroundColor: "#FF6138",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "8px 14px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
                               style={{
-                                ...labelStyle,
-                                display: "block",
-                                marginBottom: "6px",
+                                border: "2px solid #f59e0b",
+                                borderRadius: "10px",
+                                padding: "16px",
+                                marginBottom: "16px",
+                                backgroundColor: "var(--color-card-bg)",
                               }}
                             >
-                              End Date *
-                            </label>
+                              <label style={labelStyle}>Job Title *</label>
+                              <input
+                                placeholder="Job Title"
+                                value={exp.title}
+                                onChange={(e) => updateExperience(exp.id, "title", e.target.value)}
+                                style={inputStyle}
+                              />
 
-                            <input
-                              type="date"
-                              value={exp.endDate}
-                              onChange={(e) => updateExperience(exp.id, "endDate", e.target.value)}
-                              style={inputStyle}
-                            />
-                            {exp.hasStartedEditing && experienceErrors[exp.id]?.endDate && (
-                              <p style={errorTextStyle}>{experienceErrors[exp.id].endDate}</p>
-                            )}
-                          </div>
-                        </div>
+                              {exp.hasStartedEditing && experienceErrors[exp.id]?.title && (
+                                <p style={errorTextStyle}>{experienceErrors[exp.id].title}</p>
+                              )}
+                              <label style={labelStyle}>Company *</label>
+                              <input
+                                placeholder="Company"
+                                value={exp.company}
+                                onChange={(e) =>
+                                  updateExperience(exp.id, "company", e.target.value)
+                                }
+                                style={inputStyle}
+                              />
 
-                        <label style={labelStyle}>Describe your responsibilities *</label>
-                        <textarea
-                          value={exp.description}
-                          onChange={(e) => updateExperience(exp.id, "description", e.target.value)}
-                          rows={4}
-                          style={{
-                            ...inputStyle,
-                            marginTop: "10px",
-                          }}
-                        />
-                        {exp.hasStartedEditing && experienceErrors[exp.id]?.description && (
-                          <p style={errorTextStyle}>{experienceErrors[exp.id].description}</p>
-                        )}
+                              {exp.hasStartedEditing && experienceErrors[exp.id]?.company && (
+                                <p style={errorTextStyle}>{experienceErrors[exp.id].company}</p>
+                              )}
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 1fr",
+                                  gap: "16px",
+                                  marginTop: "12px",
+                                }}
+                              >
+                                <div>
+                                  <label
+                                    style={{
+                                      ...labelStyle,
+                                      display: "block",
+                                      marginBottom: "6px",
+                                    }}
+                                  >
+                                    Start Date *
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={exp.startDate}
+                                    onChange={(e) =>
+                                      updateExperience(exp.id, "startDate", e.target.value)
+                                    }
+                                    style={inputStyle}
+                                  />
+                                  {exp.hasStartedEditing && experienceErrors[exp.id]?.startDate && (
+                                    <p style={errorTextStyle}>
+                                      {experienceErrors[exp.id].startDate}
+                                    </p>
+                                  )}
+                                </div>
 
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "8px",
-                            marginTop: "12px",
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <button
-                            onClick={() => deleteExperience(exp.id)}
-                            style={{
-                              backgroundColor: "#FF6138",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "8px",
-                              padding: "10px 16px",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
+                                <div>
+                                  <label
+                                    style={{
+                                      ...labelStyle,
+                                      display: "block",
+                                      marginBottom: "6px",
+                                    }}
+                                  >
+                                    End Date *
+                                  </label>
+
+                                  <input
+                                    type="date"
+                                    value={exp.endDate}
+                                    onChange={(e) =>
+                                      updateExperience(exp.id, "endDate", e.target.value)
+                                    }
+                                    style={inputStyle}
+                                  />
+                                  {exp.hasStartedEditing && experienceErrors[exp.id]?.endDate && (
+                                    <p style={errorTextStyle}>{experienceErrors[exp.id].endDate}</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <label style={labelStyle}>Describe your responsibilities *</label>
+                              <textarea
+                                value={exp.description}
+                                onChange={(e) =>
+                                  updateExperience(exp.id, "description", e.target.value)
+                                }
+                                rows={4}
+                                style={{
+                                  ...inputStyle,
+                                  marginTop: "10px",
+                                }}
+                              />
+                              {exp.hasStartedEditing && experienceErrors[exp.id]?.description && (
+                                <p style={errorTextStyle}>{experienceErrors[exp.id].description}</p>
+                              )}
+
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "8px",
+                                  marginTop: "12px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <button
+                                  onClick={() => deleteExperience(exp.id)}
+                                  style={{
+                                    backgroundColor: "#FF6138",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "10px 16px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        }
+                      </SortableExperience>
+                    );
+                  })}
+                </SortableContext>
+              </DndContext>
             )}
 
             <div style={{ marginTop: "16px" }}>
