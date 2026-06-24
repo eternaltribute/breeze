@@ -24,6 +24,7 @@
   --color-input-text: #111827;
   --color-placeholder: #6b7280;
   --color-sidebar-bg: #ffffff;
+  --color-accent: #046a97;
 
   /* Breeze brand colors (same in both modes) */
   --brand-deep: #003c78;
@@ -133,6 +134,7 @@
   --color-input-text: #f8fafc;
   --color-placeholder: #d1d5db;
   --color-sidebar-bg: #0e1829;
+  --color-accent: #4da3ff;
 
   /* Legacy vars */
   --text: #9ca3af;

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Progress } from "@/components/ui/progress";
-
+import { PencilLine } from "lucide-react";
 // dnd-kit imports — these power the drag-and-drop reordering
 // DndContext: the "room" everything draggable lives inside
 // closestCenter: the algorithm that decides where to drop something
@@ -57,7 +57,27 @@ function SortableExperience({ exp, children }) {
     </div>
   );
 }
+function SortableEducation({ exp, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: exp.id,
+  });
 
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children({
+        dragHandleProps: {
+          ...attributes,
+          ...listeners,
+        },
+      })}
+    </div>
+  );
+}
 function SortableSkillRow({
   skill,
   isEditing,
@@ -100,10 +120,10 @@ function SortableSkillRow({
         alignItems: "center",
         gap: "10px",
         padding: "10px 14px",
-        borderRadius: "8px",
-        // Use CSS variables so this works in both light and dark mode
-        border: "1px solid var(--color-border-default, #d1d5db)",
+        borderRadius: "10px",
+        border: "2px solid #f59e0b",
         backgroundColor: "var(--bg-card, white)",
+        marginBottom: "12px",
       }}
     >
       {/* ── DRAG HANDLE ──────────────────────────────────────────────────
@@ -118,12 +138,13 @@ function SortableSkillRow({
         title="Drag to reorder"
         style={{
           cursor: "grab",
-          color: "var(--color-subtext, #6b7280)",
+          color: "#f59e0b",
           fontSize: "18px",
           padding: "0 4px",
-          userSelect: "none", // prevents text from being highlighted while dragging
-          flexShrink: 0, // keeps the handle from shrinking on small screens
+          userSelect: "none",
+          flexShrink: 0,
           lineHeight: 1,
+          fontWeight: "bold",
         }}
       >
         ≡
@@ -244,13 +265,6 @@ function SortableSkillRow({
           </select>
         </div>
       )}
-
-      {/* ── BUTTONS on the right side ────────────────────────────────────
-          Normal mode: pencil (Edit) + red × (Delete)
-          Edit mode: blue Save + grey Cancel
-          When ANY row is in edit mode, the pencil and × on OTHER rows
-          are disabled so only one edit can happen at a time.
-      ────────────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
         {/* Normal mode buttons */}
         {!isEditing && (
@@ -264,16 +278,13 @@ function SortableSkillRow({
                 background: "none",
                 border: "none",
                 cursor: isAnyEditing ? "not-allowed" : "pointer",
-                color: isAnyEditing
-                  ? "var(--color-subtext, #6b7280)"
-                  : "var(--color-accent, #046A97)",
-                fontSize: "15px",
+                color: isAnyEditing ? "var(--color-subtext)" : "var(--color-accent)",
                 padding: "2px 6px",
                 opacity: isAnyEditing ? 0.4 : 1,
-                transition: "opacity 0.2s",
+                transition: "opacity 0.2s, transform 0.15s",
               }}
             >
-              ✏
+              <PencilLine size={16} />
             </button>
 
             {/* Red × delete button */}
@@ -294,7 +305,7 @@ function SortableSkillRow({
                 transition: "opacity 0.2s",
               }}
             >
-              ×
+              X
             </button>
           </>
         )}
@@ -315,7 +326,7 @@ function SortableSkillRow({
                 cursor: "pointer",
               }}
             >
-              Save
+              Done
             </button>
 
             <button
@@ -366,7 +377,7 @@ function Profile() {
   // isAnyEditing: true if any row is currently open in edit mode.
   // We use this to disable the + Add button and other rows' buttons.
   const isAnyEditing = editingSkillId !== null;
-
+  const canSaveSkills = skills.length > 0 && !isAnyEditing && !skillsSaved;
   // ── Skill categories for the dropdowns ───────────────────────────────────
   const skillCategories = [
     {
@@ -409,13 +420,16 @@ function Profile() {
     setSkillsSaved(false); // mark as unsaved since order changed
   };
 
-  // ── Edit handlers ─────────────────────────────────────────────────────────
-
-  // Called when pencil button is clicked — opens edit mode for that row
   const handleEditStart = (skill) => {
+    setSkillsSaved(false);
+
     setEditingSkillId(skill.id);
-    // Copy the skill's current values into editValues so the dropdowns start pre-filled
-    setEditValues({ name: skill.name, category: skill.category, proficiency: skill.proficiency });
+
+    setEditValues({
+      name: skill.name,
+      category: skill.category,
+      proficiency: skill.proficiency,
+    });
   };
 
   // Called when Save is clicked in edit mode
@@ -442,7 +456,6 @@ function Profile() {
     setSkillsSaved(false); // mark as unsaved
   };
 
-  // Called when Cancel is clicked — just closes edit mode, no changes saved
   const handleEditCancel = () => {
     setEditingSkillId(null);
   };
@@ -571,6 +584,10 @@ function Profile() {
   };
 
   const deleteExperience = (id) => {
+    const confirmed = window.confirm("Are you sure you want to delete this experience entry?");
+
+    if (!confirmed) return;
+
     setExperienceSaved(false);
 
     setExperiences(experiences.filter((exp) => exp.id !== id));
@@ -627,6 +644,143 @@ function Profile() {
       }))
     );
   };
+  // ── Education ──────────────────────────────────────────
+  const [education, setEducation] = useState([]);
+  const [educationErrors, setEducationErrors] = useState({});
+  const [educationSaved, setEducationSaved] = useState(false);
+  const handleEducationDragEnd = (event) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    setEducation((prev) => {
+      const oldIndex = prev.findIndex((e) => e.id === active.id);
+      const newIndex = prev.findIndex((e) => e.id === over.id);
+
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+
+    setEducationSaved(false);
+  };
+  const handleAddEducation = () => {
+    setEducation([
+      ...education,
+      {
+        id: crypto.randomUUID(),
+        school: "",
+        degree: "",
+        fieldOfStudy: "",
+        startDate: "",
+        endDate: "",
+        saved: false,
+        collapsed: false,
+        hasStartedEditing: false,
+      },
+    ]);
+  };
+
+  const validateEducation = (edu) => {
+    const errors = {};
+
+    if (!edu.school.trim()) {
+      errors.school = "School is required.";
+    }
+
+    if (!edu.degree.trim()) {
+      errors.degree = "Degree is required.";
+    }
+    if (!edu.fieldOfStudy.trim()) {
+      errors.fieldOfStudy = "Field of study is required.";
+    }
+    if (!edu.startDate) {
+      errors.startDate = "Start date is required.";
+    }
+
+    if (!edu.endDate) {
+      errors.endDate = "End date is required.";
+    }
+
+    if (edu.startDate && edu.endDate && new Date(edu.endDate) < new Date(edu.startDate)) {
+      errors.endDate = "End date cannot be earlier than start date.";
+    }
+
+    return errors;
+  };
+
+  const updateEducation = (id, field, value) => {
+    setEducationSaved(false);
+
+    setEducation((prev) =>
+      prev.map((edu) => {
+        if (edu.id !== id) return edu;
+
+        const updated = {
+          ...edu,
+          [field]: value,
+          hasStartedEditing: true,
+        };
+
+        const errors = validateEducation(updated);
+
+        setEducationErrors((prevErrors) => ({
+          ...prevErrors,
+          [id]: errors,
+        }));
+
+        return updated;
+      })
+    );
+  };
+
+  const deleteEducation = (id) => {
+    const confirmed = window.confirm("Are you sure you want to delete this education entry?");
+
+    if (!confirmed) return;
+
+    setEducationSaved(false);
+    setEducation(education.filter((edu) => edu.id !== id));
+  };
+
+  const handleSaveEducation = () => {
+    const errors = {};
+
+    education.forEach((edu) => {
+      const fieldErrors = validateEducation(edu);
+
+      if (Object.keys(fieldErrors).length > 0) {
+        errors[edu.id] = fieldErrors;
+      }
+    });
+
+    setEducationErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+
+    setEducationSaved(true);
+
+    setEducation(
+      education.map((edu) => ({
+        ...edu,
+        saved: true,
+        collapsed: true,
+      }))
+    );
+  };
+  const hasOpenEducation = education.some((edu) => !edu.collapsed);
+
+  const canSaveEducation =
+    hasOpenEducation &&
+    education.length > 0 &&
+    education.every(
+      (edu) =>
+        edu.school.trim() &&
+        edu.degree.trim() &&
+        edu.fieldOfStudy.trim() &&
+        edu.startDate &&
+        edu.endDate
+    );
 
   const BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -1102,7 +1256,17 @@ function Profile() {
                 + Add
               </button>
             </div>
-
+            {!newSkill.name || !newSkill.proficiency ? (
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "var(--color-subtext, #6b7280)",
+                  marginTop: "8px",
+                }}
+              >
+                Choose both a skill and proficiency before adding.
+              </p>
+            ) : null}
             {skillError && (
               <p
                 style={{
@@ -1151,21 +1315,34 @@ function Profile() {
             <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "16px" }}>
               <button
                 onClick={handleSaveSkills}
+                disabled={!canSaveSkills}
                 style={{
-                  backgroundColor: "var(--brand-deep, #003C78)",
+                  backgroundColor: canSaveSkills
+                    ? "var(--brand-deep, #003C78)"
+                    : "var(--color-border-default, #d1d5db)",
                   color: "white",
                   border: "none",
                   borderRadius: "8px",
                   padding: "10px 24px",
                   fontSize: "14px",
                   fontWeight: 600,
-                  cursor: "pointer",
+                  cursor: canSaveSkills ? "pointer" : "not-allowed",
+                  opacity: canSaveSkills ? 1 : 0.7,
                 }}
               >
                 Save Skills
               </button>
-              {skillsSaved && (
-                <span style={{ color: "var(--color-accent, #046A97)", fontSize: "14px" }}>
+              {skillsSaved && !isAnyEditing && (
+                <span
+                  style={{
+                    color: "#22c55e",
+                    backgroundColor: "rgba(34, 197, 94, 0.12)",
+                    padding: "6px 10px",
+                    borderRadius: "6px",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                  }}
+                >
                   ✓ Skills saved!
                 </span>
               )}
@@ -1536,6 +1713,379 @@ function Profile() {
                   }}
                 >
                   ✓ Experience saved!
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* EDUCATION */}
+          <div
+            style={{
+              ...cardStyle,
+              borderLeft: "4px solid var(--section-border)",
+            }}
+          >
+            <h2
+              style={{
+                color: "var(--color-heading, #003C78)",
+                fontSize: "16px",
+                marginBottom: "16px",
+              }}
+            >
+              Education
+            </h2>
+
+            <button
+              onClick={handleAddEducation}
+              disabled={hasOpenEducation}
+              style={{
+                backgroundColor: hasOpenEducation
+                  ? "var(--color-border-default, #d1d5db)"
+                  : "var(--brand-deep, #003C78)",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                padding: "10px 20px",
+                cursor: hasOpenEducation ? "not-allowed" : "pointer",
+                opacity: hasOpenEducation ? 0.7 : 1,
+                marginBottom: "16px",
+              }}
+            >
+              + Add Education
+            </button>
+            {hasOpenEducation && (
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "var(--color-subtext)",
+                  marginBottom: "12px",
+                }}
+              >
+                Save or finish editing the current education before adding another.
+              </p>
+            )}
+            {education.length === 0 ? (
+              <p
+                style={{
+                  color: "var(--color-subtext, #6b7280)",
+                }}
+              >
+                No education entries yet.
+              </p>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleEducationDragEnd}
+              >
+                <SortableContext
+                  items={education.map((e) => e.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {education.map((exp) => {
+                    return (
+                      <SortableEducation key={exp.id} exp={exp}>
+                        {({ dragHandleProps }) =>
+                          exp.collapsed ? (
+                            <div
+                              style={{
+                                border: "2px solid #f59e0b",
+                                borderRadius: "10px",
+                                padding: "16px",
+                                marginBottom: "16px",
+                                backgroundColor: "var(--color-card-bg)",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                }}
+                              >
+                                <span
+                                  {...dragHandleProps}
+                                  title="Drag to reorder"
+                                  style={{
+                                    cursor: "grab",
+                                    fontSize: "18px",
+                                    color: "var(--color-subtext)",
+                                    userSelect: "none",
+                                  }}
+                                >
+                                  ☰
+                                </span>
+
+                                <h3
+                                  style={{
+                                    margin: 0,
+                                    color: "var(--color-heading)",
+                                    fontSize: "18px",
+                                  }}
+                                >
+                                  {exp.degree || "Untitled Degree"}
+                                </h3>
+                              </div>
+
+                              <p
+                                style={{
+                                  marginTop: "4px",
+                                  color: "var(--color-subtext)",
+                                }}
+                              >
+                                {exp.school}
+                              </p>
+                              <p
+                                style={{
+                                  marginTop: "4px",
+                                  color: "var(--color-subtext)",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                {exp.fieldOfStudy}
+                              </p>
+                              {exp.saved && (
+                                <span
+                                  style={{
+                                    display: "inline-block",
+                                    marginTop: "6px",
+                                    padding: "4px 10px",
+                                    borderRadius: "999px",
+                                    backgroundColor: "#22c55e",
+                                    color: "white",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Saved
+                                </span>
+                              )}
+                              <p
+                                style={{
+                                  marginTop: "4px",
+                                  color: "var(--color-subtext)",
+                                  fontSize: "14px",
+                                }}
+                              >
+                                {exp.startDate} – {exp.endDate}
+                              </p>
+
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "8px",
+                                  marginTop: "12px",
+                                }}
+                              >
+                                {" "}
+                                <button
+                                  disabled={hasOpenEducation && exp.collapsed}
+                                  onClick={() => {
+                                    setEducationSaved(false);
+                                    updateEducation(exp.id, "collapsed", false);
+                                  }}
+                                  style={{
+                                    backgroundColor: hasOpenEducation
+                                      ? "#94a3b8"
+                                      : "var(--brand-deep)",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "8px 14px",
+                                    cursor: hasOpenEducation ? "not-allowed" : "pointer",
+                                    opacity: hasOpenEducation ? 0.7 : 1,
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deleteEducation(exp.id)}
+                                  style={{
+                                    backgroundColor: "#FF6138",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "8px 14px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                border: "2px solid #f59e0b",
+                                borderRadius: "10px",
+                                padding: "16px",
+                                marginBottom: "16px",
+                                backgroundColor: "var(--color-card-bg)",
+                              }}
+                            >
+                              <label style={labelStyle}>Degree *</label>
+                              <input
+                                placeholder="Degree"
+                                value={exp.degree}
+                                onChange={(e) => updateEducation(exp.id, "degree", e.target.value)}
+                                style={inputStyle}
+                              />
+
+                              {exp.hasStartedEditing && educationErrors[exp.id]?.degree && (
+                                <p style={errorTextStyle}>{educationErrors[exp.id].degree}</p>
+                              )}
+                              <label style={labelStyle}>School *</label>
+                              <input
+                                placeholder="School"
+                                value={exp.school}
+                                onChange={(e) => updateEducation(exp.id, "school", e.target.value)}
+                                style={inputStyle}
+                              />
+
+                              {exp.hasStartedEditing && educationErrors[exp.id]?.school && (
+                                <p style={errorTextStyle}>{educationErrors[exp.id].school}</p>
+                              )}
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 1fr",
+                                  gap: "16px",
+                                  marginTop: "12px",
+                                }}
+                              >
+                                <div>
+                                  <label
+                                    style={{
+                                      ...labelStyle,
+                                      display: "block",
+                                      marginBottom: "6px",
+                                    }}
+                                  >
+                                    Start Date *
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={exp.startDate}
+                                    onChange={(e) =>
+                                      updateEducation(exp.id, "startDate", e.target.value)
+                                    }
+                                    style={inputStyle}
+                                  />
+                                  {exp.hasStartedEditing && educationErrors[exp.id]?.startDate && (
+                                    <p style={errorTextStyle}>
+                                      {educationErrors[exp.id].startDate}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label
+                                    style={{
+                                      ...labelStyle,
+                                      display: "block",
+                                      marginBottom: "6px",
+                                    }}
+                                  >
+                                    End Date *
+                                  </label>
+
+                                  <input
+                                    type="date"
+                                    value={exp.endDate}
+                                    onChange={(e) =>
+                                      updateEducation(exp.id, "endDate", e.target.value)
+                                    }
+                                    style={inputStyle}
+                                  />
+                                  {exp.hasStartedEditing && educationErrors[exp.id]?.endDate && (
+                                    <p style={errorTextStyle}>{educationErrors[exp.id].endDate}</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <label style={labelStyle}>Field of study *</label>
+                              <input
+                                placeholder="Computer Science"
+                                value={exp.fieldOfStudy}
+                                onChange={(e) =>
+                                  updateEducation(exp.id, "fieldOfStudy", e.target.value)
+                                }
+                                style={inputStyle}
+                              />
+                              {exp.hasStartedEditing && educationErrors[exp.id]?.fieldOfStudy && (
+                                <p style={errorTextStyle}>{educationErrors[exp.id].fieldOfStudy}</p>
+                              )}
+
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "8px",
+                                  marginTop: "12px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <button
+                                  onClick={() => deleteEducation(exp.id)}
+                                  style={{
+                                    backgroundColor: "#FF6138",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: "8px",
+                                    padding: "10px 16px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        }
+                      </SortableEducation>
+                    );
+                  })}
+                </SortableContext>
+              </DndContext>
+            )}
+
+            <div style={{ marginTop: "16px" }}>
+              <button
+                onClick={handleSaveEducation}
+                disabled={!canSaveEducation}
+                style={{
+                  backgroundColor: canSaveEducation
+                    ? "var(--brand-deep, #003C78)"
+                    : "var(--color-border-default, #d1d5db)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 20px",
+                  cursor: canSaveEducation ? "pointer" : "not-allowed",
+                  opacity: canSaveEducation ? 1 : 0.7,
+                }}
+              >
+                Save Education
+              </button>
+              {!canSaveEducation && education.length > 0 && (
+                <p
+                  style={{
+                    marginTop: "8px",
+                    fontSize: "12px",
+                    color: "var(--color-subtext)",
+                  }}
+                >
+                  Complete all education fields before saving.
+                </p>
+              )}
+
+              {educationSaved && !hasOpenEducation && (
+                <span
+                  style={{
+                    marginLeft: "12px",
+                    color: "#22c55e",
+                  }}
+                >
+                  ✓ Education saved!
                 </span>
               )}
             </div>
