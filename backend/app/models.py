@@ -15,6 +15,40 @@ class JobStage(str, Enum):
     ARCHIVED = "archived"
 
 
+class JobEventType(str, Enum):
+    STAGE_CHANGE = "stage_change"
+    INTERVIEW = "interview"
+    FOLLOW_UP = "follow_up"
+    OUTCOME = "outcome"
+
+
+class JobEvent(SQLModel, table=True):
+    __tablename__ = "job_events"
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    job_id: str = Field(foreign_key="jobs.id", nullable=False, index=True)
+    owner_id: str = Field(nullable=False, index=True)
+
+    event_type: JobEventType = Field(nullable=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # Stage change fields (S2-008/S2-009)
+    from_stage: Optional[JobStage] = Field(default=None)
+    to_stage: Optional[JobStage] = Field(default=None)
+    was_override: bool = Field(default=False)
+
+    # Interview fields (S2-011)
+    interview_round: Optional[str] = Field(default=None)
+    interview_datetime: Optional[datetime] = Field(default=None)
+
+    # Follow-up fields (S2-012)
+    follow_up_due_date: Optional[datetime] = Field(default=None)
+    follow_up_completed: Optional[bool] = Field(default=None)
+
+    # Shared across event types
+    notes: Optional[str] = Field(default=None)
+
+
 class Job(SQLModel, table=True):
     __tablename__ = "jobs"
 

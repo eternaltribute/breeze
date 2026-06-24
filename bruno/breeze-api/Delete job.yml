@@ -5,8 +5,10 @@ info:
 
 http:
   method: DELETE
-  url: "{{base_url}}//jobs/f13a04bb-4608-47e3-a0c8-30a11b2cc823"
-  auth: inherit
+  url: "{{base_url}}/jobs/f13a04bb-4608-47e3-a0c8-30a11b2cc823"
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
 
 settings:
   encodeUrl: true
