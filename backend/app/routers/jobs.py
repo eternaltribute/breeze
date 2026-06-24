@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import Job
+from app.models import Job, JobEvent, JobEventType, JobStage
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -16,7 +16,7 @@ class JobCreate(BaseModel):
     company: str
     title: str
     job_posting_body: str
-    stage: str = "interested"
+    stage: JobStage = JobStage.INTERESTED
     location: Optional[str] = None
     job_url: Optional[str] = None
     salary_range: Optional[str] = None
@@ -27,7 +27,7 @@ class JobUpdate(BaseModel):
     company: Optional[str] = None
     title: Optional[str] = None
     job_posting_body: Optional[str] = None
-    stage: Optional[str] = None
+    stage: Optional[JobStage] = None
     location: Optional[str] = None
     job_url: Optional[str] = None
     salary_range: Optional[str] = None
@@ -105,3 +105,85 @@ def delete_job(
     db.delete(job)
     db.commit()
     return Response(status_code=204)
+
+
+# S2-008: Pipeline Stage Transition Controls
+# Validates stage transitions against allowed rules (S2-BR-005)
+# Handles override flow with confirmation (S2-BR-007)
+# Logs every transition to job_events (S2-BR-008)
+
+ALLOWED_TRANSITIONS = {
+    JobStage.INTERESTED: {JobStage.APPLIED, JobStage.REJECTED},
+    JobStage.APPLIED: {JobStage.INTERVIEW, JobStage.REJECTED},
+    JobStage.INTERVIEW: {JobStage.OFFER, JobStage.REJECTED},
+    JobStage.OFFER: {JobStage.ARCHIVED, JobStage.REJECTED},
+    JobStage.REJECTED: set(),
+    JobStage.ARCHIVED: set(),
+}
+
+
+class StageTransitionRequest(BaseModel):
+    new_stage: JobStage
+    confirm_override: bool = False
+    notes: str | None = None
+
+
+@router.patch("/{job_id}/stage", response_model=Job)
+def transition_stage(
+    job_id: str,
+    payload: StageTransitionRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Transition a job to a new stage with validation and event logging."""
+    user_id = current_user.get("sub")
+
+    # Fetch job and verify ownership
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    current_stage = job.stage
+    new_stage = payload.new_stage
+
+    # No-op if same stage
+    if current_stage == new_stage:
+        raise HTTPException(status_code=400, detail="Job is already in this stage")
+
+    is_forward = new_stage in ALLOWED_TRANSITIONS.get(current_stage, set())
+
+    # Non-forward transition requires explicit confirmation (S2-BR-007)
+    if not is_forward and not payload.confirm_override:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    f"'{new_stage}' is not a standard forward transition "
+                    f"from '{current_stage}'. Set confirm_override=true to proceed."
+                ),
+                "requires_confirmation": True,
+                "from_stage": current_stage,
+                "to_stage": new_stage,
+            },
+        )
+
+    # Apply the stage change
+    job.stage = new_stage
+    job.updated_at = datetime.utcnow()
+    db.add(job)
+
+    # Log the transition to job_events (S2-BR-008/S2-009)
+    event = JobEvent(
+        job_id=job_id,
+        owner_id=user_id,
+        event_type=JobEventType.STAGE_CHANGE,
+        from_stage=current_stage,
+        to_stage=new_stage,
+        was_override=not is_forward,
+        notes=payload.notes,
+        created_at=datetime.utcnow(),
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(job)
+    return job
