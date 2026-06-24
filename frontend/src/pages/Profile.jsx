@@ -58,10 +58,9 @@ function SortableExperience({ exp, children }) {
   );
 }
 function SortableEducation({ exp, children }) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({
-      id: exp.id,
-    });
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: exp.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -584,19 +583,15 @@ function Profile() {
     );
   };
 
- const deleteExperience = (id) => {
-  const confirmed = window.confirm(
-    "Are you sure you want to delete this experience entry?"
-  );
+  const deleteExperience = (id) => {
+    const confirmed = window.confirm("Are you sure you want to delete this experience entry?");
 
-  if (!confirmed) return;
+    if (!confirmed) return;
 
-  setExperienceSaved(false);
+    setExperienceSaved(false);
 
-  setExperiences(
-    experiences.filter((exp) => exp.id !== id)
-  );
-};
+    setExperiences(experiences.filter((exp) => exp.id !== id));
+  };
 
   const handleSaveExperiences = () => {
     const errors = {};
@@ -737,16 +732,14 @@ function Profile() {
     );
   };
 
-const deleteEducation = (id) => {
-  const confirmed = window.confirm(
-    "Are you sure you want to delete this education entry?"
-  );
+  const deleteEducation = (id) => {
+    const confirmed = window.confirm("Are you sure you want to delete this education entry?");
 
-  if (!confirmed) return;
+    if (!confirmed) return;
 
-  setEducationSaved(false);
-  setEducation(education.filter((edu) => edu.id !== id));
-};
+    setEducationSaved(false);
+    setEducation(education.filter((edu) => edu.id !== id));
+  };
 
   const handleSaveEducation = () => {
     const errors = {};
