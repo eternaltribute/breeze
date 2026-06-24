@@ -1,7 +1,14 @@
 import { useState, useEffect } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Progress } from "@/components/ui/progress";
-import { PencilLine } from "lucide-react";
+import {
+  PencilLine,
+  Building2,
+  MapPin,
+  CalendarDays,
+  CheckCircle2,
+  GraduationCap,
+} from "lucide-react";
 // dnd-kit imports — these power the drag-and-drop reordering
 // DndContext: the "room" everything draggable lives inside
 // closestCenter: the algorithm that decides where to drop something
@@ -18,6 +25,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+
 // CSS.Transform.toString: converts dnd-kit's transform numbers into a CSS string
 import { CSS } from "@dnd-kit/utilities";
 
@@ -512,7 +520,8 @@ function Profile() {
   // ── Experiences ──────────────────────────────────────────
   const [experiences, setExperiences] = useState([]);
   const [experienceErrors, setExperienceErrors] = useState({});
-  const [experienceSaved, setExperienceSaved] = useState(false);
+  const [setExperienceSaved] = useState(false);
+  const [confirmDeleteExperienceId, setConfirmDeleteExperienceId] = useState(null);
   const handleExperienceDragEnd = (event) => {
     const { active, over } = event;
 
@@ -534,6 +543,8 @@ function Profile() {
         id: crypto.randomUUID(),
         title: "",
         company: "",
+        city: "",
+        state: "",
         startDate: "",
         endDate: "",
         description: "",
@@ -548,6 +559,13 @@ function Profile() {
 
     if (!exp.title.trim()) errors.title = "Job Title is required.";
     if (!exp.company.trim()) errors.company = "Company is required.";
+    if (!exp.city.trim()) {
+      errors.city = "City is required";
+    }
+
+    if (!exp.state.trim()) {
+      errors.state = "State is required";
+    }
     if (!exp.startDate) errors.startDate = "Start date is required.";
     if (!exp.endDate) errors.endDate = "End date is required.";
     if (!exp.description.trim()) errors.description = "Description is required.";
@@ -555,7 +573,6 @@ function Profile() {
     if (exp.startDate && exp.endDate && new Date(exp.endDate) < new Date(exp.startDate)) {
       errors.endDate = "End date cannot be earlier than start date.";
     }
-
     return errors;
   };
   const updateExperience = (id, field, value) => {
@@ -584,13 +601,7 @@ function Profile() {
   };
 
   const deleteExperience = (id) => {
-    const confirmed = window.confirm("Are you sure you want to delete this experience entry?");
-
-    if (!confirmed) return;
-
-    setExperienceSaved(false);
-
-    setExperiences(experiences.filter((exp) => exp.id !== id));
+    setExperiences((prev) => prev.filter((e) => e.id !== id));
   };
 
   const handleSaveExperiences = () => {
@@ -606,7 +617,13 @@ function Profile() {
       if (!exp.company.trim()) {
         fieldErrors.company = "Company is required.";
       }
+      if (!exp.city.trim()) {
+        fieldErrors.city = "City is required.";
+      }
 
+      if (!exp.state.trim()) {
+        fieldErrors.state = "State is required.";
+      }
       if (!exp.startDate) {
         fieldErrors.startDate = "Start date is required.";
       }
@@ -644,10 +661,12 @@ function Profile() {
       }))
     );
   };
+
   // ── Education ──────────────────────────────────────────
   const [education, setEducation] = useState([]);
   const [educationErrors, setEducationErrors] = useState({});
-  const [educationSaved, setEducationSaved] = useState(false);
+  const [setEducationSaved] = useState(false);
+  const [confirmDeleteEducationId, setConfirmDeleteEducationId] = useState(null);
   const handleEducationDragEnd = (event) => {
     const { active, over } = event;
 
@@ -731,14 +750,8 @@ function Profile() {
       })
     );
   };
-
   const deleteEducation = (id) => {
-    const confirmed = window.confirm("Are you sure you want to delete this education entry?");
-
-    if (!confirmed) return;
-
-    setEducationSaved(false);
-    setEducation(education.filter((edu) => edu.id !== id));
+    setEducation((prev) => prev.filter((e) => e.id !== id));
   };
 
   const handleSaveEducation = () => {
@@ -781,6 +794,104 @@ function Profile() {
         edu.startDate &&
         edu.endDate
     );
+
+  const hasOpenExperience = experiences.some((exp) => !exp.collapsed);
+  const openExperience = experiences.find((exp) => !exp.collapsed);
+  const canSaveExperiences =
+    experiences.length > 0 &&
+    experiences.every(
+      (exp) =>
+        exp.title.trim() &&
+        exp.company.trim() &&
+        exp.city.trim() &&
+        exp.state.trim() &&
+        exp.startDate &&
+        exp.endDate &&
+        exp.description.trim()
+    );
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  // ----  Career Preferences -----------------------
+
+  const [preferences, setPreferences] = useState({
+    targetRole: "",
+    locationPreference: "",
+    workMode: "",
+    salaryPreference: "",
+  });
+
+  const [preferencesErrors, setPreferencesErrors] = useState({});
+  const [isEditingPreferences, setIsEditingPreferences] = useState(false);
+  const [preferencesSaved, setPreferencesSaved] = useState(false);
+  const [savedPreferences, setSavedPreferences] = useState({
+    targetRole: "",
+    locationPreference: "",
+    workMode: "",
+    salaryPreference: "",
+  });
+  const validatePreferences = () => {
+    const errors = {};
+
+    if (!preferences.targetRole.trim()) {
+      errors.targetRole = "Target role is required";
+    }
+
+    if (!preferences.locationPreference.trim()) {
+      errors.locationPreference = "Location is required";
+    } else if (!/^[A-Za-z\s]+,\s*[A-Za-z]{2}$/.test(preferences.locationPreference.trim())) {
+      errors.locationPreference = "Use format: City, ST (e.g. Newark, NJ)";
+    }
+
+    if (!preferences.workMode) {
+      errors.workMode = "Please select a work mode";
+    }
+
+    if (!preferences.salaryPreference) {
+      errors.salaryPreference = "Salary preference is required";
+    } else if (Number(preferences.salaryPreference) < 15000) {
+      errors.salaryPreference = "Salary must be at least $15,000";
+    } else if (Number(preferences.salaryPreference) > 1000000) {
+      errors.salaryPreference = "Please enter a realistic salary amount";
+    }
+
+    return errors;
+  };
+
+  const handleSavePreferences = async () => {
+    const errors = validatePreferences();
+
+    if (Object.keys(errors).length > 0) {
+      setPreferencesErrors(errors);
+      return;
+    }
+
+    setPreferencesErrors({});
+
+    try {
+      // save to backend
+
+      setSavedPreferences({ ...preferences });
+
+      setPreferencesSaved(true);
+      setIsEditingPreferences(false);
+
+      setTimeout(() => {
+        setPreferencesSaved(false);
+      }, 3000);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  const [confirmClear, setConfirmClear] = useState(false);
+
 
   const BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -900,20 +1011,6 @@ function Profile() {
     backgroundColor: errors[field] ? "rgba(255, 97, 56, 0.05)" : "var(--color-input-bg)",
     animation: shaking[field] ? "shake 0.4s ease" : "none",
   });
-
-  const hasOpenExperience = experiences.some((exp) => !exp.collapsed);
-  const openExperience = experiences.find((exp) => !exp.collapsed);
-  const canSaveExperiences =
-    hasOpenExperience &&
-    experiences.length > 0 &&
-    experiences.every(
-      (exp) =>
-        exp.title.trim() &&
-        exp.company.trim() &&
-        exp.startDate &&
-        exp.endDate &&
-        exp.description.trim()
-    );
 
   return (
     <>
@@ -1421,8 +1518,8 @@ function Profile() {
                             <div
                               style={{
                                 border: "2px solid #f59e0b",
-                                borderRadius: "10px",
-                                padding: "16px",
+                                borderRadius: "14px",
+                                padding: "20px",
                                 marginBottom: "16px",
                                 backgroundColor: "var(--color-card-bg)",
                               }}
@@ -1430,73 +1527,118 @@ function Profile() {
                               <div
                                 style={{
                                   display: "flex",
+                                  justifyContent: "space-between",
                                   alignItems: "center",
-                                  gap: "8px",
                                 }}
                               >
-                                <span
-                                  {...dragHandleProps}
-                                  title="Drag to reorder"
+                                <div
                                   style={{
-                                    cursor: "grab",
-                                    fontSize: "18px",
-                                    color: "var(--color-subtext)",
-                                    userSelect: "none",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
                                   }}
                                 >
-                                  ☰
-                                </span>
+                                  <span
+                                    {...dragHandleProps}
+                                    title="Drag to reorder"
+                                    style={{
+                                      cursor: "grab",
+                                      fontSize: "18px",
+                                      color: "var(--color-subtext)",
+                                      userSelect: "none",
+                                    }}
+                                  >
+                                    ☰
+                                  </span>
 
-                                <h3
-                                  style={{
-                                    margin: 0,
-                                    color: "var(--color-heading)",
-                                    fontSize: "18px",
-                                  }}
-                                >
-                                  {exp.title || "Untitled Position"}
-                                </h3>
+                                  <h3
+                                    style={{
+                                      margin: 0,
+                                      color: "var(--color-heading)",
+                                      fontSize: "22px",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {exp.title || "Untitled Position"}
+                                  </h3>
+                                </div>
+
+                                {exp.saved && (
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "6px",
+                                      padding: "8px 14px",
+                                      borderRadius: "999px",
+                                      backgroundColor: "rgba(245, 158, 11, 0.12)",
+                                      color: "#d97706",
+                                      border: "1px solid rgba(245, 158, 11, 0.25)",
+                                      fontSize: "13px",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    <CheckCircle2 size={16} />
+                                    Saved
+                                  </span>
+                                )}
                               </div>
 
-                              <p
+                              <div
                                 style={{
-                                  marginTop: "4px",
+                                  display: "flex",
+                                  gap: "20px",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                  marginTop: "16px",
                                   color: "var(--color-subtext)",
                                 }}
                               >
-                                {exp.company}
-                              </p>
-                              {exp.saved && (
-                                <span
+                                <div
                                   style={{
-                                    display: "inline-block",
-                                    marginTop: "6px",
-                                    padding: "4px 10px",
-                                    borderRadius: "999px",
-                                    backgroundColor: "#22c55e",
-                                    color: "white",
-                                    fontSize: "12px",
-                                    fontWeight: 600,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
                                   }}
                                 >
-                                  Saved
-                                </span>
-                              )}
-                              <p
+                                  <Building2 size={16} />
+                                  <span>{exp.company}</span>
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  <MapPin size={16} />
+                                  <span>
+                                    {exp.city}, {exp.state}
+                                  </span>
+                                </div>
+                              </div>
+                              <div
                                 style={{
-                                  marginTop: "4px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  marginTop: "14px",
                                   color: "var(--color-subtext)",
                                   fontSize: "14px",
                                 }}
                               >
-                                {exp.startDate} – {exp.endDate}
-                              </p>
+                                <CalendarDays size={16} />
+                                <span>
+                                  {formatDate(exp.startDate)} – {formatDate(exp.endDate)}
+                                </span>
+                              </div>
 
                               <div
                                 style={{
                                   display: "flex",
                                   gap: "8px",
-                                  marginTop: "12px",
+                                  marginTop: "20px",
                                 }}
                               >
                                 {" "}
@@ -1520,19 +1662,62 @@ function Profile() {
                                 >
                                   Edit
                                 </button>
-                                <button
-                                  onClick={() => deleteExperience(exp.id)}
-                                  style={{
-                                    backgroundColor: "#FF6138",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    padding: "8px 14px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Delete
-                                </button>
+                                {confirmDeleteExperienceId !== exp.id ? (
+                                  <button
+                                    onClick={() => setConfirmDeleteExperienceId(exp.id)}
+                                    style={{
+                                      backgroundColor: "#FF6138",
+                                      color: "white",
+                                      border: "none",
+                                      borderRadius: "8px",
+                                      padding: "8px 14px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                ) : (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: "6px",
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <button
+                                      onClick={() => {
+                                        deleteExperience(exp.id);
+                                        setConfirmDeleteExperienceId(null);
+                                      }}
+                                      style={{
+                                        backgroundColor: "#FF6138",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        padding: "8px 10px",
+                                        fontSize: "12px",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      Confirm
+                                    </button>
+
+                                    <button
+                                      onClick={() => setConfirmDeleteExperienceId(null)}
+                                      style={{
+                                        backgroundColor: "#6b7280",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        padding: "8px 10px",
+                                        fontSize: "12px",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ) : (
@@ -1569,6 +1754,45 @@ function Profile() {
                               {exp.hasStartedEditing && experienceErrors[exp.id]?.company && (
                                 <p style={errorTextStyle}>{experienceErrors[exp.id].company}</p>
                               )}
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <label style={labelStyle}>City *</label>
+                                  <input
+                                    value={exp.city}
+                                    onChange={(e) =>
+                                      updateExperience(exp.id, "city", e.target.value)
+                                    }
+                                    placeholder="Newark"
+                                    style={inputStyle}
+                                  />
+
+                                  {exp.hasStartedEditing && experienceErrors[exp.id]?.city && (
+                                    <p style={errorTextStyle}>{experienceErrors[exp.id].city}</p>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <label style={labelStyle}>State *</label>
+                                  <input
+                                    value={exp.state}
+                                    onChange={(e) =>
+                                      updateExperience(
+                                        exp.id,
+                                        "state",
+                                        e.target.value.toUpperCase().slice(0, 2)
+                                      )
+                                    }
+                                    placeholder="NJ"
+                                    maxLength={2}
+                                    style={inputStyle}
+                                  />
+
+                                  {exp.hasStartedEditing && experienceErrors[exp.id]?.state && (
+                                    <p style={errorTextStyle}>{experienceErrors[exp.id].state}</p>
+                                  )}
+                                </div>
+                              </div>
+
                               <div
                                 style={{
                                   display: "grid",
@@ -1651,19 +1875,54 @@ function Profile() {
                                   flexWrap: "wrap",
                                 }}
                               >
-                                <button
-                                  onClick={() => deleteExperience(exp.id)}
-                                  style={{
-                                    backgroundColor: "#FF6138",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    padding: "10px 16px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Delete
-                                </button>
+                                {confirmDeleteExperienceId !== exp.id ? (
+                                  <button
+                                    onClick={() => setConfirmDeleteExperienceId(exp.id)}
+                                    style={{
+                                      backgroundColor: "#FF6138",
+                                      color: "white",
+                                      border: "none",
+                                      borderRadius: "8px",
+                                      padding: "10px 16px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        deleteExperience(exp.id);
+                                        setConfirmDeleteExperienceId(null);
+                                      }}
+                                      style={{
+                                        backgroundColor: "#FF6138",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        padding: "10px 16px",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      Confirm Delete
+                                    </button>
+
+                                    <button
+                                      onClick={() => setConfirmDeleteExperienceId(null)}
+                                      style={{
+                                        backgroundColor: "#6b7280",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        padding: "10px 16px",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </div>
                           )
@@ -1703,17 +1962,6 @@ function Profile() {
                 >
                   Complete all experience fields before saving.
                 </p>
-              )}
-
-              {experienceSaved && !hasOpenExperience && (
-                <span
-                  style={{
-                    marginLeft: "12px",
-                    color: "#22c55e",
-                  }}
-                >
-                  ✓ Experience saved!
-                </span>
               )}
             </div>
           </div>
@@ -1790,8 +2038,8 @@ function Profile() {
                             <div
                               style={{
                                 border: "2px solid #f59e0b",
-                                borderRadius: "10px",
-                                padding: "16px",
+                                borderRadius: "14px",
+                                padding: "20px",
                                 marginBottom: "16px",
                                 backgroundColor: "var(--color-card-bg)",
                               }}
@@ -1799,76 +2047,101 @@ function Profile() {
                               <div
                                 style={{
                                   display: "flex",
+                                  justifyContent: "space-between",
                                   alignItems: "center",
-                                  gap: "8px",
                                 }}
                               >
-                                <span
-                                  {...dragHandleProps}
-                                  title="Drag to reorder"
+                                <div
                                   style={{
-                                    cursor: "grab",
-                                    fontSize: "18px",
-                                    color: "var(--color-subtext)",
-                                    userSelect: "none",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
                                   }}
                                 >
-                                  ☰
-                                </span>
+                                  <span
+                                    {...dragHandleProps}
+                                    title="Drag to reorder"
+                                    style={{
+                                      cursor: "grab",
+                                      fontSize: "18px",
+                                      color: "var(--color-subtext)",
+                                    }}
+                                  >
+                                    ☰
+                                  </span>
 
-                                <h3
-                                  style={{
-                                    margin: 0,
-                                    color: "var(--color-heading)",
-                                    fontSize: "18px",
-                                  }}
-                                >
-                                  {exp.degree || "Untitled Degree"}
-                                </h3>
+                                  <h3
+                                    style={{
+                                      margin: 0,
+                                      color: "var(--color-heading)",
+                                      fontSize: "20px",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {exp.degree || "Untitled Degree"}
+                                  </h3>
+                                </div>
+
+                                {exp.saved && (
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "6px",
+                                      padding: "8px 14px",
+                                      borderRadius: "999px",
+                                      backgroundColor: "rgba(245, 158, 11, 0.12)",
+                                      color: "#d97706",
+                                      border: "1px solid rgba(245, 158, 11, 0.25)",
+                                      fontSize: "13px",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    <CheckCircle2 size={16} />
+                                    Saved
+                                  </span>
+                                )}
                               </div>
 
-                              <p
+                              <div
                                 style={{
-                                  marginTop: "4px",
+                                  display: "flex",
+                                  gap: "20px",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                  marginTop: "16px",
                                   color: "var(--color-subtext)",
                                 }}
                               >
-                                {exp.school}
-                              </p>
-                              <p
-                                style={{
-                                  marginTop: "4px",
-                                  color: "var(--color-subtext)",
-                                  fontSize: "14px",
-                                }}
-                              >
-                                {exp.fieldOfStudy}
-                              </p>
-                              {exp.saved && (
-                                <span
+                                <div
                                   style={{
-                                    display: "inline-block",
-                                    marginTop: "6px",
-                                    padding: "4px 10px",
-                                    borderRadius: "999px",
-                                    backgroundColor: "#22c55e",
-                                    color: "white",
-                                    fontSize: "12px",
-                                    fontWeight: 600,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
                                   }}
                                 >
-                                  Saved
-                                </span>
-                              )}
-                              <p
+                                  <GraduationCap size={16} />
+                                  <span style={{ fontWeight: 500 }}>{exp.school}</span>
+                                </div>
+
+                                <div>{exp.fieldOfStudy}</div>
+                              </div>
+
+                              <div
                                 style={{
-                                  marginTop: "4px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  marginTop: "14px",
                                   color: "var(--color-subtext)",
                                   fontSize: "14px",
                                 }}
                               >
-                                {exp.startDate} – {exp.endDate}
-                              </p>
+                                <CalendarDays size={16} />
+                                <span>
+                                  {formatDate(exp.startDate)} – {formatDate(exp.endDate)}
+                                </span>
+                              </div>
 
                               <div
                                 style={{
@@ -1898,19 +2171,62 @@ function Profile() {
                                 >
                                   Edit
                                 </button>
-                                <button
-                                  onClick={() => deleteEducation(exp.id)}
-                                  style={{
-                                    backgroundColor: "#FF6138",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    padding: "8px 14px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Delete
-                                </button>
+                                {confirmDeleteEducationId !== exp.id ? (
+                                  <button
+                                    onClick={() => setConfirmDeleteEducationId(exp.id)}
+                                    style={{
+                                      backgroundColor: "#FF6138",
+                                      color: "white",
+                                      border: "none",
+                                      borderRadius: "8px",
+                                      padding: "8px 14px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                ) : (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: "6px",
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <button
+                                      onClick={() => {
+                                        deleteEducation(exp.id);
+                                        setConfirmDeleteEducationId(null);
+                                      }}
+                                      style={{
+                                        backgroundColor: "#FF6138",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        padding: "8px 10px",
+                                        cursor: "pointer",
+                                        fontSize: "12px",
+                                      }}
+                                    >
+                                      Confirm
+                                    </button>
+
+                                    <button
+                                      onClick={() => setConfirmDeleteEducationId(null)}
+                                      style={{
+                                        backgroundColor: "#6b7280",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        padding: "8px 10px",
+                                        cursor: "pointer",
+                                        fontSize: "12px",
+                                      }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ) : (
@@ -2024,19 +2340,62 @@ function Profile() {
                                   flexWrap: "wrap",
                                 }}
                               >
-                                <button
-                                  onClick={() => deleteEducation(exp.id)}
-                                  style={{
-                                    backgroundColor: "#FF6138",
-                                    color: "white",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    padding: "10px 16px",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  Delete
-                                </button>
+                                {confirmDeleteEducationId !== exp.id ? (
+                                  <button
+                                    onClick={() => setConfirmDeleteEducationId(exp.id)}
+                                    style={{
+                                      backgroundColor: "#FF6138",
+                                      color: "white",
+                                      border: "none",
+                                      borderRadius: "8px",
+                                      padding: "8px 14px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                ) : (
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: "6px",
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <button
+                                      onClick={() => {
+                                        deleteEducation(exp.id);
+                                        setConfirmDeleteEducationId(null);
+                                      }}
+                                      style={{
+                                        backgroundColor: "#FF6138",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        padding: "8px 10px",
+                                        cursor: "pointer",
+                                        fontSize: "12px",
+                                      }}
+                                    >
+                                      Confirm
+                                    </button>
+
+                                    <button
+                                      onClick={() => setConfirmDeleteEducationId(null)}
+                                      style={{
+                                        backgroundColor: "#6b7280",
+                                        color: "white",
+                                        border: "none",
+                                        borderRadius: "8px",
+                                        padding: "8px 10px",
+                                        cursor: "pointer",
+                                        fontSize: "12px",
+                                      }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )
@@ -2077,18 +2436,311 @@ function Profile() {
                   Complete all education fields before saving.
                 </p>
               )}
+            </div>
+          </div>
 
-              {educationSaved && !hasOpenEducation && (
-                <span
+          {/* CAREER PREFERENCES */}
+          <div
+            style={{
+              ...cardStyle,
+              borderLeft: "4px solid var(--section-border)",
+            }}
+          >
+            <h2
+              style={{
+                color: "var(--color-heading, #003C78)",
+                fontSize: "16px",
+                marginBottom: "16px",
+              }}
+            >
+              Career Preferences
+            </h2>
+
+            {/* VIEW MODE */}
+            {!isEditingPreferences ? (
+              <div
+                style={{
+                  border: "2px solid var(--color-border-default, #e5e7eb)",
+                  borderRadius: "14px",
+                  padding: "18px",
+                  backgroundColor: "var(--color-card-bg)",
+                }}
+              >
+                {/* HEADER ROW */}
+                <div
                   style={{
-                    marginLeft: "12px",
-                    color: "#22c55e",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "14px",
                   }}
                 >
-                  ✓ Education saved!
-                </span>
-              )}
-            </div>
+                  {preferencesSaved && (
+                    <span
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: "999px",
+                        backgroundColor: "rgba(4, 106, 153, 0.12)",
+                        color: "var(--color-accent, #046A97)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      ✓ Saved
+                    </span>
+                  )}
+                </div>
+
+                {/* CONTENT GRID */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px 20px",
+                    fontSize: "14px",
+                    color: "var(--color-subtext)",
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: "var(--color-heading)" }}>Target Role:</strong>
+                    <div>{preferences.targetRole || "Not specified"}</div>
+                  </div>
+
+                  <div>
+                    <strong style={{ color: "var(--color-heading)" }}>Location:</strong>
+                    <div>{preferences.locationPreference || "Not specified"}</div>
+                  </div>
+
+                  <div>
+                    <strong style={{ color: "var(--color-heading)" }}>Work Mode:</strong>
+                    <div>{preferences.workMode || "Not specified"}</div>
+                  </div>
+
+                  <div>
+                    <strong style={{ color: "var(--color-heading)" }}>Salary:</strong>
+                    <div>
+                      {preferences.salaryPreference
+                        ? `$${Number(preferences.salaryPreference).toLocaleString()}`
+                        : "Not specified"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ACTIONS ROW */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    marginTop: "14px",
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setSavedPreferences({ ...preferences });
+                      setIsEditingPreferences(true);
+                    }}
+                    style={{
+                      backgroundColor: "var(--brand-deep, #003C78)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 14px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Edit
+                  </button>
+
+                  {!confirmClear ? (
+                    <button
+                      onClick={() => setConfirmClear(true)}
+                      style={{
+                        backgroundColor: "#FF6138",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        padding: "8px 14px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Clear
+                    </button>
+                  ) : (
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button
+                        onClick={() => {
+                          setPreferences({
+                            targetRole: "",
+                            locationPreference: "",
+                            workMode: "",
+                            salaryPreference: "",
+                          });
+                          setConfirmClear(false);
+                        }}
+                        style={{
+                          backgroundColor: "#FF6138",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "8px 10px",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Confirm
+                      </button>
+
+                      <button
+                        onClick={() => setConfirmClear(false)}
+                        style={{
+                          backgroundColor: "#6b7280",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "8px 10px",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* EDIT MODE */
+              <div>
+                <label style={labelStyle}>Target Role *</label>
+                <input
+                  type="text"
+                  placeholder="Software Developer"
+                  value={preferences.targetRole}
+                  onChange={(e) => {
+                    setPreferences({
+                      ...preferences,
+                      targetRole: e.target.value,
+                    });
+
+                    setPreferencesErrors((prev) => ({
+                      ...prev,
+                      targetRole: "",
+                    }));
+                  }}
+                  style={inputStyle}
+                />
+                {preferencesErrors.targetRole && (
+                  <p style={errorTextStyle}>{preferencesErrors.targetRole}</p>
+                )}
+
+                <label style={labelStyle}>Location (City, State) *</label>
+                <input
+                  type="text"
+                  placeholder="Newark, NJ"
+                  value={preferences.locationPreference}
+                  onChange={(e) => {
+                    setPreferences({
+                      ...preferences,
+                      locationPreference: e.target.value,
+                    });
+
+                    setPreferencesErrors((prev) => ({
+                      ...prev,
+                      locationPreference: "",
+                    }));
+                  }}
+                  style={inputStyle}
+                />
+                {preferencesErrors.locationPreference && (
+                  <p style={errorTextStyle}>{preferencesErrors.locationPreference}</p>
+                )}
+
+                <label style={labelStyle}>Work Mode *</label>
+                <select
+                  value={preferences.workMode}
+                  onChange={(e) => {
+                    setPreferences({
+                      ...preferences,
+                      workMode: e.target.value,
+                    });
+
+                    setPreferencesErrors((prev) => ({
+                      ...prev,
+                      workMode: "",
+                    }));
+                  }}
+                  style={inputStyle}
+                >
+                  <option value="">Select Work Mode</option>
+                  <option value="Remote">Remote</option>
+                  <option value="Hybrid">Hybrid</option>
+                  <option value="On-site">On-site</option>
+                </select>
+
+                {preferencesErrors.workMode && (
+                  <p style={errorTextStyle}>{preferencesErrors.workMode}</p>
+                )}
+
+                <label style={labelStyle}>Salary *</label>
+                <input
+                  type="number"
+                  min="15000"
+                  step="1000"
+                  placeholder="e.g. 75000"
+                  value={preferences.salaryPreference}
+                  onChange={(e) => {
+                    setPreferences({
+                      ...preferences,
+                      salaryPreference: e.target.value,
+                    });
+
+                    setPreferencesErrors((prev) => ({
+                      ...prev,
+                      salaryPreference: "",
+                    }));
+                  }}
+                  style={inputStyle}
+                />
+
+                {preferencesErrors.salaryPreference && (
+                  <p style={errorTextStyle}>{preferencesErrors.salaryPreference}</p>
+                )}
+
+                <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                  <button
+                    onClick={handleSavePreferences}
+                    style={{
+                      backgroundColor: "var(--brand-deep, #003C78)",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 14px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPreferences({ ...savedPreferences });
+                      setIsEditingPreferences(false);
+                      setPreferencesErrors({});
+                      setConfirmClear(false);
+                    }}
+                    style={{
+                      backgroundColor: "#6b7280",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "8px 14px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
