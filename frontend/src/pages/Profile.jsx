@@ -892,7 +892,6 @@ function Profile() {
   };
   const [confirmClear, setConfirmClear] = useState(false);
 
-
   const BASE = import.meta.env.VITE_API_BASE_URL;
 
   // ── Fetch profile on load ─────────────────────────────────────────────────
