@@ -6,9 +6,6 @@ info:
 http:
   method: GET
   url: "{{base_url}}/auth/me"
-  auth:
-    type: bearer
-    token: "{{jwt_token}}"
 
 settings:
   encodeUrl: true

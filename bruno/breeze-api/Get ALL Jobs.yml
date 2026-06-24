@@ -6,7 +6,9 @@ info:
 http:
   method: GET
   url: "{{base_url}}/jobs"
-  auth: inherit
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
 
 settings:
   encodeUrl: true
