@@ -6,7 +6,18 @@ info:
 http:
   method: POST
   url: "{{base_url}}/jobs"
-  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "company": "Fiserv",
+        "title": "Backend Engineer Intern",
+        "job_posting_body": "Sample posting body text",
+        "stage": "interested"
+      }
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
 
 settings:
   encodeUrl: true
