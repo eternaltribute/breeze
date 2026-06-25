@@ -84,33 +84,10 @@ const cardStyle = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// JobCard — renders a single job entry on the Dashboard
-//
-// Props:
-//   id, title, company, jobPostingBody, location, stage, lastActivity
-//     — all come from fromApi() which converts the raw API response
-//   onEdit   — navigates to the edit page when Edit is clicked
-//   onDelete — called with the job's id when the user confirms deletion
+// JobCard — renders a single job entry
 // ─────────────────────────────────────────────────────────────────────────────
-function JobCard({
-  id,
-  title,
-  company,
-  jobPostingBody,
-  location,
-  stage,
-  lastActivity,
-  onEdit,
-  onDelete,
-}) {
-  // confirming controls the two-step delete flow:
-  //   false → show the quiet ✕ button in the corner
-  //   true  → show the inline "Delete? Yes / No" prompt
-  const [confirming, setConfirming] = useState(false);
-
+function JobCard({ title, company, jobPostingBody, location, stage, lastActivity, onEdit }) {
   return (
-    // position: relative is required so the ✕ button can use
-    // position: absolute to sit in the top-right corner of the card
     <div
       style={{
         ...cardStyle,
@@ -118,30 +95,24 @@ function JobCard({
         display: "flex",
         flexDirection: "column",
         gap: "12px",
-        position: "relative",
       }}
     >
-      {/* ── Job info ──────────────────────────────────────────────────────── */}
       <div>
         <h3 style={{ margin: 0, color: "var(--color-heading, #003C78)" }}>{title}</h3>
 
         <p style={{ marginTop: "4px", color: "var(--color-subtext)" }}>{company}</p>
 
-        {/* Location — only rendered if the job has one */}
         {location && (
           <p style={{ marginTop: "2px", fontSize: "12px", color: "var(--color-subtext)" }}>
             📍 {location}
           </p>
         )}
 
-        {/* Job body — capped at 120 chars so all cards stay the same height */}
         <p style={{ fontSize: "13px", color: "var(--color-subtext)", marginTop: "8px" }}>
           {jobPostingBody.length > 120 ? `${jobPostingBody.slice(0, 120)}...` : jobPostingBody}
         </p>
       </div>
 
-      {/* ── Stage pill ────────────────────────────────────────────────────── */}
-      {/* Color comes from stageColor() defined at the top of this file */}
       <span
         style={{
           display: "inline-block",
@@ -157,125 +128,10 @@ function JobCard({
         {stage}
       </span>
 
-      {/* ── Last activity date ────────────────────────────────────────────── */}
       <p style={{ margin: 0, color: "var(--text)", fontSize: "12px" }}>
         Last activity: {lastActivity}
       </p>
 
-      {/* ── Delete control (top-right corner) ────────────────────────────── */}
-      {/*
-        Step 1: confirming = false → quiet ✕ sits in the corner
-        Step 2: user clicks ✕ → confirming = true → "Delete? Yes No" appears
-        Step 3a: Yes → calls onDelete(id) which hits DELETE /jobs/:id on backend
-        Step 3b: No  → sets confirming back to false, ✕ reappears
-      */}
-      {!confirming ? (
-        // ✕ button — small box, subtle gray, matches card border style
-        <button
-          onClick={() => setConfirming(true)}
-          title="Delete job"
-          style={{
-            position: "absolute",
-            top: "10px",
-            right: "10px",
-            width: "24px",
-            height: "24px",
-            borderRadius: "6px",
-            border: "1px solid var(--color-border-default, #e5e7eb)",
-            backgroundColor: "transparent",
-            color: "var(--color-subtext, #9ca3af)",
-            cursor: "pointer",
-            fontSize: "14px",
-            fontWeight: 500,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            lineHeight: 1,
-          }}
-        >
-          ✕
-        </button>
-      ) : (
-        // Popup overlay — covers just this card when confirming = true
-        // inset: 0 means it stretches to all four edges of the card
-        // position: absolute works because the card has position: relative
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            borderRadius: "12px",
-            backgroundColor: "rgba(255,255,255,0.95)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "12px",
-            zIndex: 10,
-          }}
-        >
-          {/* Job title shown so user knows exactly what they're deleting */}
-          <p
-            style={{
-              margin: 0,
-              fontSize: "14px",
-              fontWeight: 600,
-              color: "var(--color-heading, #003C78)",
-              textAlign: "center",
-              padding: "0 16px",
-            }}
-          >
-            Delete <em>{title}</em>?
-          </p>
-
-          <p
-            style={{
-              margin: 0,
-              fontSize: "12px",
-              color: "var(--color-subtext, #6b7280)",
-              textAlign: "center",
-            }}
-          >
-            This cannot be undone.
-          </p>
-
-          <div style={{ display: "flex", gap: "10px" }}>
-            {/* Confirm — calls onDelete which hits DELETE /jobs/:id and removes card from state */}
-            <button
-              onClick={() => onDelete(id)}
-              style={{
-                padding: "8px 20px",
-                borderRadius: "8px",
-                border: "none",
-                backgroundColor: "#DC2626",
-                color: "white",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Delete
-            </button>
-
-            {/* Cancel — closes popup, card goes back to normal */}
-            <button
-              onClick={() => setConfirming(false)}
-              style={{
-                padding: "8px 20px",
-                borderRadius: "8px",
-                border: "1px solid var(--color-border-default, #e5e7eb)",
-                backgroundColor: "transparent",
-                color: "var(--color-subtext, #6b7280)",
-                fontSize: "13px",
-                cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Edit button ───────────────────────────────────────────────────── */}
       <button
         onClick={onEdit}
         style={{
@@ -414,22 +270,6 @@ function Dashboard() {
 
   const handleAddJob = () => navigate("/jobs/new");
   const handleEditJob = (job) => navigate(`/jobs/${job.id}/edit`);
-
-  const handleDeleteJob = async (jobId) => {
-    try {
-      const token = await getToken({ skipCache: true });
-      const res = await fetch(`${BASE}/jobs/${jobId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        // Remove the job from state immediately — no page refresh needed
-        setJobs((prev) => prev.filter((j) => j.id !== jobId));
-      }
-    } catch (err) {
-      console.error("Failed to delete job:", err);
-    }
-  };
 
   return (
     <div
@@ -660,12 +500,7 @@ function Dashboard() {
         }}
       >
         {visibleJobs.map((job) => (
-          <JobCard
-            key={job.id}
-            {...job}
-            onEdit={() => handleEditJob(job)}
-            onDelete={handleDeleteJob}
-          />
+          <JobCard key={job.id} {...job} onEdit={() => handleEditJob(job)} />
         ))}
       </div>
     </div>
