@@ -487,35 +487,30 @@ function Profile() {
   };
 
   // ── Save Skills ───────────────────────────────────────────────────────────
-  // TODO (Ronald): Build POST/PUT /profile/skills endpoint.
-  // Expected request body shape:
-  //   { skills: [ { name: string, category: string, proficiency: string, order: number } ] }
-  // Expected response: 200 with updated skills array
-  // The `order` field should be the index in the array (0, 1, 2...) to preserve drag order.
-  // Auth: Bearer token via Authorization header (same pattern as PUT /auth/profile)
   const handleSaveSkills = async () => {
-    // Placeholder until Ronald builds the endpoint
-    console.log("Saving skills:", skills);
-    setSkillsSaved(true);
-
-    // When Ronald's endpoint is ready, replace the console.log above with:
-    // try {
-    //   const token = await getToken({ skipCache: true });
-    //   const res = await fetch(`${BASE}/profile/skills`, {
-    //     method: "PUT",
-    //     headers: {
-    //       Authorization: `Bearer ${token}`,
-    //       "Content-Type": "application/json",
-    //     },
-    //     body: JSON.stringify({
-    //       skills: skills.map((s, i) => ({ name: s.name, category: s.category, proficiency: s.proficiency, order: i })),
-    //     }),
-    //   });
-    //   if (!res.ok) throw new Error("Skills save failed");
-    //   setSkillsSaved(true);
-    // } catch (err) {
-    //   console.error(err);
-    // }
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/profile/skills`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          skills: skills.map((s, i) => ({
+            name: s.name,
+            category: s.category,
+            proficiency: s.proficiency,
+            order: i,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error("Skills save failed");
+      console.log("Saving skills:", skills);
+      setSkillsSaved(true);
+    } catch (err) {
+      console.error("Failed to save skills:", err);
+    }
   };
   // ── Experiences ──────────────────────────────────────────
   const [experiences, setExperiences] = useState([]);
@@ -918,7 +913,32 @@ function Profile() {
     };
     fetchProfile();
   }, [BASE, getToken]);
-
+  
+  useEffect(() => {
+  const fetchSkills = async () => {
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/profile/skills`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSkills(
+          data.map((s) => ({
+            id: s.id,          // use DB id as the local key
+            name: s.name,
+            category: s.category,
+            proficiency: s.proficiency,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to load skills:", err);
+      }
+    };
+    fetchSkills();
+  }, [BASE, getToken]);
+  
   const completion = getCompletion(profile);
 
   const formatPhone = (value) => {
