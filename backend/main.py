@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, text
 
 from app.database import get_db, init_db
-from app.routers import auth, events, jobs, protected, skills
+from app.routers import auth, jobs, protected, skills
 
 load_dotenv()
 
@@ -23,7 +23,7 @@ app.add_middleware(
 app.include_router(auth.router)  # registers auth router with FastAPI .
 app.include_router(protected.router)  # registers protected router with FastAPI S1-014
 app.include_router(jobs.router)  # registers jobs router with FastAPI S1-015
-app.include_router(skills.router) # registers skills routher with FastAPIT
+app.include_router(skills.router)  # registers skills routher with FastAPIT
 
 
 @app.on_event("startup")

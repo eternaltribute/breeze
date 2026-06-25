@@ -1,18 +1,21 @@
 from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import Skill, UserSkill, User
+from app.models import Skill, User, UserSkill
 
 router = APIRouter(prefix="/profile", tags=["skills"])
+
 
 class SkillItem(BaseModel):
     name: str
     proficiency: str
     order: int
+
 
 class SaveSkillsRequest(BaseModel):
     skills: List[SkillItem]
@@ -44,6 +47,8 @@ def get_user_skills(
         }
         for us, skill in rows
     ]
+
+
 @router.put("/skills")
 def save_user_skills(
     payload: SaveSkillsRequest,
@@ -56,21 +61,15 @@ def save_user_skills(
         raise HTTPException(status_code=404, detail="User not found")
 
     # Delete all existing user skills, then re-insert
-    existing = db.exec(
-        select(UserSkill).where(UserSkill.user_id == user.id)
-    ).all()
+    existing = db.exec(select(UserSkill).where(UserSkill.user_id == user.id)).all()
     for row in existing:
         db.delete(row)
     db.flush()
 
     for item in payload.skills:
-        skill = db.exec(
-            select(Skill).where(Skill.name == item.name)
-        ).first()
+        skill = db.exec(select(Skill).where(Skill.name == item.name)).first()
         if not skill:
-            raise HTTPException(
-                status_code=400, detail=f"Unknown skill: '{item.name}'"
-            )
+            raise HTTPException(status_code=400, detail=f"Unknown skill: '{item.name}'")
         db.add(
             UserSkill(
                 user_id=user.id,

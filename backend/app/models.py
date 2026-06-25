@@ -105,10 +105,12 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class Skill(SQLModel, table=True):
     __tablename__ = "skills"
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
+
 
 class UserSkill(SQLModel, table=True):
     __tablename__ = "user_skills"

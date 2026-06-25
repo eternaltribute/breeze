@@ -913,32 +913,32 @@ function Profile() {
     };
     fetchProfile();
   }, [BASE, getToken]);
-  
+
   useEffect(() => {
-  const fetchSkills = async () => {
-    try {
-      const token = await getToken({ skipCache: true });
-      const res = await fetch(`${BASE}/profile/skills`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSkills(
-          data.map((s) => ({
-            id: s.id,          // use DB id as the local key
-            name: s.name,
-            category: s.category,
-            proficiency: s.proficiency,
-          }))
-        );
-      }
-    } catch (err) {
-      console.error("Failed to load skills:", err);
+    const fetchSkills = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/profile/skills`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSkills(
+            data.map((s) => ({
+              id: s.id, // use DB id as the local key
+              name: s.name,
+              category: s.category,
+              proficiency: s.proficiency,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to load skills:", err);
       }
     };
     fetchSkills();
   }, [BASE, getToken]);
-  
+
   const completion = getCompletion(profile);
 
   const formatPhone = (value) => {
