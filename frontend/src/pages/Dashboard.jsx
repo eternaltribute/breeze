@@ -1,9 +1,22 @@
-//dashboard.jsx
+// src/pages/Dashboard.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+// S2-001  Search bar — filters cards by title, company, or job body text
+// S2-002  Filter controls — narrow by stage, location, and deadline state
+// S2-003  Sort controls — order by last activity, deadline, company, or date added
+//
+// How they chain together:
+//   1. Fetch ALL jobs once from the API → store in `jobs` state
+//   2. `visibleJobs` (useMemo) runs: search → filter → sort
+//   3. Only `visibleJobs` is rendered — `jobs` never mutates
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
+
+// Converts lowercase backend stage to display title-case
 const normalizeStage = (stage) => {
   const map = {
     interested: "Interested",
@@ -13,10 +26,11 @@ const normalizeStage = (stage) => {
     rejected: "Rejected",
     archived: "Archived",
   };
-
   return map[stage] || "Interested";
 };
 
+// Converts raw API job object into the shape the UI needs
+// Backend uses snake_case; frontend uses camelCase
 function fromApi(job) {
   const stage = normalizeStage(job.stage);
   return {
@@ -24,24 +38,27 @@ function fromApi(job) {
     company: job.company,
     title: job.title,
     jobPostingBody: job.job_posting_body,
+    location: job.location ?? "",
     stage,
     lastActivity: (job.updated_at ?? job.created_at)?.split("T")[0] ?? "",
+    deadline: job.deadline ?? "",
+    createdAt: job.created_at?.split("T")[0] ?? "",
   };
 }
 
+// Returns a color for the stage pill on each card
 const stageColor = (stage) => {
   if (stage === "Interview" || stage === "Offer") return "#FF6138";
   if (stage === "Applied") return "#046A97";
   if (stage === "Rejected") return "#DC2626";
   if (stage === "Archived") return "#6B7280";
-
   return "#9CA3AF";
 };
 
-// Canonical stages for the filter dropdown (S2-BR-004)
+// Canonical stages (S2-BR-004) — used in the filter dropdown
 const STAGES = ["Interested", "Applied", "Interview", "Offer", "Rejected", "Archived"];
 
-// Deadline state options for the filter dropdown (S2-002)
+// Deadline state options — used in the deadline filter dropdown (S2-002)
 const DEADLINE_STATES = [
   { label: "All Deadlines", value: "" },
   { label: "Overdue", value: "overdue" },
@@ -49,12 +66,13 @@ const DEADLINE_STATES = [
   { label: "No deadline", value: "none" },
 ];
 
-// Sort options for the sort dropdown (S2-003)
+// Sort options — used in the sort dropdown (S2-003)
 const SORT_OPTIONS = [
   { label: "Last Activity (newest first)", key: "lastActivity" },
   { label: "Deadline (soonest first)", key: "deadline" },
   { label: "Company (A → Z)", key: "company" },
-  { label: "Date Added (newest first)", key: "createdAt" },
+  { label: "Date Added (newest first)", key: "createdAt_desc" },
+  { label: "Date Added (oldest first)", key: "createdAt_asc" },
 ];
 
 const cardStyle = {
@@ -64,7 +82,11 @@ const cardStyle = {
   padding: "20px",
   boxShadow: "var(--shadow)",
 };
-function JobCard({ title, company, jobPostingBody, stage, lastActivity, onEdit }) {
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JobCard — renders a single job entry
+// ─────────────────────────────────────────────────────────────────────────────
+function JobCard({ title, company, jobPostingBody, location, stage, lastActivity, onEdit }) {
   return (
     <div
       style={{
@@ -76,31 +98,17 @@ function JobCard({ title, company, jobPostingBody, stage, lastActivity, onEdit }
       }}
     >
       <div>
-        <h3
-          style={{
-            margin: 0,
-            color: "var(--color-heading, #003C78)",
-          }}
-        >
-          {title}
-        </h3>
+        <h3 style={{ margin: 0, color: "var(--color-heading, #003C78)" }}>{title}</h3>
 
-        <p
-          style={{
-            marginTop: "4px",
-            color: "var(--color-subtext)",
-          }}
-        >
-          {company}
-        </p>
+        <p style={{ marginTop: "4px", color: "var(--color-subtext)" }}>{company}</p>
 
-        <p
-          style={{
-            fontSize: "13px",
-            color: "var(--color-subtext)",
-            marginTop: "8px",
-          }}
-        >
+        {location && (
+          <p style={{ marginTop: "2px", fontSize: "12px", color: "var(--color-subtext)" }}>
+            📍 {location}
+          </p>
+        )}
+
+        <p style={{ fontSize: "13px", color: "var(--color-subtext)", marginTop: "8px" }}>
           {jobPostingBody.length > 120 ? `${jobPostingBody.slice(0, 120)}...` : jobPostingBody}
         </p>
       </div>
@@ -120,13 +128,7 @@ function JobCard({ title, company, jobPostingBody, stage, lastActivity, onEdit }
         {stage}
       </span>
 
-      <p
-        style={{
-          margin: 0,
-          color: "var(--text)",
-          fontSize: "12px",
-        }}
-      >
+      <p style={{ margin: 0, color: "var(--text)", fontSize: "12px" }}>
         Last activity: {lastActivity}
       </p>
 
@@ -148,23 +150,48 @@ function JobCard({ title, company, jobPostingBody, stage, lastActivity, onEdit }
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Dashboard — main page
+// ─────────────────────────────────────────────────────────────────────────────
 function Dashboard() {
   const { user } = useUser();
   const { getToken } = useAuth();
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState([]);
-  const [filterDeadline, setFilterDeadline] = useState("");
 
-  // S2-001: what the user typed in the search box
+  // Full job list from the API — never changes after fetch
+  const [jobs, setJobs] = useState([]);
+
+  // S2-001: search box text
   const [searchQuery, setSearchQuery] = useState("");
-  // S2-002: selected stage ("" = all) and location text
+
+  // S2-002: stage dropdown, location input, deadline state dropdown
   const [filterStage, setFilterStage] = useState("");
   const [filterLocation, setFilterLocation] = useState("");
-  // S2-003: which sort is active
+  const [filterDeadline, setFilterDeadline] = useState("");
+
+  // S2-003: active sort key
   const [sortKey, setSortKey] = useState("lastActivity");
 
-  // visibleJobs = jobs run through search → filter → sort
-  // useMemo only reruns when one of its dependencies changes — no extra API calls
+  // Fetch jobs once on mount
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/jobs`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setJobs(data.map(fromApi));
+        }
+      } catch (err) {
+        console.error("Failed to fetch jobs:", err);
+      }
+    };
+    fetchJobs();
+  }, [getToken]);
+
+  // visibleJobs — runs search → filter → sort every time a dependency changes
   const visibleJobs = useMemo(() => {
     // Step 1 — Search (S2-001)
     const query = searchQuery.toLowerCase().trim();
@@ -191,13 +218,13 @@ function Dashboard() {
     // Step 2c — Deadline state filter (S2-002)
     if (filterDeadline) {
       const today = new Date();
-      today.setHours(0, 0, 0, 0); // normalize to start of day
+      today.setHours(0, 0, 0, 0);
       const nextWeek = new Date(today);
       nextWeek.setDate(today.getDate() + 7);
 
       result = result.filter((job) => {
         if (filterDeadline === "none") return !job.deadline;
-        if (!job.deadline) return false; // overdue/this_week require a deadline to exist
+        if (!job.deadline) return false;
         const d = new Date(job.deadline);
         if (filterDeadline === "overdue") return d < today;
         if (filterDeadline === "this_week") return d >= today && d <= nextWeek;
@@ -207,43 +234,42 @@ function Dashboard() {
 
     // Step 3 — Sort (S2-003)
     return [...result].sort((a, b) => {
-      if (sortKey === "company") return a.company.localeCompare(b.company);
+      if (sortKey === "company") {
+        return a.company.localeCompare(b.company);
+      }
       if (sortKey === "deadline") {
         if (!a.deadline && !b.deadline) return 0;
         if (!a.deadline) return 1;
         if (!b.deadline) return -1;
         return a.deadline.localeCompare(b.deadline);
       }
+      if (sortKey === "createdAt_desc") {
+        return b.createdAt.localeCompare(a.createdAt);
+      }
+      if (sortKey === "createdAt_asc") {
+        return a.createdAt.localeCompare(b.createdAt);
+      }
+      // default: lastActivity newest first
       const aVal = a[sortKey] ?? "";
       const bVal = b[sortKey] ?? "";
       return bVal.localeCompare(aVal);
     });
   }, [jobs, searchQuery, filterStage, filterLocation, filterDeadline, sortKey]);
 
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        const token = await getToken({ skipCache: true });
-        const res = await fetch(`${BASE}/jobs`, { headers: { Authorization: `Bearer ${token}` } });
+  // True when any filter/search/sort is active — controls Reset button visibility
+  const isFiltered =
+    searchQuery || filterStage || filterLocation || filterDeadline || sortKey !== "lastActivity";
 
-        if (res.ok) {
-          const data = await res.json();
-          setJobs(data.map(fromApi));
-        }
-      } catch (err) {
-        console.error("Failed to fetch jobs:", err);
-      }
-    };
-    fetchJobs();
-  }, [getToken]);
-
-  const handleAddJob = () => {
-    navigate("/jobs/new");
+  const handleReset = () => {
+    setSearchQuery("");
+    setFilterStage("");
+    setFilterLocation("");
+    setFilterDeadline("");
+    setSortKey("lastActivity");
   };
 
-  const handleEditJob = (job) => {
-    navigate(`/jobs/${job.id}/edit`);
-  };
+  const handleAddJob = () => navigate("/jobs/new");
+  const handleEditJob = (job) => navigate(`/jobs/${job.id}/edit`);
 
   return (
     <div
@@ -257,7 +283,7 @@ function Dashboard() {
         boxSizing: "border-box",
       }}
     >
-      {/* Header */}
+      {/* Page header */}
       <h1
         style={{
           color: "var(--color-heading, #003C78)",
@@ -270,6 +296,7 @@ function Dashboard() {
         Welcome back{user?.firstName ? `, ${user.firstName}` : ""}!
       </h1>
 
+      {/* Subtitle + Add Job button */}
       <div
         style={{
           display: "flex",
@@ -278,13 +305,7 @@ function Dashboard() {
           marginBottom: "24px",
         }}
       >
-        <p
-          style={{
-            color: "var(--color-subtext, #6b7280)",
-          }}
-        >
-          Here are your active applications.
-        </p>
+        <p style={{ color: "var(--color-subtext, #6b7280)" }}>Here are your active applications.</p>
 
         <button
           onClick={handleAddJob}
@@ -302,18 +323,18 @@ function Dashboard() {
         </button>
       </div>
 
-      {/* Search + Filter + Sort toolbar — S2-001, S2-002, S2-003 */}
+      {/* Search + Filter + Sort toolbar */}
       <div
         style={{
           display: "flex",
-          flexWrap: "nowrap", // keep everything on one line
+          flexWrap: "nowrap",
           gap: "10px",
-          marginBottom: "24px",
+          marginBottom: "12px",
           alignItems: "center",
-          width: "100%", // use the full page width
+          width: "100%",
         }}
       >
-        {/* S2-001 Search — grows to fill leftover space */}
+        {/* S2-001 Search */}
         <input
           type="text"
           placeholder="Search by title, company, or keywords…"
@@ -321,8 +342,8 @@ function Dashboard() {
           onChange={(e) => setSearchQuery(e.target.value)}
           aria-label="Search jobs"
           style={{
-            flex: "1 1 0", // takes up all available space
-            minWidth: 0, // lets it shrink below default min
+            flex: "1 1 0",
+            minWidth: 0,
             padding: "9px 14px",
             borderRadius: "8px",
             border: "1px solid var(--color-border-default, #e5e7eb)",
@@ -366,7 +387,7 @@ function Dashboard() {
           aria-label="Filter by location"
           style={{
             flexShrink: 0,
-            width: "130px",
+            width: "120px",
             padding: "9px 12px",
             borderRadius: "8px",
             border: "1px solid var(--color-border-default, #e5e7eb)",
@@ -376,6 +397,29 @@ function Dashboard() {
             outline: "none",
           }}
         />
+
+        {/* S2-002 Deadline state filter */}
+        <select
+          value={filterDeadline}
+          onChange={(e) => setFilterDeadline(e.target.value)}
+          aria-label="Filter by deadline"
+          style={{
+            flexShrink: 0,
+            padding: "9px 12px",
+            borderRadius: "8px",
+            border: "1px solid var(--color-border-default, #e5e7eb)",
+            backgroundColor: "var(--bg-card, #fff)",
+            color: "var(--color-heading, #003C78)",
+            fontSize: "14px",
+            cursor: "pointer",
+          }}
+        >
+          {DEADLINE_STATES.map((d) => (
+            <option key={d.value} value={d.value}>
+              {d.label}
+            </option>
+          ))}
+        </select>
 
         {/* S2-003 Sort */}
         <select
@@ -399,56 +443,55 @@ function Dashboard() {
             </option>
           ))}
         </select>
+      </div>
 
-        {/* Reset button — clears all filters/search/sort back to defaults */}
-        <button
-          onClick={() => {
-            setSearchQuery("");
-            setFilterStage("");
-            setFilterLocation("");
-            setFilterDeadline("");
-            setSortKey("lastActivity");
-          }}
-          aria-label="Reset filters"
-          style={{
-            flexShrink: 0,
-            padding: "9px 14px",
-            borderRadius: "8px",
-            border: "1px solid var(--color-border-default, #e5e7eb)",
-            backgroundColor: "transparent",
-            color: "var(--color-subtext, #6b7280)",
-            fontSize: "14px",
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {/* S2-002 Deadline state filter */}
-          <select
-            value={filterDeadline}
-            onChange={(e) => setFilterDeadline(e.target.value)}
-            aria-label="Filter by deadline"
+      {/* Results count + Reset filters row */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "16px",
+        }}
+      >
+        <p style={{ fontSize: "13px", color: "var(--color-subtext, #6b7280)", margin: 0 }}>
+          Results: {visibleJobs.length} / {jobs.length} total
+        </p>
+
+        {/* Reset only appears when something is actually filtered */}
+        {isFiltered && (
+          <button
+            onClick={handleReset}
             style={{
-              flexShrink: 0,
-              padding: "9px 12px",
+              padding: "6px 14px",
               borderRadius: "8px",
               border: "1px solid var(--color-border-default, #e5e7eb)",
-              backgroundColor: "var(--bg-card, #fff)",
-              color: "var(--color-heading, #003C78)",
-              fontSize: "14px",
+              backgroundColor: "transparent",
+              color: "var(--color-subtext, #6b7280)",
+              fontSize: "13px",
               cursor: "pointer",
             }}
           >
-            {DEADLINE_STATES.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-          Reset
-        </button>
+            Reset filters
+          </button>
+        )}
       </div>
 
-      {/* Job Grid */}
+      {/* Empty state — no jobs at all */}
+      {jobs.length === 0 && (
+        <p style={{ color: "var(--color-subtext)", textAlign: "center", marginTop: "60px" }}>
+          No applications yet. Add your first job to get started!
+        </p>
+      )}
+
+      {/* Empty state — jobs exist but nothing matches filters */}
+      {jobs.length > 0 && visibleJobs.length === 0 && (
+        <p style={{ color: "var(--color-subtext)", textAlign: "center", marginTop: "60px" }}>
+          No applications match your search or filters. Try adjusting them.
+        </p>
+      )}
+
+      {/* Job card grid */}
       <div
         style={{
           display: "grid",
