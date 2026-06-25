@@ -1,0 +1,247 @@
+# S2-008: Pipeline Stage Transition Controls
+# S2-009: Persist Stage Transition Timestamps
+# S2-011: Interview Tracking
+# Tests for stage transition validation, event logging, and interview CRUD
+
+from unittest.mock import patch
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
+
+from app.database import get_db
+from app.models import JobStage
+from main import app
+
+# --- Test Database Setup ---
+
+
+@pytest.fixture(name="db")
+def db_fixture():
+    """Create an in-memory SQLite database for testing."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session
+    SQLModel.metadata.drop_all(engine)
+
+
+@pytest.fixture(name="client")
+def client_fixture(db: Session):
+    """Create a test client with mocked auth and in-memory database."""
+
+    def get_db_override():
+        yield db
+
+    def get_current_user_override():
+        return {"sub": "test_user_123", "email": "test@example.com"}
+
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        app.dependency_overrides[get_db] = get_db_override
+        from app.dependencies import get_current_user
+
+        app.dependency_overrides[get_current_user] = get_current_user_override
+        yield TestClient(app)
+        app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="test_job")
+def test_job_fixture(client: TestClient):
+    """Create a test job and return it."""
+    response = client.post(
+        "/jobs",
+        json={
+            "company": "Test Co",
+            "title": "Engineer",
+            "job_posting_body": "Test posting",
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+# --- S2-008: Stage Transition Tests ---
+
+
+def test_valid_forward_transition(client, test_job):
+    """Happy path: interested -> applied is a valid forward transition."""
+    response = client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "applied", "confirm_override": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["stage"] == "applied"
+
+
+def test_invalid_transition_without_confirmation(client, test_job):
+    """Non-forward transition without confirm_override should return 409."""
+    response = client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "offer", "confirm_override": False},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["requires_confirmation"] is True
+
+
+def test_invalid_transition_with_confirmation(client, test_job):
+    """Non-forward transition with confirm_override=True should succeed."""
+    response = client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "offer", "confirm_override": True},
+    )
+    assert response.status_code == 200
+    assert response.json()["stage"] == "offer"
+
+
+def test_same_stage_transition(client, test_job):
+    """Transitioning to the same stage should return 400."""
+    response = client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "interested", "confirm_override": False},
+    )
+    assert response.status_code == 400
+
+
+def test_stage_transition_no_token():
+    """Unauthenticated stage transition should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.patch(
+            "/jobs/fake-id/stage",
+            json={"new_stage": "applied", "confirm_override": False},
+        )
+    assert response.status_code == 401
+
+
+# --- S2-009: Event Logging Tests ---
+
+
+def test_stage_change_logged_to_events(client, test_job, db):
+    """Stage transition should create a corresponding job event."""
+    from sqlmodel import select
+
+    from app.models import JobEvent, JobEventType
+
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "applied", "confirm_override": False},
+    )
+
+    events = db.exec(
+        select(JobEvent).where(
+            JobEvent.job_id == test_job["id"],
+            JobEvent.event_type == JobEventType.STAGE_CHANGE,
+        )
+    ).all()
+    assert len(events) == 1
+    assert events[0].from_stage == JobStage.INTERESTED
+    assert events[0].to_stage == JobStage.APPLIED
+    assert events[0].was_override is False
+
+
+def test_override_transition_logged_with_flag(client, test_job, db):
+    """Override transition should be logged with was_override=True."""
+    from sqlmodel import select
+
+    from app.models import JobEvent, JobEventType
+
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "offer", "confirm_override": True},
+    )
+
+    events = db.exec(
+        select(JobEvent).where(
+            JobEvent.job_id == test_job["id"],
+            JobEvent.event_type == JobEventType.STAGE_CHANGE,
+        )
+    ).all()
+    assert len(events) == 1
+    assert events[0].was_override is True
+
+
+def test_get_job_events(client, test_job):
+    """GET /jobs/{job_id}/events should return all events for a job."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "applied", "confirm_override": False},
+    )
+    response = client.get(f"/jobs/{test_job['id']}/events")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+# --- S2-011: Interview Tracking Tests ---
+
+
+def test_create_interview(client, test_job):
+    """Happy path: create an interview event with all required fields."""
+    response = client.post(
+        f"/jobs/{test_job['id']}/interviews",
+        json={
+            "interview_round": "Technical Screen",
+            "interview_datetime": "2026-07-01T14:00:00",
+            "notes": "Focus on system design",
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["event_type"] == "interview"
+    assert data["interview_round"] == "Technical Screen"
+    assert data["notes"] == "Focus on system design"
+
+
+def test_create_multiple_interviews(client, test_job):
+    """A job can have multiple interview entries (S2-BR-010)."""
+    for round_name in ["Phone Screen", "Technical", "Final"]:
+        response = client.post(
+            f"/jobs/{test_job['id']}/interviews",
+            json={
+                "interview_round": round_name,
+                "interview_datetime": "2026-07-01T14:00:00",
+                "notes": "Notes here",
+            },
+        )
+        assert response.status_code == 201
+
+    response = client.get(f"/jobs/{test_job['id']}/interviews")
+    assert response.status_code == 200
+    assert len(response.json()) == 3
+
+
+def test_update_interview(client, test_job):
+    """PATCH should update interview fields correctly."""
+    create_response = client.post(
+        f"/jobs/{test_job['id']}/interviews",
+        json={
+            "interview_round": "Phone Screen",
+            "interview_datetime": "2026-07-01T14:00:00",
+            "notes": "Original notes",
+        },
+    )
+    event_id = create_response.json()["id"]
+
+    update_response = client.patch(
+        f"/jobs/{test_job['id']}/interviews/{event_id}",
+        json={"notes": "Updated notes"},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["notes"] == "Updated notes"
+
+
+def test_create_interview_no_token():
+    """Unauthenticated interview creation should return 401."""
+    response = TestClient(app).post(
+        "/jobs/fake-id/interviews",
+        json={
+            "interview_round": "Phone Screen",
+            "interview_datetime": "2026-07-01T14:00:00",
+            "notes": "Notes",
+        },
+    )
+    assert response.status_code == 401

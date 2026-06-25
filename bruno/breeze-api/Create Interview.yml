@@ -1,0 +1,15 @@
+info:
+  name: Create Interview
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{base_url}}/jobs/ba72ec7d-b663-4549-9498-3a2063c15872/interviews"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
