@@ -41,6 +41,14 @@ const stageColor = (stage) => {
 // Canonical stages for the filter dropdown (S2-BR-004)
 const STAGES = ["Interested", "Applied", "Interview", "Offer", "Rejected", "Archived"];
 
+// Deadline state options for the filter dropdown (S2-002)
+const DEADLINE_STATES = [
+  { label: "All Deadlines", value: "" },
+  { label: "Overdue", value: "overdue" },
+  { label: "Due this week", value: "this_week" },
+  { label: "No deadline", value: "none" },
+];
+
 // Sort options for the sort dropdown (S2-003)
 const SORT_OPTIONS = [
   { label: "Last Activity (newest first)", key: "lastActivity" },
@@ -145,6 +153,7 @@ function Dashboard() {
   const { getToken } = useAuth();
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
+  const [filterDeadline, setFilterDeadline] = useState("");
 
   // S2-001: what the user typed in the search box
   const [searchQuery, setSearchQuery] = useState("");
@@ -179,6 +188,23 @@ function Dashboard() {
       result = result.filter((job) => (job.location ?? "").toLowerCase().includes(locQuery));
     }
 
+    // Step 2c — Deadline state filter (S2-002)
+    if (filterDeadline) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // normalize to start of day
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+
+      result = result.filter((job) => {
+        if (filterDeadline === "none") return !job.deadline;
+        if (!job.deadline) return false; // overdue/this_week require a deadline to exist
+        const d = new Date(job.deadline);
+        if (filterDeadline === "overdue") return d < today;
+        if (filterDeadline === "this_week") return d >= today && d <= nextWeek;
+        return true;
+      });
+    }
+
     // Step 3 — Sort (S2-003)
     return [...result].sort((a, b) => {
       if (sortKey === "company") return a.company.localeCompare(b.company);
@@ -192,7 +218,7 @@ function Dashboard() {
       const bVal = b[sortKey] ?? "";
       return bVal.localeCompare(aVal);
     });
-  }, [jobs, searchQuery, filterStage, filterLocation, sortKey]);
+  }, [jobs, searchQuery, filterStage, filterLocation, filterDeadline, sortKey]);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -380,6 +406,7 @@ function Dashboard() {
             setSearchQuery("");
             setFilterStage("");
             setFilterLocation("");
+            setFilterDeadline("");
             setSortKey("lastActivity");
           }}
           aria-label="Reset filters"
@@ -395,6 +422,28 @@ function Dashboard() {
             whiteSpace: "nowrap",
           }}
         >
+          {/* S2-002 Deadline state filter */}
+          <select
+            value={filterDeadline}
+            onChange={(e) => setFilterDeadline(e.target.value)}
+            aria-label="Filter by deadline"
+            style={{
+              flexShrink: 0,
+              padding: "9px 12px",
+              borderRadius: "8px",
+              border: "1px solid var(--color-border-default, #e5e7eb)",
+              backgroundColor: "var(--bg-card, #fff)",
+              color: "var(--color-heading, #003C78)",
+              fontSize: "14px",
+              cursor: "pointer",
+            }}
+          >
+            {DEADLINE_STATES.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
+            ))}
+          </select>
           Reset
         </button>
       </div>
