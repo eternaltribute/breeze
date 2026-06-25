@@ -9,7 +9,8 @@ from app.dependencies import get_current_user
 from app.models import Skill, User, UserSkill
 
 router = APIRouter(prefix="/profile", tags=["skills"])
-#hopefully this works
+# hopefully this works
+
 
 class SkillItem(BaseModel):
     name: str
