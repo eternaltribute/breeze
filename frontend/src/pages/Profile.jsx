@@ -29,8 +29,6 @@ import {
 // CSS.Transform.toString: converts dnd-kit's transform numbers into a CSS string
 import { CSS } from "@dnd-kit/utilities";
 
-const REQUIRED_FIELDS = ["firstName", "lastName", "email", "summary"];
-
 const initialProfile = {
   firstName: "",
   lastName: "",
@@ -38,11 +36,6 @@ const initialProfile = {
   phone: "",
   summary: "",
 };
-
-function getCompletion(profile) {
-  const filled = REQUIRED_FIELDS.filter((f) => profile[f].trim() !== "").length;
-  return Math.round((filled / REQUIRED_FIELDS.length) * 100);
-}
 
 function SortableExperience({ exp, children }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
@@ -366,6 +359,7 @@ function Profile() {
   const [errors, setErrors] = useState({});
   const [shaking, setShaking] = useState({});
   const [showBanner, setShowBanner] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
 
   // ── Skills state ─────────────────────────────────────────────────────────
   const [skills, setSkills] = useState([]);
@@ -829,6 +823,7 @@ function Profile() {
   });
 
   const [preferencesErrors, setPreferencesErrors] = useState({});
+  const [preferencesCompleted, setPreferencesCompleted] = useState(false);
   const [isEditingPreferences, setIsEditingPreferences] = useState(false);
   const [preferencesSaved, setPreferencesSaved] = useState(false);
   const [savedPreferences, setSavedPreferences] = useState({
@@ -879,7 +874,7 @@ function Profile() {
       // save to backend
 
       setSavedPreferences({ ...preferences });
-
+      setPreferencesCompleted(true);
       setPreferencesSaved(true);
       setIsEditingPreferences(false);
 
@@ -904,6 +899,7 @@ function Profile() {
         });
         if (res.ok) {
           const data = await res.json();
+
           setProfile({
             firstName: data.first_name ?? "",
             lastName: data.last_name ?? "",
@@ -911,6 +907,15 @@ function Profile() {
             phone: data.phone_number ?? "",
             summary: data.professional_summary ?? "",
           });
+
+          if (
+            data.first_name?.trim() &&
+            data.last_name?.trim() &&
+            data.email?.trim() &&
+            data.professional_summary?.trim()
+          ) {
+            setProfileSaved(true);
+          }
         }
       } catch (err) {
         console.error("Failed to load profile:", err);
@@ -986,6 +991,8 @@ function Profile() {
         firstName: profile.firstName,
         lastName: profile.lastName,
       });
+
+      setProfileSaved(true);
       setSaved(true);
     } catch (err) {
       console.error(err);
@@ -1008,49 +1015,48 @@ function Profile() {
     backgroundColor: errors[field] ? "rgba(255, 97, 56, 0.05)" : "var(--color-input-bg)",
     animation: shaking[field] ? "shake 0.4s ease" : "none",
   });
-  
-// PROFILE SECTION
-const profileComplete =
-  profile.firstName?.trim() &&
-  profile.lastName?.trim() &&
-  profile.email?.trim() &&
-  profile.summary?.trim();
 
-// SKILLS SECTION
-const skillsComplete = skillsSaved && skills.length > 0;
+  // PROFILE SECTION
+  const profileComplete =
+    profileSaved &&
+    profile.firstName?.trim() &&
+    profile.lastName?.trim() &&
+    profile.email?.trim() &&
+    profile.summary?.trim();
 
-// EXPERIENCE SECTION
-const experienceComplete =
-  experienceSaved && experiences.length > 0;
-// EDUCATION SECTION
-const educationComplete =
-  educationSaved && education.length > 0;
-// CAREER SECTION
-const preferencesComplete =
-  preferencesSaved &&
-  preferences.targetRole?.trim() &&
-  preferences.locationPreference?.trim() &&
-  preferences.workMode?.trim();
+  // SKILLS SECTION
+  const skillsComplete = skillsSaved && skills.length > 0;
 
-// COMPLETION %
-const completedSections = [
-  profileComplete,
-  skillsComplete,
-  experienceComplete,
-  educationComplete,
-  preferencesComplete,
-].filter(Boolean).length;
+  // EXPERIENCE SECTION
+  const experienceComplete = experienceSaved && experiences.length > 0;
+  // EDUCATION SECTION
+  const educationComplete = educationSaved && education.length > 0;
+  // CAREER SECTION
+  const preferencesComplete =
+    preferencesCompleted &&
+    preferences.targetRole?.trim() &&
+    preferences.locationPreference?.trim() &&
+    preferences.workMode?.trim();
 
-const completion = Math.round((completedSections / 5) * 100);
+  // COMPLETION %
+  const completedSections = [
+    profileComplete,
+    skillsComplete,
+    experienceComplete,
+    educationComplete,
+    preferencesComplete,
+  ].filter(Boolean).length;
 
-// MISSING SECTIONS
-const missingSections = [
-  !profileComplete && "Identity & Contact",
-  !skillsComplete && "Skills",
-  !experienceComplete && "Experience",
-  !educationComplete && "Education",
-  !preferencesComplete && "Career Preferences",
-].filter(Boolean);
+  const completion = Math.round((completedSections / 5) * 100);
+
+  // MISSING SECTIONS
+  const missingSections = [
+    !profileComplete && "Identity & Contact",
+    !skillsComplete && "Skills",
+    !experienceComplete && "Experience",
+    !educationComplete && "Education",
+    !preferencesComplete && "Career Preferences",
+  ].filter(Boolean);
 
   return (
     <>
@@ -1135,20 +1141,18 @@ const missingSections = [
             </div>
             <Progress value={completion} />
             <p
-  style={{
-    marginTop: "10px",
-    fontSize: "12px",
-    color: "var(--color-subtext, #6b7280)",
-  }}
->
-  {completion === 100 ? (
-    "Your profile is complete! 🎉"
-  ) : (
-    <>
-      Missing: {missingSections.join(", ")}
-    </>
-  )}
-</p>
+              style={{
+                marginTop: "10px",
+                fontSize: "12px",
+                color: "var(--color-subtext, #6b7280)",
+              }}
+            >
+              {completion === 100 ? (
+                "Your profile is complete! 🎉"
+              ) : (
+                <>Missing: {missingSections.join(", ")}</>
+              )}
+            </p>
           </div>
 
           {/* IDENTITY & CONTACT */}
@@ -1236,7 +1240,7 @@ const missingSections = [
             />
             {/* SUMMARY */}
             <div>
-             <label style={labelStyle}>Professional Summary *</label>
+              <label style={labelStyle}>Professional Summary *</label>
               <textarea
                 name="summary"
                 value={profile.summary}
@@ -1275,18 +1279,21 @@ const missingSections = [
               >
                 Save Profile Information
               </button>
-
-              {saved && (
-                <span
-                  style={{
-                    color: "#22c55e",
-                    fontSize: "13px",
-                  }}
-                >
-                  ✓ Profile information saved!
-                </span>
-              )}
             </div>
+            {saved && (
+              <span
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "999px",
+                  backgroundColor: "rgba(4, 106, 153, 0.12)",
+                  color: "var(--color-accent, #046A97)",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                }}
+              >
+                ✓ Saved
+              </span>
+            )}
           </div>
 
           {/* SKILLS */}
