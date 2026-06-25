@@ -366,6 +366,42 @@ function Profile() {
   const [errors, setErrors] = useState({});
   const [shaking, setShaking] = useState({});
   const [showBanner, setShowBanner] = useState(false);
+  const [showClearProfileConfirm, setShowClearProfileConfirm] = useState(false);
+  const handleClearProfile = async () => {
+    try {
+      const token = await getToken({ skipCache: true });
+
+      const clearedProfile = {
+        first_name: "",
+        last_name: "",
+        email: "",
+        phone_number: "",
+        professional_summary: "",
+      };
+
+      await fetch(`${BASE}/auth/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(clearedProfile),
+      });
+
+      setProfile({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        summary: "",
+      });
+
+      setSaved(true);
+      setShowClearProfileConfirm(false);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   // ── Skills state ─────────────────────────────────────────────────────────
   const [skills, setSkills] = useState([]);
@@ -884,7 +920,6 @@ function Profile() {
       setPreferencesSaved(true);
       setIsEditingPreferences(false);
 
-
       setTimeout(() => {
         setPreferencesSaved(false);
       }, 3000);
@@ -1010,49 +1045,47 @@ function Profile() {
     backgroundColor: errors[field] ? "rgba(255, 97, 56, 0.05)" : "var(--color-input-bg)",
     animation: shaking[field] ? "shake 0.4s ease" : "none",
   });
-  
-// PROFILE SECTION
-const profileComplete =
-  profile.firstName?.trim() &&
-  profile.lastName?.trim() &&
-  profile.email?.trim() &&
-  profile.summary?.trim();
 
-// SKILLS SECTION
-const skillsComplete = skillsSaved && skills.length > 0;
+  // PROFILE SECTION
+  const profileComplete =
+    profile.firstName?.trim() &&
+    profile.lastName?.trim() &&
+    profile.email?.trim() &&
+    profile.summary?.trim();
 
-// EXPERIENCE SECTION
-const experienceComplete =
-  experienceSaved && experiences.length > 0;
-// EDUCATION SECTION
-const educationComplete =
-  educationSaved && education.length > 0;
-// CAREER SECTION
-const preferencesComplete =
-  preferencesCompleted &&
-  preferences.targetRole?.trim() &&
-  preferences.locationPreference?.trim() &&
-  preferences.workMode?.trim();
+  // SKILLS SECTION
+  const skillsComplete = skillsSaved && skills.length > 0;
 
-// COMPLETION %
-const completedSections = [
-  profileComplete,
-  skillsComplete,
-  experienceComplete,
-  educationComplete,
-  preferencesComplete,
-].filter(Boolean).length;
+  // EXPERIENCE SECTION
+  const experienceComplete = experienceSaved && experiences.length > 0;
+  // EDUCATION SECTION
+  const educationComplete = educationSaved && education.length > 0;
+  // CAREER SECTION
+  const preferencesComplete =
+    preferencesCompleted &&
+    preferences.targetRole?.trim() &&
+    preferences.locationPreference?.trim() &&
+    preferences.workMode?.trim();
 
-const completion = Math.round((completedSections / 5) * 100);
+  // COMPLETION %
+  const completedSections = [
+    profileComplete,
+    skillsComplete,
+    experienceComplete,
+    educationComplete,
+    preferencesComplete,
+  ].filter(Boolean).length;
 
-// MISSING SECTIONS
-const missingSections = [
-  !profileComplete && "Identity & Contact",
-  !skillsComplete && "Skills",
-  !experienceComplete && "Experience",
-  !educationComplete && "Education",
-  !preferencesComplete && "Career Preferences",
-].filter(Boolean);
+  const completion = Math.round((completedSections / 5) * 100);
+
+  // MISSING SECTIONS
+  const missingSections = [
+    !profileComplete && "Identity & Contact",
+    !skillsComplete && "Skills",
+    !experienceComplete && "Experience",
+    !educationComplete && "Education",
+    !preferencesComplete && "Career Preferences",
+  ].filter(Boolean);
 
   return (
     <>
@@ -1137,20 +1170,18 @@ const missingSections = [
             </div>
             <Progress value={completion} />
             <p
-  style={{
-    marginTop: "10px",
-    fontSize: "12px",
-    color: "var(--color-subtext, #6b7280)",
-  }}
->
-  {completion === 100 ? (
-    "Your profile is complete! 🎉"
-  ) : (
-    <>
-      Missing: {missingSections.join(", ")}
-    </>
-  )}
-</p>
+              style={{
+                marginTop: "10px",
+                fontSize: "12px",
+                color: "var(--color-subtext, #6b7280)",
+              }}
+            >
+              {completion === 100 ? (
+                "Your profile is complete! 🎉"
+              ) : (
+                <>Missing: {missingSections.join(", ")}</>
+              )}
+            </p>
           </div>
 
           {/* IDENTITY & CONTACT */}
@@ -1238,7 +1269,7 @@ const missingSections = [
             />
             {/* SUMMARY */}
             <div>
-             <label style={labelStyle}>Professional Summary *</label>
+              <label style={labelStyle}>Professional Summary *</label>
               <textarea
                 name="summary"
                 value={profile.summary}
@@ -1277,17 +1308,6 @@ const missingSections = [
               >
                 Save Profile Information
               </button>
-
-              {saved && (
-                <span
-                  style={{
-                    color: "#22c55e",
-                    fontSize: "13px",
-                  }}
-                >
-                  ✓ Profile information saved!
-                </span>
-              )}
             </div>
           </div>
 
