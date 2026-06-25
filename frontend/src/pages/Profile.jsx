@@ -366,42 +366,7 @@ function Profile() {
   const [errors, setErrors] = useState({});
   const [shaking, setShaking] = useState({});
   const [showBanner, setShowBanner] = useState(false);
-  const [showClearProfileConfirm, setShowClearProfileConfirm] = useState(false);
-  const handleClearProfile = async () => {
-    try {
-      const token = await getToken({ skipCache: true });
-
-      const clearedProfile = {
-        first_name: "",
-        last_name: "",
-        email: "",
-        phone_number: "",
-        professional_summary: "",
-      };
-
-      await fetch(`${BASE}/auth/profile`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(clearedProfile),
-      });
-
-      setProfile({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        summary: "",
-      });
-
-      setSaved(true);
-      setShowClearProfileConfirm(false);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const [profileSaved, setProfileSaved] = useState(false);
 
   // ── Skills state ─────────────────────────────────────────────────────────
   const [skills, setSkills] = useState([]);
@@ -941,6 +906,7 @@ function Profile() {
         });
         if (res.ok) {
           const data = await res.json();
+
           setProfile({
             firstName: data.first_name ?? "",
             lastName: data.last_name ?? "",
@@ -948,6 +914,15 @@ function Profile() {
             phone: data.phone_number ?? "",
             summary: data.professional_summary ?? "",
           });
+
+          if (
+            data.first_name?.trim() &&
+            data.last_name?.trim() &&
+            data.email?.trim() &&
+            data.professional_summary?.trim()
+          ) {
+            setProfileSaved(true);
+          }
         }
       } catch (err) {
         console.error("Failed to load profile:", err);
@@ -1023,6 +998,8 @@ function Profile() {
         firstName: profile.firstName,
         lastName: profile.lastName,
       });
+
+      setProfileSaved(true);
       setSaved(true);
     } catch (err) {
       console.error(err);
@@ -1048,6 +1025,7 @@ function Profile() {
 
   // PROFILE SECTION
   const profileComplete =
+    profileSaved &&
     profile.firstName?.trim() &&
     profile.lastName?.trim() &&
     profile.email?.trim() &&
