@@ -74,3 +74,119 @@ def create_job_event(
     db.commit()
     db.refresh(event)
     return event
+
+
+# S2-011: Interview Tracking
+# Endpoints for creating, reading, and editing interview events
+# Rules: S2-BR-010 (multiple interviews per job)
+# S2-BR-011 (round type, datetime, notes required)
+
+
+class InterviewCreate(BaseModel):
+    interview_round: str
+    interview_datetime: datetime
+    notes: str
+
+
+class InterviewUpdate(BaseModel):
+    interview_round: str | None = None
+    interview_datetime: datetime | None = None
+    notes: str | None = None
+
+
+@router.post("/{job_id}/interviews", response_model=JobEvent, status_code=201)
+def create_interview(
+    job_id: str,
+    payload: InterviewCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create an interview event for a job.
+    Requires round type, datetime, and notes (S2-BR-011)."""
+    user_id = current_user.get("sub")
+
+    # Verify job exists and belongs to user
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    event = JobEvent(
+        job_id=job_id,
+        owner_id=user_id,
+        event_type=JobEventType.INTERVIEW,
+        interview_round=payload.interview_round,
+        interview_datetime=payload.interview_datetime,
+        notes=payload.notes,
+        created_at=datetime.utcnow(),
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+@router.get("/{job_id}/interviews", response_model=List[JobEvent])
+def get_interviews(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return all interview events for a job in chronological order."""
+    user_id = current_user.get("sub")
+
+    # Verify job exists and belongs to user
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return db.exec(
+        select(JobEvent)
+        .where(
+            JobEvent.job_id == job_id,
+            JobEvent.owner_id == user_id,
+            JobEvent.event_type == JobEventType.INTERVIEW,
+        )
+        .order_by(JobEvent.created_at)
+    ).all()
+
+
+@router.patch("/{job_id}/interviews/{event_id}", response_model=JobEvent)
+def update_interview(
+    job_id: str,
+    event_id: str,
+    payload: InterviewUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Edit an existing interview event."""
+    user_id = current_user.get("sub")
+
+    # Verify job exists and belongs to user
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Fetch the interview event
+    event = db.exec(
+        select(JobEvent).where(
+            JobEvent.id == event_id,
+            JobEvent.job_id == job_id,
+            JobEvent.owner_id == user_id,
+            JobEvent.event_type == JobEventType.INTERVIEW,
+        )
+    ).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Interview event not found")
+
+    # Apply updates
+    if payload.interview_round is not None:
+        event.interview_round = payload.interview_round
+    if payload.interview_datetime is not None:
+        event.interview_datetime = payload.interview_datetime
+    if payload.notes is not None:
+        event.notes = payload.notes
+
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
