@@ -520,7 +520,7 @@ function Profile() {
   // ── Experiences ──────────────────────────────────────────
   const [experiences, setExperiences] = useState([]);
   const [experienceErrors, setExperienceErrors] = useState({});
-  const [setExperienceSaved] = useState(false);
+  const [, setExperienceSaved] = useState(false);
   const [confirmDeleteExperienceId, setConfirmDeleteExperienceId] = useState(null);
   const handleExperienceDragEnd = (event) => {
     const { active, over } = event;
@@ -665,7 +665,7 @@ function Profile() {
   // ── Education ──────────────────────────────────────────
   const [education, setEducation] = useState([]);
   const [educationErrors, setEducationErrors] = useState({});
-  const [setEducationSaved] = useState(false);
+  const [, setEducationSaved] = useState(false);
   const [confirmDeleteEducationId, setConfirmDeleteEducationId] = useState(null);
   const handleEducationDragEnd = (event) => {
     const { active, over } = event;
