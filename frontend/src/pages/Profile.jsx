@@ -29,8 +29,6 @@ import {
 // CSS.Transform.toString: converts dnd-kit's transform numbers into a CSS string
 import { CSS } from "@dnd-kit/utilities";
 
-const REQUIRED_FIELDS = ["firstName", "lastName", "email", "summary"];
-
 const initialProfile = {
   firstName: "",
   lastName: "",
@@ -38,11 +36,6 @@ const initialProfile = {
   phone: "",
   summary: "",
 };
-
-function getCompletion(profile) {
-  const filled = REQUIRED_FIELDS.filter((f) => profile[f].trim() !== "").length;
-  return Math.round((filled / REQUIRED_FIELDS.length) * 100);
-}
 
 function SortableExperience({ exp, children }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
@@ -1287,6 +1280,20 @@ function Profile() {
                 Save Profile Information
               </button>
             </div>
+            {saved && (
+              <span
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "999px",
+                  backgroundColor: "rgba(4, 106, 153, 0.12)",
+                  color: "var(--color-accent, #046A97)",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                }}
+              >
+                ✓ Saved
+              </span>
+            )}
           </div>
 
           {/* SKILLS */}
