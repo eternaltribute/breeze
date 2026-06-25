@@ -288,7 +288,7 @@ function JobCard({
           alignSelf: "flex-start",
         }}
       >
-        Edit
+        View
       </button>
     </div>
   );
@@ -413,7 +413,8 @@ function Dashboard() {
   };
 
   const handleAddJob = () => navigate("/jobs/new");
-  const handleEditJob = (job) => navigate(`/jobs/${job.id}/edit`);
+  // S2-005: navigates to detail page, not straight to edit form
+  const handleEditJob = (job) => navigate(`/jobs/${job.id}`);
 
   const handleDeleteJob = async (jobId) => {
     try {
