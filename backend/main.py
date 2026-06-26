@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, text
 
 from app.database import get_db, init_db
-from app.routers import auth, events, jobs, protected, skills
+from app.routers import auth, jobs, protected, skills
 
 load_dotenv()
 

@@ -944,8 +944,6 @@ function Profile() {
     fetchSkills();
   }, [BASE, getToken]);
 
-  const completion = getCompletion(profile);
-
   const formatPhone = (value) => {
     const digits = value.replace(/\D/g, "").slice(0, 10);
     if (digits.length < 4) return digits;
