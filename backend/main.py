@@ -24,7 +24,7 @@ app.include_router(auth.router)  # registers auth router with FastAPI .
 app.include_router(protected.router)  # registers protected router with FastAPI S1-014
 app.include_router(jobs.router)  # registers jobs router with FastAPI S1-015
 app.include_router(skills.router)  # registers skills routher with FastAPIT
-
+app.include_router(events.router)
 
 @app.on_event("startup")
 def on_startup():
