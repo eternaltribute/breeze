@@ -475,9 +475,31 @@ function Profile() {
     setNewSkill({ name: "", category: "", proficiency: "" });
   };
 
-  const handleDeleteSkill = (id) => {
+  const handleDeleteSkill = async (id) => {
+    const updated = skills.filter((s) => s.id !== id);
+    setSkills(updated);
     setSkillsSaved(false);
-    setSkills(skills.filter((s) => s.id !== id));
+
+    try {
+      const token = await getToken({ skipCache: true });
+      await fetch(`${BASE}/profile/skills`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          skills: updated.map((s, i) => ({
+            name: s.name,
+            category: s.category,
+            proficiency: s.proficiency,
+            order: i,
+          })),
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to delete skill:", err);
+    }
   };
 
   // ── Save Skills ───────────────────────────────────────────────────────────
