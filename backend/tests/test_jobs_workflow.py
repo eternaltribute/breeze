@@ -245,3 +245,92 @@ def test_create_interview_no_token():
         },
     )
     assert response.status_code == 401
+
+
+# --- S2-010: Activity Timeline Tests ---
+
+
+def test_get_timeline_returns_formatted_items(client, test_job):
+    """Timeline should return formatted items not raw JobEvent objects."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "applied", "confirm_override": False},
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    item = data[0]
+    assert item["event_type"] == "stage_change"
+    assert item["title"] == "Stage changed to Applied"
+    assert item["detail"] == "Moved from Interested"
+    assert item["was_override"] is False
+    assert "timestamp" in item
+
+
+def test_timeline_override_shows_flag(client, test_job):
+    """Override transitions should show was_override=True in timeline."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "offer", "confirm_override": True},
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    assert data[0]["was_override"] is True
+
+
+def test_timeline_includes_interviews(client, test_job):
+    """Timeline should include interview events with correct title and detail."""
+    client.post(
+        f"/jobs/{test_job['id']}/interviews",
+        json={
+            "interview_round": "Technical Screen",
+            "interview_datetime": "2026-07-01T14:00:00",
+            "notes": "Focus on system design",
+        },
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["event_type"] == "interview"
+    assert data[0]["title"] == "Technical Screen"
+    assert data[0]["detail"] == "Focus on system design"
+
+
+def test_timeline_chronological_order(client, test_job):
+    """Timeline should return events in chronological order."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "applied", "confirm_override": False},
+    )
+    client.post(
+        f"/jobs/{test_job['id']}/interviews",
+        json={
+            "interview_round": "Phone Screen",
+            "interview_datetime": "2026-07-01T14:00:00",
+            "notes": "Initial screen",
+        },
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["event_type"] == "stage_change"
+    assert data[1]["event_type"] == "interview"
+
+
+def test_timeline_empty_for_new_job(client, test_job):
+    """A brand new job with no events should return an empty timeline."""
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_timeline_no_token():
+    """Unauthenticated timeline request should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.get("/jobs/fake-id/timeline")
+    assert response.status_code == 401
