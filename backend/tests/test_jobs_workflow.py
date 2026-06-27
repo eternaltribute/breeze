@@ -334,3 +334,91 @@ def test_timeline_no_token():
         test_client = TestClient(app)
         response = test_client.get("/jobs/fake-id/timeline")
     assert response.status_code == 401
+
+
+# --- S2-013: Outcome Tracking Tests ---
+
+
+def test_create_outcome_in_valid_stage(client, test_job):
+    """Happy path: outcome can be recorded when job is in offer stage."""
+    # Move job to offer stage first
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "offer", "confirm_override": True},
+    )
+    response = client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Offer accepted, starting August 1"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["event_type"] == "outcome"
+    assert data["notes"] == "Offer accepted, starting August 1"
+
+
+def test_create_outcome_in_invalid_stage(client, test_job):
+    """Outcome cannot be recorded when job is in a non-terminal stage."""
+    response = client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Should not work"},
+    )
+    assert response.status_code == 400
+
+
+def test_create_outcome_in_rejected_stage(client, test_job):
+    """Outcome can be recorded when job is in rejected stage."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "rejected", "confirm_override": False},
+    )
+    response = client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Rejected after final round"},
+    )
+    assert response.status_code == 201
+    assert response.json()["event_type"] == "outcome"
+
+
+def test_get_outcomes(client, test_job):
+    """GET /jobs/{job_id}/outcome should return all outcome records."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "rejected", "confirm_override": False},
+    )
+    client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Rejected after final round"},
+    )
+    response = client.get(f"/jobs/{test_job['id']}/outcome")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+def test_outcome_appears_in_timeline(client, test_job):
+    """Outcome events should appear in the activity timeline."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "rejected", "confirm_override": False},
+    )
+    client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Rejected after final round"},
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    outcome_items = [i for i in data if i["event_type"] == "outcome"]
+    assert len(outcome_items) == 1
+    assert outcome_items[0]["title"] == "Outcome recorded"
+    assert outcome_items[0]["detail"] == "Rejected after final round"
+
+
+def test_create_outcome_no_token():
+    """Unauthenticated outcome creation should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.post(
+            "/jobs/fake-id/outcome",
+            json={"notes": "Should not work"},
+        )
+    assert response.status_code == 401

@@ -260,3 +260,80 @@ def get_job_timeline(
     ).all()
 
     return [format_timeline_item(event) for event in events]
+
+
+# S2-013: Outcome Tracking Controls
+# Endpoints for recording and retrieving job outcomes
+# Rules: S2-BR-004, S2-BR-005
+# Outcomes can only be recorded when job is in a terminal stage
+
+
+OUTCOME_ALLOWED_STAGES = {JobStage.OFFER, JobStage.REJECTED, JobStage.ARCHIVED}
+
+
+class OutcomeCreate(BaseModel):
+    notes: str
+
+
+@router.post("/{job_id}/outcome", response_model=JobEvent, status_code=201)
+def create_outcome(
+    job_id: str,
+    payload: OutcomeCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Record a final outcome for a job.
+
+    Only allowed when job is in Offer, Rejected, or Archived stage.
+    """
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.stage not in OUTCOME_ALLOWED_STAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Outcomes can only be recorded for jobs in "
+                f"Offer, Rejected, or Archived stage. "
+                f"Current stage: {job.stage.value}"
+            ),
+        )
+
+    event = JobEvent(
+        job_id=job_id,
+        owner_id=user_id,
+        event_type=JobEventType.OUTCOME,
+        notes=payload.notes,
+        created_at=datetime.utcnow(),
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+@router.get("/{job_id}/outcome", response_model=List[JobEvent])
+def get_outcomes(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all outcome records for a job."""
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return db.exec(
+        select(JobEvent)
+        .where(
+            JobEvent.job_id == job_id,
+            JobEvent.owner_id == user_id,
+            JobEvent.event_type == JobEventType.OUTCOME,
+        )
+        .order_by(JobEvent.created_at)
+    ).all()
