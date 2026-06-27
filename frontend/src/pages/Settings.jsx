@@ -1,4 +1,5 @@
 import { useUser } from "@clerk/clerk-react";
+import { calculateProfileCompletion } from "../utils/profileCompletion"; 
 
 function Settings() {
   const { user } = useUser();
@@ -23,6 +24,19 @@ function Settings() {
     fontSize: "14px",
     marginBottom: "12px",
   };
+const { completion, missingSections } =
+  calculateProfileCompletion({
+    profile,
+    skills,
+    experiences,
+    education,
+    preferences,
+    profileSaved,
+    skillsSaved,
+    experienceSaved,
+    educationSaved,
+    preferencesCompleted,
+  });
 
   return (
     <div
@@ -89,9 +103,23 @@ function Settings() {
             Profile Completion
           </h2>
           <p style={labelStyle}>Profile Status</p>
-          {/* TODO: Sprint 2 — replace with real completion % from GET /profile */}
-          <p style={valueStyle}>Visit the Profile page to complete your profile.</p>
-          <p style={{ color: "#FF6138", fontSize: "14px" }}>○ Certifications Pending</p>
+         <p style={valueStyle}>
+  {completion}% Complete
+</p>
+
+<p
+  style={{
+    color:
+      completion === 100
+        ? "var(--color-accent, #046A97)"
+        : "#FF6138",
+    fontSize: "14px",
+  }}
+>
+  {completion === 100
+    ? "✓ Profile Complete"
+    : `Missing: ${missingSections.join(", ")}`}
+</p>
         </div>
 
         {/* DOCUMENT PREFERENCES — TODO: Sprint 2 GET /documents */}
