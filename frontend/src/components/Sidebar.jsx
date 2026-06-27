@@ -24,9 +24,7 @@ const navGroups = [
   {
     // New group for AI-powered tools
     label: "Tools",
-    items: [
-      { label: "Resume Helper", path: "/resume-helper", icon: FileText },
-    ],
+    items: [{ label: "Resume Helper", path: "/resume-helper", icon: FileText }],
   },
   {
     label: "Account",
