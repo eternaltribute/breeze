@@ -187,3 +187,97 @@ def transition_stage(
     db.commit()
     db.refresh(job)
     return job
+
+
+# S2-014: Job Archive and Restore Workflow
+# Archive moves job to archived stage and logs the event
+# Restore moves job from archived to a user-specified stage
+# Rules: S2-BR-006, S2-BR-009
+
+
+class RestoreRequest(BaseModel):
+    restore_to: JobStage
+    notes: str | None = None
+
+
+@router.post("/{job_id}/archive", response_model=Job)
+def archive_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Archive a job by moving it to the archived stage."""
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.stage == JobStage.ARCHIVED:
+        raise HTTPException(status_code=400, detail="Job is already archived")
+
+    previous_stage = job.stage
+    job.stage = JobStage.ARCHIVED
+    job.updated_at = datetime.utcnow()
+    db.add(job)
+
+    event = JobEvent(
+        job_id=job_id,
+        owner_id=user_id,
+        event_type=JobEventType.STAGE_CHANGE,
+        from_stage=previous_stage,
+        to_stage=JobStage.ARCHIVED,
+        was_override=False,
+        notes="Job archived",
+        created_at=datetime.utcnow(),
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+@router.post("/{job_id}/restore", response_model=Job)
+def restore_job(
+    job_id: str,
+    payload: RestoreRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Restore a job from archived to a specified active stage."""
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.stage != JobStage.ARCHIVED:
+        raise HTTPException(
+            status_code=400,
+            detail="Only archived jobs can be restored",
+        )
+
+    if payload.restore_to == JobStage.ARCHIVED:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot restore a job to archived stage",
+        )
+
+    job.stage = payload.restore_to
+    job.updated_at = datetime.utcnow()
+    db.add(job)
+
+    event = JobEvent(
+        job_id=job_id,
+        owner_id=user_id,
+        event_type=JobEventType.STAGE_CHANGE,
+        from_stage=JobStage.ARCHIVED,
+        to_stage=payload.restore_to,
+        was_override=True,
+        notes=payload.notes or "Job restored from archive",
+        created_at=datetime.utcnow(),
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(job)
+    return job

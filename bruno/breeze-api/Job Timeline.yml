@@ -1,0 +1,15 @@
+info:
+  name: Job Timeline
+  type: http
+  seq: 11
+
+http:
+  method: GET
+  url: "{{base_url}}/jobs/ba72ec7d-b663-4549-9498-3a2063c15872/timeline"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
