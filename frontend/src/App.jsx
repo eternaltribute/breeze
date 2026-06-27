@@ -7,11 +7,13 @@ import AddJob from "./pages/AddJob";
 import EditJob from "./pages/EditJob";
 import JobDetail from "./pages/JobDetail";
 import Analytics from "./pages/Analytics";
+import ResumeHelper from "./pages/ResumeHelper";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
+
 
 const clerkEnabled = import.meta.env.VITE_CLERK_ENABLED !== "false";
 
@@ -104,6 +106,7 @@ function App() {
                   <Route path="/jobs/:id/edit" element={<EditJob />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/resume-helper" element={<ResumeHelper />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/login" element={<Navigate to="/" replace />} />
                   <Route path="/signUp" element={<Navigate to="/" replace />} />
@@ -121,6 +124,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/analytics" element={<Analytics />} />
+              <Route path="/resume-helper" element={<ResumeHelper />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
