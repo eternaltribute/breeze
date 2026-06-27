@@ -58,11 +58,7 @@ function canAnalyze(resumeText, isAnalyzing) {
 // canImprove: returns true only if both resume text and instruction are present.
 // Per S2-BR-018 — AI action requires both content and an instruction.
 function canImprove(resumeText, instruction, isImproving) {
-  return (
-    resumeText.trim().length > 0 &&
-    instruction.trim().length > 0 &&
-    !isImproving
-  );
+  return resumeText.trim().length > 0 && instruction.trim().length > 0 && !isImproving;
 }
 
 // canSave: returns true only if there is resume text to save.
