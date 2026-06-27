@@ -136,9 +136,9 @@ function Label({ text, required }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function OutcomeSection({ jobId, getToken }) {
   const [outcomeNotes, setOutcomeNotes] = useState(""); // the outcome notes text
-  const [saving, setSaving]             = useState(false);
-  const [saved, setSaved]               = useState(false);
-  const [error, setError]               = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(null);
 
   // Save outcome notes to backend
   // POST /jobs/{job_id}/outcome — Ronald's endpoint
@@ -169,11 +169,15 @@ function OutcomeSection({ jobId, getToken }) {
 
   return (
     <div style={panelStyle}>
-      <h2 style={{
-        fontSize: "18px", fontWeight: 700,
-        color: "var(--color-heading, #003C78)",
-        marginTop: 0, marginBottom: "8px",
-      }}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 700,
+          color: "var(--color-heading, #003C78)",
+          marginTop: 0,
+          marginBottom: "8px",
+        }}
+      >
         Outcome
       </h2>
       <p style={{ fontSize: "13px", color: "var(--color-subtext, #6b7280)", marginBottom: "16px" }}>
@@ -191,9 +195,7 @@ function OutcomeSection({ jobId, getToken }) {
       />
 
       {/* Error message */}
-      {error && (
-        <p style={{ fontSize: "12px", color: "#DC2626", marginBottom: "8px" }}>{error}</p>
-      )}
+      {error && <p style={{ fontSize: "12px", color: "#DC2626", marginBottom: "8px" }}>{error}</p>}
 
       {/* Save button */}
       <button
@@ -201,8 +203,12 @@ function OutcomeSection({ jobId, getToken }) {
         disabled={saving || !outcomeNotes.trim()}
         style={{
           backgroundColor: saving || !outcomeNotes.trim() ? "#9ca3af" : "#003C78",
-          color: "white", border: "none", borderRadius: "8px",
-          padding: "10px 24px", fontSize: "14px", fontWeight: 600,
+          color: "white",
+          border: "none",
+          borderRadius: "8px",
+          padding: "10px 24px",
+          fontSize: "14px",
+          fontWeight: 600,
           cursor: saving || !outcomeNotes.trim() ? "not-allowed" : "pointer",
           width: "100%",
         }}
@@ -216,6 +222,266 @@ function OutcomeSection({ jobId, getToken }) {
           ✓ Outcome saved!
         </p>
       )}
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// ArchiveRestoreSection — S2-014
+// Archive button when job is active, Restore button + stage dropdown when archived.
+// Calls POST /jobs/{job_id}/archive and POST /jobs/{job_id}/restore
+// ─────────────────────────────────────────────────────────────────────────────
+function ArchiveRestoreSection({ jobId, stage, getToken, onStageChange }) {
+  const isArchived = stage === "Archived";
+  const [restoreStage, setRestoreStage] = useState("Interested");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Stages you can restore to — everything except Archived
+  const restoreOptions = ["Interested", "Applied", "Interview", "Offer", "Rejected"];
+
+  const handleArchive = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/jobs/${jobId}/archive`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Archive failed");
+      onStageChange("Archived"); // update the stage pill + trigger outcome section
+    } catch (err) {
+      console.error("Archive failed:", err);
+      setError("Could not archive. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/jobs/${jobId}/restore`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ stage: restoreStage.toLowerCase() }),
+      });
+      if (!res.ok) throw new Error("Restore failed");
+      onStageChange(restoreStage); // update stage pill back to chosen stage
+    } catch (err) {
+      console.error("Restore failed:", err);
+      setError("Could not restore. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={panelStyle}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 700,
+          color: "var(--color-heading, #003C78)",
+          marginTop: 0,
+          marginBottom: "8px",
+        }}
+      >
+        {isArchived ? "Restore Job" : "Archive Job"}
+      </h2>
+      <p style={{ fontSize: "13px", color: "var(--color-subtext, #6b7280)", marginBottom: "16px" }}>
+        {isArchived
+          ? "Pick a stage to restore this job to."
+          : "Archive this job to hide it from your active board."}
+      </p>
+
+      {/* Restore stage dropdown — only shown when archived */}
+      {isArchived && (
+        <div style={{ marginBottom: "12px" }}>
+          <Label text="Restore to stage" />
+          <select
+            value={restoreStage}
+            onChange={(e) => setRestoreStage(e.target.value)}
+            style={{ ...inputStyle, cursor: "pointer" }}
+          >
+            {restoreOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Error message */}
+      {error && <p style={{ fontSize: "12px", color: "#DC2626", marginBottom: "8px" }}>{error}</p>}
+
+      {/* Archive or Restore button */}
+      <button
+        onClick={isArchived ? handleRestore : handleArchive}
+        disabled={loading}
+        style={{
+          backgroundColor: loading ? "#9ca3af" : isArchived ? "#046A97" : "#6B7280",
+          color: "white",
+          border: "none",
+          borderRadius: "8px",
+          padding: "10px 24px",
+          fontSize: "14px",
+          fontWeight: 600,
+          cursor: loading ? "not-allowed" : "pointer",
+          width: "100%",
+        }}
+      >
+        {loading ? "Please wait…" : isArchived ? `Restore to ${restoreStage}` : "Archive Job"}
+      </button>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+// TimelineSection — S2-010
+// Fetches and displays job activity events in chronological order.
+// Each event has: event_type, title, detail, timestamp
+// Calls GET /jobs/{job_id}/timeline — Ronald's endpoint
+// ─────────────────────────────────────────────────────────────────────────────
+function TimelineSection({ jobId, getToken }) {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch timeline events on mount
+  useEffect(() => {
+    const fetchTimeline = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/jobs/${jobId}/timeline`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error("Failed to load timeline");
+        const data = await res.json();
+        setEvents(data);
+      } catch (err) {
+        console.error("Timeline fetch failed:", err);
+        setError("Could not load timeline.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTimeline();
+  }, [jobId, getToken]);
+
+  // Format timestamp to readable date + time
+  const formatDate = (ts) => {
+    if (!ts) return "";
+    return new Date(ts).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
+  // Pick a color dot per event type
+  const dotColor = (type) => {
+    if (type === "stage_change") return "#046A97";
+    if (type === "interview") return "#FF6138";
+    if (type === "outcome") return "#22c55e";
+    return "#9ca3af";
+  };
+
+  return (
+    <div style={{ ...panelStyle, marginTop: "24px" }}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 700,
+          color: "var(--color-heading, #003C78)",
+          marginTop: 0,
+          marginBottom: "20px",
+        }}
+      >
+        Activity Timeline
+      </h2>
+
+      {/* Loading state */}
+      {loading && (
+        <p style={{ fontSize: "13px", color: "var(--color-subtext, #6b7280)" }}>
+          Loading timeline...
+        </p>
+      )}
+
+      {/* Error state */}
+      {error && <p style={{ fontSize: "13px", color: "#DC2626" }}>{error}</p>}
+
+      {/* Empty state */}
+      {!loading && !error && events.length === 0 && (
+        <p style={{ fontSize: "13px", color: "var(--color-subtext, #6b7280)" }}>
+          No activity recorded yet.
+        </p>
+      )}
+
+      {/* Timeline list — each event is a dot + content row */}
+      {events.map((event, i) => (
+        <div key={i} style={{ display: "flex", gap: "14px", marginBottom: "20px" }}>
+          {/* Left: colored dot + vertical line */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div
+              style={{
+                width: "10px",
+                height: "10px",
+                borderRadius: "50%",
+                backgroundColor: dotColor(event.event_type),
+                flexShrink: 0,
+                marginTop: "4px",
+              }}
+            />
+            {/* Vertical line connecting dots — hidden on last item */}
+            {i < events.length - 1 && (
+              <div
+                style={{
+                  width: "2px",
+                  flex: 1,
+                  marginTop: "4px",
+                  backgroundColor: "var(--color-border-default, #e5e7eb)",
+                }}
+              />
+            )}
+          </div>
+
+          {/* Right: event content */}
+          <div style={{ paddingBottom: "4px" }}>
+            <p
+              style={{
+                margin: "0 0 2px",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "var(--color-heading, #003C78)",
+              }}
+            >
+              {event.title}
+            </p>
+            {event.detail && (
+              <p
+                style={{
+                  margin: "0 0 4px",
+                  fontSize: "12px",
+                  color: "var(--color-subtext, #6b7280)",
+                }}
+              >
+                {event.detail}
+              </p>
+            )}
+            <p style={{ margin: 0, fontSize: "11px", color: "var(--color-subtext, #9ca3af)" }}>
+              {formatDate(event.timestamp)}
+            </p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -536,155 +802,162 @@ function JobDetail() {
           alignItems: "start",
         }}
       >
-        {/* ── LEFT: Overview panel (S2-006) ─────────────────────────────── */}
-        <div style={panelStyle}>
-          <h2
-            style={{
-              fontSize: "18px",
-              fontWeight: 700,
-              color: "var(--color-heading, #003C78)",
-              marginTop: 0,
-              marginBottom: "24px",
-            }}
-          >
-            Overview
-          </h2>
-
-          {/* General save error */}
-          {overviewErrors.general && (
-            <p style={{ color: "#DC2626", fontSize: "13px", marginBottom: "16px" }}>
-              {overviewErrors.general}
-            </p>
-          )}
-
-          {/* Company — required (S2-BR-001) */}
-          <div style={{ marginBottom: "16px" }}>
-            <Label text="Company" required />
-            <input
-              type="text"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              style={inputStyle}
-              placeholder="e.g. Google"
-            />
-            <FieldError message={overviewErrors.company} />
-          </div>
-
-          {/* Job Title — required (S2-BR-001) */}
-          <div style={{ marginBottom: "16px" }}>
-            <Label text="Job Title" required />
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={inputStyle}
-              placeholder="e.g. Frontend Engineer"
-            />
-            <FieldError message={overviewErrors.title} />
-          </div>
-
-          {/* Stage — dropdown using canonical stages (S2-BR-004) */}
-          <div style={{ marginBottom: "16px" }}>
-            <Label text="Stage" required />
-            <select
-              value={stage}
-              onChange={(e) => setStage(e.target.value)}
-              style={{ ...inputStyle, cursor: "pointer" }}
-            >
-              {STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Location — optional */}
-          <div style={{ marginBottom: "16px" }}>
-            <Label text="Location" />
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              style={inputStyle}
-              placeholder="e.g. New York, NY or Remote"
-            />
-          </div>
-
-          {/* Job URL — optional */}
-          <div style={{ marginBottom: "16px" }}>
-            <Label text="Job Posting URL" />
-            <input
-              type="url"
-              value={jobUrl}
-              onChange={(e) => setJobUrl(e.target.value)}
-              style={inputStyle}
-              placeholder="https://..."
-            />
-          </div>
-
-          {/* Salary Range — optional */}
-          <div style={{ marginBottom: "16px" }}>
-            <Label text="Salary Range" />
-            <input
-              type="text"
-              value={salaryRange}
-              onChange={(e) => setSalaryRange(e.target.value)}
-              style={inputStyle}
-              placeholder="e.g. $80,000 – $100,000"
-            />
-          </div>
-
-          {/* Job Posting Body — required, editable (S2-BR-001, S2-BR-003) */}
-          <div style={{ marginBottom: "16px" }}>
-            <Label text="Job Posting Body" required />
-            <textarea
-              value={jobPostingBody}
-              onChange={(e) => setJobPostingBody(e.target.value)}
-              rows={8}
-              style={{ ...inputStyle, resize: "vertical", lineHeight: "1.5" }}
-              placeholder="Paste the full job description here…"
-            />
-            <FieldError message={overviewErrors.jobPostingBody} />
-          </div>
-
-          {/* General Notes — optional */}
-          <div style={{ marginBottom: "24px" }}>
-            <Label text="Notes" />
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical", lineHeight: "1.5" }}
-              placeholder="Any personal notes about this application…"
-            />
-          </div>
-
-          {/* Save Overview button — primary action (S2-BR-017) */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <button
-              onClick={handleOverviewSave}
-              disabled={overviewSaving}
+        {/* ── LEFT: Overview panel + Timeline (S2-006, S2-010) ─────────── */}
+        <div>
+          <div style={panelStyle}>
+            <h2
               style={{
-                backgroundColor: "#003C78",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                padding: "10px 24px",
-                fontSize: "14px",
-                fontWeight: 600,
-                cursor: overviewSaving ? "not-allowed" : "pointer",
-                opacity: overviewSaving ? 0.7 : 1,
+                fontSize: "18px",
+                fontWeight: 700,
+                color: "var(--color-heading, #003C78)",
+                marginTop: 0,
+                marginBottom: "24px",
               }}
             >
-              {overviewSaving ? "Saving…" : "Save Overview"}
-            </button>
+              Overview
+            </h2>
 
-            {/* "Saved!" flash — confirms successful save without a toast library */}
-            {overviewSaved && (
-              <span style={{ fontSize: "13px", color: "#16a34a", fontWeight: 500 }}>✓ Saved!</span>
+            {/* General save error */}
+            {overviewErrors.general && (
+              <p style={{ color: "#DC2626", fontSize: "13px", marginBottom: "16px" }}>
+                {overviewErrors.general}
+              </p>
             )}
+
+            {/* Company — required (S2-BR-001) */}
+            <div style={{ marginBottom: "16px" }}>
+              <Label text="Company" required />
+              <input
+                type="text"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                style={inputStyle}
+                placeholder="e.g. Google"
+              />
+              <FieldError message={overviewErrors.company} />
+            </div>
+
+            {/* Job Title — required (S2-BR-001) */}
+            <div style={{ marginBottom: "16px" }}>
+              <Label text="Job Title" required />
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                style={inputStyle}
+                placeholder="e.g. Frontend Engineer"
+              />
+              <FieldError message={overviewErrors.title} />
+            </div>
+
+            {/* Stage — dropdown using canonical stages (S2-BR-004) */}
+            <div style={{ marginBottom: "16px" }}>
+              <Label text="Stage" required />
+              <select
+                value={stage}
+                onChange={(e) => setStage(e.target.value)}
+                style={{ ...inputStyle, cursor: "pointer" }}
+              >
+                {STAGES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Location — optional */}
+            <div style={{ marginBottom: "16px" }}>
+              <Label text="Location" />
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                style={inputStyle}
+                placeholder="e.g. New York, NY or Remote"
+              />
+            </div>
+
+            {/* Job URL — optional */}
+            <div style={{ marginBottom: "16px" }}>
+              <Label text="Job Posting URL" />
+              <input
+                type="url"
+                value={jobUrl}
+                onChange={(e) => setJobUrl(e.target.value)}
+                style={inputStyle}
+                placeholder="https://..."
+              />
+            </div>
+
+            {/* Salary Range — optional */}
+            <div style={{ marginBottom: "16px" }}>
+              <Label text="Salary Range" />
+              <input
+                type="text"
+                value={salaryRange}
+                onChange={(e) => setSalaryRange(e.target.value)}
+                style={inputStyle}
+                placeholder="e.g. $80,000 – $100,000"
+              />
+            </div>
+
+            {/* Job Posting Body — required, editable (S2-BR-001, S2-BR-003) */}
+            <div style={{ marginBottom: "16px" }}>
+              <Label text="Job Posting Body" required />
+              <textarea
+                value={jobPostingBody}
+                onChange={(e) => setJobPostingBody(e.target.value)}
+                rows={8}
+                style={{ ...inputStyle, resize: "vertical", lineHeight: "1.5" }}
+                placeholder="Paste the full job description here…"
+              />
+              <FieldError message={overviewErrors.jobPostingBody} />
+            </div>
+
+            {/* General Notes — optional */}
+            <div style={{ marginBottom: "24px" }}>
+              <Label text="Notes" />
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                style={{ ...inputStyle, resize: "vertical", lineHeight: "1.5" }}
+                placeholder="Any personal notes about this application…"
+              />
+            </div>
+
+            {/* Save Overview button — primary action (S2-BR-017) */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <button
+                onClick={handleOverviewSave}
+                disabled={overviewSaving}
+                style={{
+                  backgroundColor: "#003C78",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 24px",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: overviewSaving ? "not-allowed" : "pointer",
+                  opacity: overviewSaving ? 0.7 : 1,
+                }}
+              >
+                {overviewSaving ? "Saving…" : "Save Overview"}
+              </button>
+
+              {/* "Saved!" flash — confirms successful save without a toast library */}
+              {overviewSaved && (
+                <span style={{ fontSize: "13px", color: "#16a34a", fontWeight: 500 }}>
+                  ✓ Saved!
+                </span>
+              )}
+            </div>
           </div>
+
+          {/* ── S2-010: Activity Timeline ──────────────────────────────── */}
+          <TimelineSection jobId={id} getToken={getToken} />
         </div>
 
         {/* ── RIGHT: Deadline + Recruiter Notes panel (S2-007) ─────────────── */}
@@ -770,13 +1043,21 @@ function JobDetail() {
               </p>
             )}
           </div>
-          
+
           {/* ── S2-013: Outcome Section ───────────────────────────────────── */}
           {/* Only shown when job is in a final stage: Offer, Rejected, Archived */}
           {/* Analogy: like a "case closed" notes field — only available at the end */}
           {["Offer", "Rejected", "Archived"].includes(stage) && (
             <OutcomeSection jobId={id} getToken={getToken} />
           )}
+
+          {/* ── S2-014: Archive / Restore ─────────────────────────────────── */}
+          <ArchiveRestoreSection
+            jobId={id}
+            stage={stage}
+            getToken={getToken}
+            onStageChange={(newStage) => setStage(newStage)}
+          />
 
           {/* Quick info card — read-only summary at the bottom of the right column */}
           <div
