@@ -1,7 +1,80 @@
-import { useUser } from "@clerk/clerk-react";
+import { useEffect, useState } from "react";
+import { useAuth, useUser } from "@clerk/clerk-react";
+import { calculateProfileCompletion } from "../utils/profileCompletion";
 
 function Settings() {
   const { user } = useUser();
+  const { getToken } = useAuth();
+
+  const [completion, setCompletion] = useState(0);
+  const [missingSections, setMissingSections] = useState([]);
+  const BASE = import.meta.env.VITE_API_BASE_URL;
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+
+        const [profileRes, skillsRes, experiencesRes, educationRes, preferencesRes] =
+          await Promise.all([
+            fetch(`${BASE}/auth/profile`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${BASE}/profile/skills`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+
+            // Future backend routes
+            fetch(`${BASE}/profile/experiences`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${BASE}/profile/education`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            fetch(`${BASE}/profile/preferences`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]);
+
+        if (!profileRes.ok) {
+          throw new Error("Failed to load profile");
+        }
+
+        const profileData = await profileRes.json();
+        const skillsData = skillsRes.ok ? await skillsRes.json() : [];
+        const experiencesData = experiencesRes.ok ? await experiencesRes.json() : [];
+        const educationData = educationRes.ok ? await educationRes.json() : [];
+        const preferencesData = preferencesRes.ok ? await preferencesRes.json() : {};
+
+        const result = calculateProfileCompletion({
+          profile: {
+            firstName: profileData.first_name ?? "",
+            lastName: profileData.last_name ?? "",
+            email: profileData.email ?? "",
+            phone: profileData.phone_number ?? "",
+            summary: profileData.professional_summary ?? "",
+          },
+          skills: skillsData || [],
+          experiences: experiencesData || [],
+          education: educationData || [],
+          preferences: {
+            targetRole: preferencesData.target_role ?? preferencesData.targetRole ?? "",
+            locationPreference:
+              preferencesData.location_preference ?? preferencesData.locationPreference ?? "",
+            workMode: preferencesData.work_mode ?? preferencesData.workMode ?? "",
+            salaryPreference:
+              preferencesData.salary_preference ?? preferencesData.salaryPreference ?? "",
+          },
+        });
+
+        setCompletion(result.completion);
+        setMissingSections(result.missingSections);
+      } catch (err) {
+        console.error("Failed to load completion:", err);
+      }
+    };
+
+    fetchProfileData();
+  }, [BASE, getToken]);
 
   const cardStyle = {
     backgroundColor: "var(--color-card-bg, white)",
@@ -59,7 +132,7 @@ function Settings() {
         </p>
 
         {/* ACCOUNT INFORMATION — real data from Clerk */}
-        <div style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}>
+        <div style={{ ...cardStyle, borderLeft: "4px solid var(--section-border)" }}>
           <h2
             style={{
               color: "var(--color-heading, #003C78)",
@@ -77,8 +150,8 @@ function Settings() {
           <p style={{ ...valueStyle, marginBottom: 0 }}>Clerk</p>
         </div>
 
-        {/* PROFILE COMPLETION — TODO: Sprint 2 GET /profile */}
-        <div style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}>
+        {/* PROFILE COMPLETION */}
+        <div style={{ ...cardStyle, borderLeft: "4px solid var(--section-border)" }}>
           <h2
             style={{
               color: "var(--color-heading, #003C78)",
@@ -89,48 +162,51 @@ function Settings() {
             Profile Completion
           </h2>
           <p style={labelStyle}>Profile Status</p>
-          {/* TODO: Sprint 2 — replace with real completion % from GET /profile */}
-          <p style={valueStyle}>Visit the Profile page to complete your profile.</p>
-          <p style={{ color: "#FF6138", fontSize: "14px" }}>○ Certifications Pending</p>
-        </div>
-
-        {/* DOCUMENT PREFERENCES — TODO: Sprint 2 GET /documents */}
-        <div style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}>
-          <h2
+          <p
             style={{
+              ...valueStyle,
+              fontWeight: 600,
               color: "var(--color-heading, #003C78)",
-              fontSize: "16px",
-              marginBottom: "16px",
             }}
           >
-            Document Preferences
-          </h2>
-          <p style={labelStyle}>Default Resume</p>
-          {/* TODO: Sprint 2 — replace with GET /documents */}
-          <p style={{ ...valueStyle, marginBottom: 0 }}>No resume uploaded yet.</p>
-        </div>
-
-        {/* APPLICATION PREFERENCES — TODO: Sprint 2 */}
-        <div style={{ ...cardStyle, borderLeft: "4px solid #046A97" }}>
-          <h2
+            {completion}% complete
+          </p>
+          <div
             style={{
-              color: "var(--color-heading, #003C78)",
-              fontSize: "16px",
-              marginBottom: "16px",
+              width: "100%",
+              height: "8px",
+              backgroundColor: "#E5E7EB",
+              borderRadius: "999px",
+              overflow: "hidden",
+              marginBottom: "12px",
             }}
           >
-            Application Preferences
-          </h2>
-          <p style={labelStyle}>Follow-Up Reminders</p>
-          {/* TODO: Sprint 2 — connect to notifications API */}
-          <p style={valueStyle}>Coming in Sprint 2.</p>
-          <p style={labelStyle}>Notification Preferences</p>
-          {/* TODO: Sprint 2 — connect to notifications API */}
-          <p style={{ ...valueStyle, marginBottom: 0 }}>Coming in Sprint 2.</p>
+            <div
+              style={{
+                width: `${completion}%`,
+                height: "100%",
+                backgroundColor: "var(--color-accent, #046A97)",
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+
+          <p
+            style={{
+              color: completion === 100 ? "var(--color-accent, #046A97)" : "#FF6138",
+              fontSize: "14px",
+            }}
+          >
+            {completion === 100
+              ? "✓ Profile Complete"
+              : missingSections.length > 0
+                ? `Missing: ${missingSections.join(", ")}`
+                : "Profile completion is still loading"}
+          </p>
         </div>
 
         {/* SECURITY — Clerk managed, see S1-013 */}
-        <div style={{ ...cardStyle, borderLeft: "4px solid #FF6138" }}>
+        <div style={{ ...cardStyle, borderLeft: "4px solid var(--section-border)" }}>
           <h2
             style={{
               color: "var(--color-heading, #003C78)",
@@ -141,10 +217,7 @@ function Settings() {
             Security
           </h2>
           <p style={labelStyle}>Password Management</p>
-          <p style={valueStyle}>Managed by Clerk. Use "Forgot Password" to reset.</p>
-          <p style={labelStyle}>Two-Factor Authentication</p>
-          {/* TODO: Sprint 2 — enable via Clerk 2FA */}
-          <p style={{ ...valueStyle, marginBottom: 0 }}>Coming in Sprint 2.</p>
+          <p style={valueStyle}>Managed by Clerk.</p>
         </div>
       </div>
     </div>
