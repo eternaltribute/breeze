@@ -422,3 +422,99 @@ def test_create_outcome_no_token():
             json={"notes": "Should not work"},
         )
     assert response.status_code == 401
+
+
+# --- S2-014: Archive and Restore Tests ---
+
+
+def test_archive_job(client, test_job):
+    """Happy path: archiving a job moves it to archived stage."""
+    response = client.post(f"/jobs/{test_job['id']}/archive")
+    assert response.status_code == 200
+    assert response.json()["stage"] == "archived"
+
+
+def test_archive_already_archived_job(client, test_job):
+    """Archiving an already archived job should return 400."""
+    client.post(f"/jobs/{test_job['id']}/archive")
+    response = client.post(f"/jobs/{test_job['id']}/archive")
+    assert response.status_code == 400
+
+
+def test_restore_job(client, test_job):
+    """Happy path: restoring an archived job to a specified stage."""
+    client.post(f"/jobs/{test_job['id']}/archive")
+    response = client.post(
+        f"/jobs/{test_job['id']}/restore",
+        json={"restore_to": "applied"},
+    )
+    assert response.status_code == 200
+    assert response.json()["stage"] == "applied"
+
+
+def test_restore_non_archived_job(client, test_job):
+    """Restoring a job that is not archived should return 400."""
+    response = client.post(
+        f"/jobs/{test_job['id']}/restore",
+        json={"restore_to": "applied"},
+    )
+    assert response.status_code == 400
+
+
+def test_restore_to_archived_stage(client, test_job):
+    """Restoring a job to archived stage should return 400."""
+    client.post(f"/jobs/{test_job['id']}/archive")
+    response = client.post(
+        f"/jobs/{test_job['id']}/restore",
+        json={"restore_to": "archived"},
+    )
+    assert response.status_code == 400
+
+
+def test_archive_logs_event(client, test_job, db):
+    """Archiving a job should log a stage change event."""
+    from sqlmodel import select
+
+    from app.models import JobEvent, JobEventType
+
+    client.post(f"/jobs/{test_job['id']}/archive")
+    events = db.exec(
+        select(JobEvent).where(
+            JobEvent.job_id == test_job["id"],
+            JobEvent.event_type == JobEventType.STAGE_CHANGE,
+        )
+    ).all()
+    assert len(events) == 1
+    assert events[0].to_stage.value == "archived"
+
+
+def test_restore_logs_event(client, test_job, db):
+    """Restoring a job should log a stage change event with was_override=True."""
+    from sqlmodel import select
+
+    from app.models import JobEvent, JobEventType
+
+    client.post(f"/jobs/{test_job['id']}/archive")
+    client.post(
+        f"/jobs/{test_job['id']}/restore",
+        json={"restore_to": "applied"},
+    )
+    events = db.exec(
+        select(JobEvent).where(
+            JobEvent.job_id == test_job["id"],
+            JobEvent.event_type == JobEventType.STAGE_CHANGE,
+        )
+    ).all()
+    assert len(events) == 2
+    restore_event = events[1]
+    assert restore_event.from_stage.value == "archived"
+    assert restore_event.to_stage.value == "applied"
+    assert restore_event.was_override is True
+
+
+def test_archive_no_token():
+    """Unauthenticated archive request should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.post("/jobs/fake-id/archive")
+    assert response.status_code == 401
