@@ -5,25 +5,22 @@ export function calculateProfileCompletion({
   education,
   preferences,
 }) {
-
-const profileComplete =
-  profile.firstName?.trim() &&
-  profile.lastName?.trim() &&
-  profile.email?.trim() &&
-  profile.summary?.trim();
+  const profileComplete =
+    profile.firstName?.trim() &&
+    profile.lastName?.trim() &&
+    profile.email?.trim() &&
+    profile.summary?.trim();
 
   const skillsComplete = skills.length > 0;
 
- const experienceComplete =
-  experiences.length > 0;
+  const experienceComplete = experiences.length > 0;
 
- const educationComplete =
-  education.length > 0;
+  const educationComplete = education.length > 0;
 
- const preferencesComplete =
-  preferences.targetRole?.trim() &&
-  preferences.locationPreference?.trim() &&
-  preferences.workMode?.trim();
+  const preferencesComplete =
+    preferences.targetRole?.trim() &&
+    preferences.locationPreference?.trim() &&
+    preferences.workMode?.trim();
 
   const completedSections = [
     profileComplete,
@@ -33,9 +30,7 @@ const profileComplete =
     preferencesComplete,
   ].filter(Boolean).length;
 
-  const completion = Math.round(
-    (completedSections / 5) * 100
-  );
+  const completion = Math.round((completedSections / 5) * 100);
 
   const missingSections = [
     !profileComplete && "Identity & Contact",

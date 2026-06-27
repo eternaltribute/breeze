@@ -503,11 +503,7 @@ function Profile() {
     }
   };
 
-<<<<<<< HEAD
   // ── Save Skills ───────────────────────────────────────────────────────────---------------------
-=======
-  // ── Save Skills ───────────────────────────────────────────────────────────
->>>>>>> main
   const handleSaveSkills = async () => {
     try {
       const token = await getToken({ skipCache: true });
@@ -1063,22 +1059,19 @@ function Profile() {
     animation: shaking[field] ? "shake 0.4s ease" : "none",
   });
 
-// PROFILE COMPLETION BAR -----------------------------------------
-  const {
-  completion,
-  missingSections,
-} = calculateProfileCompletion({
-  profile,
-  skills,
-  experiences,
-  education,
-  preferences,
-  profileSaved,
-  skillsSaved,
-  experienceSaved,
-  educationSaved,
-  preferencesCompleted,
-});
+  // PROFILE COMPLETION BAR -----------------------------------------
+  const { completion, missingSections } = calculateProfileCompletion({
+    profile,
+    skills,
+    experiences,
+    education,
+    preferences,
+    profileSaved,
+    skillsSaved,
+    experienceSaved,
+    educationSaved,
+    preferencesCompleted,
+  });
 
   return (
     <>
