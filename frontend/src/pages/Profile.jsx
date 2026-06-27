@@ -503,7 +503,11 @@ function Profile() {
     }
   };
 
+<<<<<<< HEAD
   // ── Save Skills ───────────────────────────────────────────────────────────---------------------
+=======
+  // ── Save Skills ───────────────────────────────────────────────────────────
+>>>>>>> main
   const handleSaveSkills = async () => {
     try {
       const token = await getToken({ skipCache: true });
