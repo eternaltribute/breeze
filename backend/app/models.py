@@ -104,3 +104,18 @@ class User(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Experience(SQLModel, table=True):
+    __tablename__ = "experiences"
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
+    title: str
+    company: str
+    city: str
+    state: str
+    start_date: str
+    end_date: str
+    description: str
+    order: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
