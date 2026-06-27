@@ -37,6 +37,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useAuth } from "@clerk/clerk-react";
+<<<<<<< HEAD
 import {
   Upload,
   Download,
@@ -48,6 +49,9 @@ import {
   ChevronDown,
   Wand2,
 } from "lucide-react";
+=======
+import { Upload, Download, Save, Sparkles, Brain, FileText, X, ChevronDown, Wand2 } from "lucide-react"; 
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
 import mammoth from "mammoth";
 
 // ── API base URL — same pattern used across all pages (Analytics, Dashboard, etc.) ──
@@ -70,6 +74,7 @@ function ScoreRing({ score }) {
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
       <svg width="100" height="100" viewBox="0 0 100 100">
         {/* Gray background circle */}
+<<<<<<< HEAD
         <circle
           cx="50"
           cy="50"
@@ -86,12 +91,20 @@ function ScoreRing({ score }) {
           fill="none"
           stroke={color}
           strokeWidth="10"
+=======
+        <circle cx="50" cy="50" r={radius} fill="none"
+          stroke="var(--color-border-default, #e5e7eb)" strokeWidth="10" />
+        {/* Colored progress arc — starts at top (rotate -90deg) */}
+        <circle cx="50" cy="50" r={radius} fill="none"
+          stroke={color} strokeWidth="10"
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
           strokeDasharray={`${filled} ${empty}`}
           strokeLinecap="round"
           transform="rotate(-90 50 50)"
           style={{ transition: "stroke-dasharray 0.6s ease" }}
         />
         {/* Score number in the center */}
+<<<<<<< HEAD
         <text
           x="50"
           y="54"
@@ -100,6 +113,10 @@ function ScoreRing({ score }) {
           fontWeight="700"
           fill="var(--color-heading, #003C78)"
         >
+=======
+        <text x="50" y="54" textAnchor="middle" fontSize="20" fontWeight="700"
+          fill="var(--color-heading, #003C78)">
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
           {score ?? "--"}
         </text>
       </svg>
@@ -130,6 +147,7 @@ function MetricBar({ label, score, max = 20 }) {
         </span>
       </div>
       {/* Progress bar track */}
+<<<<<<< HEAD
       <div
         style={{
           height: "6px",
@@ -148,6 +166,19 @@ function MetricBar({ label, score, max = 20 }) {
             transition: "width 0.5s ease",
           }}
         />
+=======
+      <div style={{
+        height: "6px", borderRadius: "999px",
+        backgroundColor: "var(--color-border-default, #e5e7eb)",
+        overflow: "hidden",
+      }}>
+        {/* Filled portion — width driven by pct */}
+        <div style={{
+          height: "100%", width: `${pct}%`,
+          backgroundColor: color, borderRadius: "999px",
+          transition: "width 0.5s ease",
+        }} />
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
       </div>
     </div>
   );
@@ -158,6 +189,7 @@ function MetricBar({ label, score, max = 20 }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function FeedbackItem({ section, tip }) {
   return (
+<<<<<<< HEAD
     <div
       style={{
         padding: "12px 14px",
@@ -180,6 +212,23 @@ function FeedbackItem({ section, tip }) {
         {section}
       </p>
       <p style={{ margin: 0, fontSize: "13px", color: "var(--color-subtext, #6b7280)" }}>{tip}</p>
+=======
+    <div style={{
+      padding: "12px 14px", borderRadius: "8px", marginBottom: "10px",
+      border: "1px solid var(--color-border-default, #e5e7eb)",
+      backgroundColor: "var(--bg, #F8FAFC)",
+    }}>
+      <p style={{
+        margin: "0 0 4px", fontSize: "11px", fontWeight: 700,
+        color: "var(--color-heading, #003C78)",
+        textTransform: "uppercase", letterSpacing: "0.05em",
+      }}>
+        {section}
+      </p>
+      <p style={{ margin: 0, fontSize: "13px", color: "var(--color-subtext, #6b7280)" }}>
+        {tip}
+      </p>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
     </div>
   );
 }
@@ -201,6 +250,7 @@ function UploadZone({ onFileAccepted }) {
   });
 
   return (
+<<<<<<< HEAD
     <div
       {...getRootProps()}
       style={{
@@ -229,6 +279,19 @@ function UploadZone({ onFileAccepted }) {
           color: "var(--color-heading, #003C78)",
         }}
       >
+=======
+    <div {...getRootProps()} style={{
+      border: `2px dashed ${isDragActive ? "#003C78" : "var(--color-border-default, #e5e7eb)"}`,
+      borderRadius: "12px", padding: "48px 24px", textAlign: "center", cursor: "pointer",
+      backgroundColor: isDragActive ? "var(--brand-ocean-muted, #EFF6FF)" : "var(--bg, #F8FAFC)",
+      transition: "all 0.2s ease",
+    }}>
+      <input {...getInputProps()} />
+      <Upload size={36} style={{
+        color: isDragActive ? "#003C78" : "var(--color-subtext, #9ca3af)", marginBottom: "12px",
+      }} />
+      <p style={{ margin: "0 0 6px", fontSize: "15px", fontWeight: 600, color: "var(--color-heading, #003C78)" }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
         {isDragActive ? "Drop your resume here" : "Upload your resume"}
       </p>
       <p style={{ margin: 0, fontSize: "13px", color: "var(--color-subtext, #6b7280)" }}>
@@ -246,6 +309,7 @@ function ResumeHelper() {
   const { getToken } = useAuth(); // Clerk auth — same hook used in Analytics.jsx
 
   // ── State ──────────────────────────────────────────────────────────────────
+<<<<<<< HEAD
   const [resumeText, setResumeText] = useState(""); // editable resume content
   const [fileName, setFileName] = useState(""); // name of uploaded file
   const [aiScore, setAiScore] = useState(null); // overall 0-100 score from backend
@@ -258,6 +322,20 @@ function ResumeHelper() {
   const [jobs, setJobs] = useState([]); // user's job list for the link dropdown
   const [selectedJobId, setSelectedJobId] = useState(""); // job to link this resume to
   const [saveSuccess, setSaveSuccess] = useState(false); // brief success confirmation
+=======
+  const [resumeText, setResumeText]       = useState("");    // editable resume content
+  const [fileName, setFileName]           = useState("");    // name of uploaded file
+  const [aiScore, setAiScore]             = useState(null);  // overall 0-100 score from backend
+  const [metrics, setMetrics]             = useState(null);  // { contact_info, summary, experience, skills, length }
+  const [feedback, setFeedback]           = useState([]);    // [{ section, tip }] from backend
+  const [analyzing, setAnalyzing]         = useState(false); // loading state for analyze call
+  const [improving, setImproving]         = useState(false); // loading state for improve call
+  const [saving, setSaving]               = useState(false); // loading state for save call
+  const [improveInstruction, setImproveInstruction] = useState(""); // what the user wants improved
+  const [jobs, setJobs]                   = useState([]);    // user's job list for the link dropdown
+  const [selectedJobId, setSelectedJobId] = useState("");    // job to link this resume to
+  const [saveSuccess, setSaveSuccess]     = useState(false); // brief success confirmation
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
 
   // ── Fetch user's jobs on mount ─────────────────────────────────────────────
   // Lets the user link this resume to a specific job application (S2-024)
@@ -281,7 +359,11 @@ function ResumeHelper() {
   // When a file is dropped, read it and extract the text so we can display it
   const handleFileAccepted = useCallback(async (file) => {
     setFileName(file.name);
+<<<<<<< HEAD
     setAiScore(null); // reset AI results when a new file comes in
+=======
+    setAiScore(null);   // reset AI results when a new file comes in
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
     setMetrics(null);
     setFeedback([]);
 
@@ -298,20 +380,30 @@ function ResumeHelper() {
       //   returns: { text: string }
       setResumeText(
         "PDF text extraction requires the backend endpoint.\n\n" +
+<<<<<<< HEAD
           "For now, please paste your resume text directly into this editor.\n\n" +
           "Ronald: TODO — POST /resume/parse-pdf"
+=======
+        "For now, please paste your resume text directly into this editor.\n\n" +
+        "Ronald: TODO — POST /resume/parse-pdf"
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
       );
     }
   }, []);
 
   // ── Clear everything ───────────────────────────────────────────────────────
   const handleClear = () => {
+<<<<<<< HEAD
     setResumeText("");
     setFileName("");
     setAiScore(null);
     setMetrics(null);
     setFeedback([]);
     setSaveSuccess(false);
+=======
+    setResumeText(""); setFileName(""); setAiScore(null);
+    setMetrics(null); setFeedback([]); setSaveSuccess(false);
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
     setImproveInstruction("");
   };
 
@@ -357,6 +449,7 @@ function ResumeHelper() {
       setAiScore(72);
       setMetrics({
         contact_info: 18, // 18/20 — has name, email, phone, LinkedIn
+<<<<<<< HEAD
         summary: 10, // 10/20 — summary exists but is too short
         experience: 16, // 16/20 — good bullets but lacks some numbers
         skills: 8, // 8/20  — no dedicated skills section found
@@ -375,6 +468,17 @@ function ResumeHelper() {
           section: "Experience",
           tip: "Quantify your bullet points — 'increased efficiency by 30%' beats 'improved efficiency'.",
         },
+=======
+        summary:      10, // 10/20 — summary exists but is too short
+        experience:   16, // 16/20 — good bullets but lacks some numbers
+        skills:        8, // 8/20  — no dedicated skills section found
+        length:       20, // 20/20 — resume is exactly one page
+      });
+      setFeedback([
+        { section: "Skills", tip: "Add a dedicated Skills section. ATS systems scan for keyword lists." },
+        { section: "Summary", tip: "Expand your summary to 2-3 sentences covering your role, years of experience, and top strength." },
+        { section: "Experience", tip: "Quantify your bullet points — 'increased efficiency by 30%' beats 'improved efficiency'." },
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
       ]);
       // ── End placeholder ───────────────────────────────────────────────────
     } catch (err) {
@@ -419,7 +523,13 @@ function ResumeHelper() {
       console.log("Instruction:", improveInstruction);
       await new Promise((r) => setTimeout(r, 1000));
       // Prepend a note so the user can see the "improvement" happened
+<<<<<<< HEAD
       setResumeText(`[AI improved: "${improveInstruction}"]\n\n` + resumeText);
+=======
+      setResumeText(
+        `[AI improved: "${improveInstruction}"]\n\n` + resumeText
+      );
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
       setImproveInstruction(""); // clear the instruction box after success
       // ── End placeholder ───────────────────────────────────────────────────
     } catch (err) {
@@ -479,8 +589,13 @@ function ResumeHelper() {
   const handleDownload = () => {
     if (!resumeText.trim()) return;
     const blob = new Blob([resumeText], { type: "text/plain" });
+<<<<<<< HEAD
     const url = URL.createObjectURL(blob); // temporary browser download URL
     const a = document.createElement("a"); // invisible link element
+=======
+    const url = URL.createObjectURL(blob);   // temporary browser download URL
+    const a = document.createElement("a");  // invisible link element
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
     a.href = url;
     a.download = fileName ? fileName.replace(/\.(pdf|docx)$/i, ".txt") : "resume.txt";
     a.click();
@@ -491,6 +606,7 @@ function ResumeHelper() {
   // Render
   // ─────────────────────────────────────────────────────────────────────────
   return (
+<<<<<<< HEAD
     <div
       style={{
         backgroundColor: "var(--bg, #F8FAFC)",
@@ -512,6 +628,18 @@ function ResumeHelper() {
           lineHeight: 1.2,
         }}
       >
+=======
+    <div style={{
+      backgroundColor: "var(--bg, #F8FAFC)", minHeight: "100vh",
+      padding: "40px 60px", maxWidth: "1200px",
+      margin: "0 auto", width: "100%", boxSizing: "border-box",
+    }}>
+      {/* Page header */}
+      <h1 style={{
+        color: "var(--color-heading, #003C78)", fontSize: "40px",
+        fontWeight: 700, marginBottom: "8px", lineHeight: 1.2,
+      }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
         Resume Helper
       </h1>
       <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "16px", marginBottom: "32px" }}>
@@ -519,6 +647,7 @@ function ResumeHelper() {
       </p>
 
       {/* Two-column layout */}
+<<<<<<< HEAD
       <div
         style={{
           display: "grid",
@@ -527,6 +656,15 @@ function ResumeHelper() {
           alignItems: "start",
         }}
       >
+=======
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 340px",
+        gap: "24px",
+        alignItems: "start",
+      }}>
+
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
         {/* ── LEFT: Upload zone + editor + improve action ──────────────────── */}
         <div>
           {!resumeText ? (
@@ -534,6 +672,7 @@ function ResumeHelper() {
           ) : (
             <>
               {/* Editor card */}
+<<<<<<< HEAD
               <div
                 style={{
                   backgroundColor: "var(--bg-card, #fff)",
@@ -581,6 +720,33 @@ function ResumeHelper() {
                       cursor: "pointer",
                     }}
                   >
+=======
+              <div style={{
+                backgroundColor: "var(--bg-card, #fff)",
+                border: "1px solid var(--color-border-default, #e5e7eb)",
+                borderRadius: "12px", overflow: "hidden", boxShadow: "var(--shadow)",
+              }}>
+                {/* Toolbar */}
+                <div style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "14px 20px",
+                  borderBottom: "1px solid var(--color-border-default, #e5e7eb)",
+                  backgroundColor: "var(--bg, #F8FAFC)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <FileText size={16} style={{ color: "var(--color-subtext, #6b7280)" }} />
+                    <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-heading, #003C78)" }}>
+                      {fileName || "resume.txt"}
+                    </span>
+                  </div>
+                  <button onClick={handleClear} style={{
+                    display: "flex", alignItems: "center", gap: "6px",
+                    padding: "6px 12px", borderRadius: "6px",
+                    border: "1px solid var(--color-border-default, #e5e7eb)",
+                    backgroundColor: "transparent", color: "var(--color-subtext, #6b7280)",
+                    fontSize: "13px", cursor: "pointer",
+                  }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                     <X size={14} /> Clear
                   </button>
                 </div>
@@ -592,6 +758,7 @@ function ResumeHelper() {
                   spellCheck
                   aria-label="Resume content editor"
                   style={{
+<<<<<<< HEAD
                     width: "100%",
                     minHeight: "500px",
                     padding: "24px",
@@ -604,6 +771,13 @@ function ResumeHelper() {
                     color: "var(--color-heading, #003C78)",
                     backgroundColor: "var(--bg-card, #fff)",
                     boxSizing: "border-box",
+=======
+                    width: "100%", minHeight: "500px", padding: "24px",
+                    border: "none", outline: "none", resize: "vertical",
+                    fontFamily: "monospace", fontSize: "13px", lineHeight: 1.7,
+                    color: "var(--color-heading, #003C78)",
+                    backgroundColor: "var(--bg-card, #fff)", boxSizing: "border-box",
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                   }}
                 />
               </div>
@@ -611,6 +785,7 @@ function ResumeHelper() {
               {/* ── S2-023: Improve section ───────────────────────────────── */}
               {/* User types an instruction, clicks Improve, AI rewrites the resume */}
               {/* Result appears in the editor above — user can then edit or discard it */}
+<<<<<<< HEAD
               <div
                 style={{
                   marginTop: "16px",
@@ -631,10 +806,23 @@ function ResumeHelper() {
                     justifyContent: "center",
                   }}
                 >
+=======
+              <div style={{
+                marginTop: "16px", padding: "16px 20px", borderRadius: "12px",
+                border: "1px solid var(--color-border-default, #e5e7eb)",
+                backgroundColor: "var(--bg-card, #fff)", boxShadow: "var(--shadow)",
+              }}>
+                <p style={{
+                  margin: "0 0 10px", fontSize: "13px", fontWeight: 700,
+                  color: "var(--color-heading, #003C78)",
+                  display: "flex", justifyContent: "center",
+                }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                   <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <Brain size={16} style={{ color: "#046A97" }} />
                     <Sparkles size={13} style={{ color: "#046A97" }} />
                     Improve with AI
+<<<<<<< HEAD
                   </span>
                 </p>
                 <p
@@ -646,6 +834,12 @@ function ResumeHelper() {
                 >
                   Tell the AI what to fix — it rewrites your resume and you can edit the result
                   before saving.
+=======
+                    </span>
+                </p>
+                <p style={{ margin: "0 0 12px", fontSize: "12px", color: "var(--color-subtext, #6b7280)" }}>
+                  Tell the AI what to fix — it rewrites your resume and you can edit the result before saving.
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                 </p>
                 <div style={{ display: "flex", gap: "10px" }}>
                   {/* Instruction input — what should the AI do? */}
@@ -657,6 +851,7 @@ function ResumeHelper() {
                     aria-label="Improvement instruction for AI"
                     onKeyDown={(e) => e.key === "Enter" && handleImprove()}
                     style={{
+<<<<<<< HEAD
                       flex: 1,
                       padding: "10px 14px",
                       borderRadius: "8px",
@@ -665,6 +860,12 @@ function ResumeHelper() {
                       color: "var(--color-heading, #003C78)",
                       backgroundColor: "var(--bg, #F8FAFC)",
                       outline: "none",
+=======
+                      flex: 1, padding: "10px 14px", borderRadius: "8px",
+                      border: "1px solid var(--color-border-default, #e5e7eb)",
+                      fontSize: "13px", color: "var(--color-heading, #003C78)",
+                      backgroundColor: "var(--bg, #F8FAFC)", outline: "none",
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                     }}
                   />
                   {/* Improve button — triggers POST /resume/improve */}
@@ -672,6 +873,7 @@ function ResumeHelper() {
                     onClick={handleImprove}
                     disabled={improving || !improveInstruction.trim()}
                     style={{
+<<<<<<< HEAD
                       display: "flex",
                       alignItems: "center",
                       gap: "6px",
@@ -683,6 +885,12 @@ function ResumeHelper() {
                       color: "white",
                       fontSize: "13px",
                       fontWeight: 600,
+=======
+                      display: "flex", alignItems: "center", gap: "6px",
+                      padding: "10px 16px", borderRadius: "8px", border: "none",
+                      backgroundColor: improving || !improveInstruction.trim() ? "#9ca3af" : "#046A97",
+                      color: "white", fontSize: "13px", fontWeight: 600,
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                       cursor: improving || !improveInstruction.trim() ? "not-allowed" : "pointer",
                       whiteSpace: "nowrap",
                     }}
@@ -694,6 +902,7 @@ function ResumeHelper() {
               </div>
 
               {/* ── Action row: job link + download + save ────────────────── */}
+<<<<<<< HEAD
               <div
                 style={{
                   display: "flex",
@@ -703,6 +912,12 @@ function ResumeHelper() {
                   flexWrap: "wrap",
                 }}
               >
+=======
+              <div style={{
+                display: "flex", gap: "12px", marginTop: "14px",
+                alignItems: "center", flexWrap: "wrap",
+              }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                 {/* Job link dropdown — S2-024: link resume to a specific application */}
                 <div style={{ position: "relative", flex: "1", minWidth: "200px" }}>
                   <select
@@ -710,6 +925,7 @@ function ResumeHelper() {
                     onChange={(e) => setSelectedJobId(e.target.value)}
                     aria-label="Link resume to a job application"
                     style={{
+<<<<<<< HEAD
                       width: "100%",
                       padding: "10px 36px 10px 14px",
                       borderRadius: "8px",
@@ -719,6 +935,12 @@ function ResumeHelper() {
                       fontSize: "14px",
                       cursor: "pointer",
                       appearance: "none",
+=======
+                      width: "100%", padding: "10px 36px 10px 14px", borderRadius: "8px",
+                      border: "1px solid var(--color-border-default, #e5e7eb)",
+                      backgroundColor: "var(--bg-card, #fff)", color: "var(--color-heading, #003C78)",
+                      fontSize: "14px", cursor: "pointer", appearance: "none",
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                     }}
                   >
                     <option value="">Link to a job (optional)</option>
@@ -728,6 +950,7 @@ function ResumeHelper() {
                       </option>
                     ))}
                   </select>
+<<<<<<< HEAD
                   <ChevronDown
                     size={16}
                     style={{
@@ -758,10 +981,28 @@ function ResumeHelper() {
                     cursor: "pointer",
                   }}
                 >
+=======
+                  <ChevronDown size={16} style={{
+                    position: "absolute", right: "12px", top: "50%",
+                    transform: "translateY(-50%)", pointerEvents: "none",
+                    color: "var(--color-subtext, #6b7280)",
+                  }} />
+                </div>
+
+                {/* Download as .txt */}
+                <button onClick={handleDownload} style={{
+                  display: "flex", alignItems: "center", gap: "8px",
+                  padding: "10px 18px", borderRadius: "8px",
+                  border: "1px solid var(--color-border-default, #e5e7eb)",
+                  backgroundColor: "transparent", color: "var(--color-heading, #003C78)",
+                  fontSize: "14px", fontWeight: 600, cursor: "pointer",
+                }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                   <Download size={16} /> Download .txt
                 </button>
 
                 {/* Save to backend — S2-024 */}
+<<<<<<< HEAD
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -779,6 +1020,15 @@ function ResumeHelper() {
                     cursor: saving ? "not-allowed" : "pointer",
                   }}
                 >
+=======
+                <button onClick={handleSave} disabled={saving} style={{
+                  display: "flex", alignItems: "center", gap: "8px",
+                  padding: "10px 18px", borderRadius: "8px", border: "none",
+                  backgroundColor: saving ? "#9ca3af" : "#003C78",
+                  color: "white", fontSize: "14px", fontWeight: 600,
+                  cursor: saving ? "not-allowed" : "pointer",
+                }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                   <Save size={16} />
                   {saving ? "Saving..." : "Save Resume"}
                 </button>
@@ -795,6 +1045,7 @@ function ResumeHelper() {
         </div>
 
         {/* ── RIGHT: AI Review panel ───────────────────────────────────────── */}
+<<<<<<< HEAD
         <div
           style={{
             backgroundColor: "var(--bg-card, #fff)",
@@ -824,6 +1075,21 @@ function ResumeHelper() {
               marginBottom: "20px",
             }}
           >
+=======
+        <div style={{
+          backgroundColor: "var(--bg-card, #fff)",
+          border: "1px solid var(--color-border-default, #e5e7eb)",
+          borderRadius: "12px", padding: "24px", boxShadow: "var(--shadow)",
+          position: "sticky", top: "24px", // stays on screen as user scrolls editor
+        }}>
+          <h2 style={{
+            fontSize: "16px", fontWeight: 700, color: "var(--color-heading, #003C78)",
+            marginTop: 0, marginBottom: "6px",
+          }}>
+            AI Review
+          </h2>
+          <p style={{ fontSize: "13px", color: "var(--color-subtext, #6b7280)", marginBottom: "20px" }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
             Upload a resume then click Analyze to get your score.
           </p>
 
@@ -839,6 +1105,7 @@ function ResumeHelper() {
             onClick={handleAnalyze}
             disabled={!resumeText || analyzing}
             style={{
+<<<<<<< HEAD
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -854,6 +1121,14 @@ function ResumeHelper() {
               cursor: !resumeText || analyzing ? "not-allowed" : "pointer",
               marginBottom: "20px",
               transition: "background-color 0.2s",
+=======
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+              width: "100%", padding: "12px", borderRadius: "8px", border: "none",
+              backgroundColor: !resumeText || analyzing ? "#9ca3af" : "#046A97",
+              color: "white", fontSize: "14px", fontWeight: 600,
+              cursor: !resumeText || analyzing ? "not-allowed" : "pointer",
+              marginBottom: "20px", transition: "background-color 0.2s",
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
             }}
           >
             <Sparkles size={16} />
@@ -865,6 +1140,7 @@ function ResumeHelper() {
           {/* These values come from Ronald's POST /resume/analyze response */}
           {metrics && (
             <div style={{ marginBottom: "20px" }}>
+<<<<<<< HEAD
               <p
                 style={{
                   fontSize: "11px",
@@ -875,11 +1151,18 @@ function ResumeHelper() {
                   marginBottom: "14px",
                 }}
               >
+=======
+              <p style={{
+                fontSize: "11px", fontWeight: 700, color: "var(--color-subtext, #6b7280)",
+                textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "14px",
+              }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                 Score Breakdown
               </p>
               {/* Contact Info: does it have name, email, phone, LinkedIn? */}
               <MetricBar label="Contact Info" score={metrics.contact_info} />
               {/* Summary: is there a professional summary at the top? */}
+<<<<<<< HEAD
               <MetricBar label="Summary" score={metrics.summary} />
               {/* Experience: are bullet points strong and quantified? */}
               <MetricBar label="Experience" score={metrics.experience} />
@@ -887,12 +1170,22 @@ function ResumeHelper() {
               <MetricBar label="Skills" score={metrics.skills} />
               {/* Length: is the resume an appropriate length for experience level? */}
               <MetricBar label="Length" score={metrics.length} />
+=======
+              <MetricBar label="Summary"      score={metrics.summary} />
+              {/* Experience: are bullet points strong and quantified? */}
+              <MetricBar label="Experience"   score={metrics.experience} />
+              {/* Skills: is there a dedicated skills / keywords section? */}
+              <MetricBar label="Skills"       score={metrics.skills} />
+              {/* Length: is the resume an appropriate length for experience level? */}
+              <MetricBar label="Length"       score={metrics.length} />
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
             </div>
           )}
 
           {/* AI suggestions list */}
           {feedback.length > 0 && (
             <div>
+<<<<<<< HEAD
               <p
                 style={{
                   fontSize: "11px",
@@ -903,6 +1196,12 @@ function ResumeHelper() {
                   marginBottom: "12px",
                 }}
               >
+=======
+              <p style={{
+                fontSize: "11px", fontWeight: 700, color: "var(--color-subtext, #6b7280)",
+                textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "12px",
+              }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
                 Suggestions
               </p>
               {feedback.map((item, i) => (
@@ -913,6 +1212,7 @@ function ResumeHelper() {
 
           {/* Empty state — before any file is uploaded */}
           {!resumeText && !analyzing && (
+<<<<<<< HEAD
             <div
               style={{
                 textAlign: "center",
@@ -920,6 +1220,9 @@ function ResumeHelper() {
                 color: "var(--color-subtext, #9ca3af)",
               }}
             >
+=======
+            <div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-subtext, #9ca3af)" }}>
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)
               <FileText size={32} style={{ marginBottom: "8px", opacity: 0.4 }} />
               <p style={{ fontSize: "13px", margin: 0 }}>Upload a resume to get started</p>
             </div>
@@ -930,4 +1233,8 @@ function ResumeHelper() {
   );
 }
 
+<<<<<<< HEAD
 export default ResumeHelper;
+=======
+export default ResumeHelper;
+>>>>>>> 82d5f53 (feat: Resume Helper page — S2-021, S2-023, S2-024 frontend complete)

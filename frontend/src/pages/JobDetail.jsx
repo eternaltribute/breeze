@@ -129,6 +129,98 @@ function Label({ text, required }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OutcomeSection — S2-013
+// Shows a notes field to record the final outcome of a job application.
+// Only rendered when stage is Offer, Rejected, or Archived (S2-BR-004/005).
+// Calls POST /jobs/{job_id}/outcome to persist the notes.
+// ─────────────────────────────────────────────────────────────────────────────
+function OutcomeSection({ jobId, getToken }) {
+  const [outcomeNotes, setOutcomeNotes] = useState(""); // the outcome notes text
+  const [saving, setSaving]             = useState(false);
+  const [saved, setSaved]               = useState(false);
+  const [error, setError]               = useState(null);
+
+  // Save outcome notes to backend
+  // POST /jobs/{job_id}/outcome — Ronald's endpoint
+  const handleSave = async () => {
+    if (!outcomeNotes.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/jobs/${jobId}/outcome`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ notes: outcomeNotes.trim() }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error("Outcome save failed:", err);
+      setError("Could not save outcome. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={panelStyle}>
+      <h2 style={{
+        fontSize: "18px", fontWeight: 700,
+        color: "var(--color-heading, #003C78)",
+        marginTop: 0, marginBottom: "8px",
+      }}>
+        Outcome
+      </h2>
+      <p style={{ fontSize: "13px", color: "var(--color-subtext, #6b7280)", marginBottom: "16px" }}>
+        Record the final outcome of this application.
+      </p>
+
+      {/* Outcome notes textarea */}
+      <textarea
+        value={outcomeNotes}
+        onChange={(e) => setOutcomeNotes(e.target.value)}
+        rows={4}
+        aria-label="Outcome notes"
+        placeholder="e.g. Received offer for $95k, negotiating start date… or Rejected after final round."
+        style={{ ...inputStyle, resize: "vertical", lineHeight: "1.5", marginBottom: "12px" }}
+      />
+
+      {/* Error message */}
+      {error && (
+        <p style={{ fontSize: "12px", color: "#DC2626", marginBottom: "8px" }}>{error}</p>
+      )}
+
+      {/* Save button */}
+      <button
+        onClick={handleSave}
+        disabled={saving || !outcomeNotes.trim()}
+        style={{
+          backgroundColor: saving || !outcomeNotes.trim() ? "#9ca3af" : "#003C78",
+          color: "white", border: "none", borderRadius: "8px",
+          padding: "10px 24px", fontSize: "14px", fontWeight: 600,
+          cursor: saving || !outcomeNotes.trim() ? "not-allowed" : "pointer",
+          width: "100%",
+        }}
+      >
+        {saving ? "Saving…" : "Save Outcome"}
+      </button>
+
+      {/* Success flash */}
+      {saved && (
+        <p style={{ fontSize: "13px", color: "#16a34a", fontWeight: 500, marginTop: "8px" }}>
+          ✓ Outcome saved!
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // JobDetail — main page component
 // ─────────────────────────────────────────────────────────────────────────────
 function JobDetail() {
@@ -678,6 +770,13 @@ function JobDetail() {
               </p>
             )}
           </div>
+          
+          {/* ── S2-013: Outcome Section ───────────────────────────────────── */}
+          {/* Only shown when job is in a final stage: Offer, Rejected, Archived */}
+          {/* Analogy: like a "case closed" notes field — only available at the end */}
+          {["Offer", "Rejected", "Archived"].includes(stage) && (
+            <OutcomeSection jobId={id} getToken={getToken} />
+          )}
 
           {/* Quick info card — read-only summary at the bottom of the right column */}
           <div
