@@ -1,3 +1,4 @@
+import { calculateProfileCompletion } from "../utils/profileCompletion";
 import { useState, useEffect } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Progress } from "@/components/ui/progress";
@@ -503,7 +504,7 @@ function Profile() {
     }
   };
 
-  // ── Save Skills ───────────────────────────────────────────────────────────
+  // ── Save Skills ───────────────────────────────────────────────────────────---------------------
   const handleSaveSkills = async () => {
     try {
       const token = await getToken({ skipCache: true });
@@ -529,7 +530,7 @@ function Profile() {
       console.error("Failed to save skills:", err);
     }
   };
-  // ── Experiences ──────────────────────────────────────────
+  // ── Experiences ──────────────────────────────────────────----------------------------------------------
   const [experiences, setExperiences] = useState([]);
   const [experienceErrors, setExperienceErrors] = useState({});
   const [experienceSaved, setExperienceSaved] = useState(false);
@@ -927,7 +928,7 @@ function Profile() {
     });
   };
 
-  // ----  Career Preferences -----------------------
+  // ----  Career Preferences ----------------------------------------------------------------
 
   const [preferences, setPreferences] = useState({
     targetRole: "",
@@ -1185,47 +1186,19 @@ function Profile() {
     animation: shaking[field] ? "shake 0.4s ease" : "none",
   });
 
-  // PROFILE SECTION
-  const profileComplete =
-    profileSaved &&
-    profile.firstName?.trim() &&
-    profile.lastName?.trim() &&
-    profile.email?.trim() &&
-    profile.summary?.trim();
-
-  // SKILLS SECTION
-  const skillsComplete = skillsSaved && skills.length > 0;
-
-  // EXPERIENCE SECTION
-  const experienceComplete = experienceSaved && experiences.length > 0;
-  // EDUCATION SECTION
-  const educationComplete = educationSaved && education.length > 0;
-  // CAREER SECTION
-  const preferencesComplete =
-    preferencesCompleted &&
-    preferences.targetRole?.trim() &&
-    preferences.locationPreference?.trim() &&
-    preferences.workMode?.trim();
-
-  // COMPLETION %
-  const completedSections = [
-    profileComplete,
-    skillsComplete,
-    experienceComplete,
-    educationComplete,
-    preferencesComplete,
-  ].filter(Boolean).length;
-
-  const completion = Math.round((completedSections / 5) * 100);
-
-  // MISSING SECTIONS
-  const missingSections = [
-    !profileComplete && "Identity & Contact",
-    !skillsComplete && "Skills",
-    !experienceComplete && "Experience",
-    !educationComplete && "Education",
-    !preferencesComplete && "Career Preferences",
-  ].filter(Boolean);
+  // PROFILE COMPLETION BAR -----------------------------------------
+  const { completion, missingSections } = calculateProfileCompletion({
+    profile,
+    skills,
+    experiences,
+    education,
+    preferences,
+    profileSaved,
+    skillsSaved,
+    experienceSaved,
+    educationSaved,
+    preferencesCompleted,
+  });
 
   return (
     <>

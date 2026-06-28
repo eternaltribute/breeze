@@ -662,8 +662,8 @@ function ResumeHelper() {
                       borderRadius: "8px",
                       border: "1px solid var(--color-border-default, #e5e7eb)",
                       fontSize: "13px",
-                      color: "var(--color-heading, #003C78)",
-                      backgroundColor: "var(--bg, #F8FAFC)",
+                      color: "var(--color-input-text, #111827)",
+                      backgroundColor: "var(--color-input-bg, white)",
                       outline: "none",
                     }}
                   />
