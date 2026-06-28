@@ -232,10 +232,12 @@ function Login() {
           background: "linear-gradient(135deg,#003C78,#046A97)",
         }}
       >
-        <div className="text-white max-w-md p-10">
-          <h2 className="text-4xl font-bold mb-6">Track Your Applications Smarter</h2>
+        <div className="text-center max-w-md p-10">
+          <h2 className="text-4xl font-bold mb-6" style={{ color: "white" }}>
+            Track Your Applications Smarter
+          </h2>
 
-          <p className="text-lg opacity-90">
+          <p className="text-lg leading-relaxed" style={{ color: "rgba(255, 255, 255, 0.92)" }}>
             Organize resumes, monitor job applications, manage documents, and stay on top of every
             opportunity with Breeze.
           </p>

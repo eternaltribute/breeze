@@ -11,6 +11,7 @@ import {
   Moon,
   Sun,
   ChevronUp,
+  Mail,
 } from "lucide-react";
 
 const navGroups = [
@@ -22,9 +23,12 @@ const navGroups = [
     ],
   },
   {
-    // New group for AI-powered tools
+    // AI-powered tools
     label: "Tools",
-    items: [{ label: "Resume Helper", path: "/resume-helper", icon: FileText }],
+    items: [
+      { label: "Resume Helper", path: "/resume-helper", icon: FileText },
+      { label: "Cover Letter Helper", path: "/cover-letter-helper", icon: Mail },
+    ],
   },
   {
     label: "Account",

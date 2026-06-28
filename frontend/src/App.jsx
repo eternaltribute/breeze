@@ -8,6 +8,7 @@ import EditJob from "./pages/EditJob";
 import JobDetail from "./pages/JobDetail";
 import Analytics from "./pages/Analytics";
 import ResumeHelper from "./pages/ResumeHelper";
+import CoverLetterHelper from "./pages/CoverLetterHelper";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
@@ -106,6 +107,7 @@ function App() {
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/resume-helper" element={<ResumeHelper />} />
+                  <Route path="/cover-letter-helper" element={<CoverLetterHelper />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/login" element={<Navigate to="/" replace />} />
                   <Route path="/signUp" element={<Navigate to="/" replace />} />
@@ -124,6 +126,7 @@ function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/analytics" element={<Analytics />} />
               <Route path="/resume-helper" element={<ResumeHelper />} />
+              <Route path="/cover-letter-helper" element={<CoverLetterHelper />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
