@@ -518,3 +518,43 @@ def test_archive_no_token():
         test_client = TestClient(app)
         response = test_client.post("/jobs/fake-id/archive")
     assert response.status_code == 401
+
+
+# --- S2-021: AI Resume Draft Tests ---
+
+
+def test_ai_resume_draft_no_token():
+    """Unauthenticated AI resume request should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.post("/jobs/fake-id/ai/resume")
+    assert response.status_code == 401
+
+
+def test_ai_resume_draft_invalid_job(client):
+    """AI resume request for non-existent job should return 404."""
+    response = client.post("/jobs/non-existent-id/ai/resume")
+    assert response.status_code == 404
+
+
+def test_ai_resume_draft_returns_draft(client, test_job, monkeypatch):
+    """Happy path: AI resume draft returns a draft string and job_id."""
+    from unittest.mock import MagicMock
+
+    import anthropic
+
+    # Mock the Anthropic client so we don't make real API calls in tests
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="This is a mock resume draft")]
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_message
+
+    monkeypatch.setattr(anthropic, "Anthropic", lambda **kwargs: mock_client)
+
+    response = client.post(f"/jobs/{test_job['id']}/ai/resume")
+    assert response.status_code == 200
+    data = response.json()
+    assert "draft" in data
+    assert "job_id" in data
+    assert data["job_id"] == test_job["id"]
+    assert len(data["draft"]) > 0
