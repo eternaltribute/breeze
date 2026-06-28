@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -16,8 +17,8 @@ class ExperienceItem(BaseModel):
     company: str
     city: str
     state: str
-    start_date: str
-    end_date: str
+    start_date: date
+    end_date: date
     description: str
     order: int
 
@@ -48,26 +49,26 @@ def save_experiences(
 ):
     user_id = current_user.get("sub")
 
-    existing = db.exec(
-        select(Experience).where(Experience.user_id == user_id)
-    ).all()
+    existing = db.exec(select(Experience).where(Experience.user_id == user_id)).all()
     for row in existing:
         db.delete(row)
     db.flush()
 
     for item in payload.experiences:
-        db.add(Experience(
-            user_id=user_id,
-            title=item.title,
-            company=item.company,
-            city=item.city,
-            state=item.state,
-            start_date=item.start_date,
-            end_date=item.end_date,
-            description=item.description,
-            order=item.order,
-            updated_at=datetime.utcnow(),
-        ))
+        db.add(
+            Experience(
+                user_id=user_id,
+                title=item.title,
+                company=item.company,
+                city=item.city,
+                state=item.state,
+                start_date=item.start_date,
+                end_date=item.end_date,
+                description=item.description,
+                order=item.order,
+                updated_at=datetime.utcnow(),
+            )
+        )
 
     db.commit()
     return {"message": "Experiences saved"}
