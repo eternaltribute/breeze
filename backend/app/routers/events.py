@@ -190,3 +190,150 @@ def update_interview(
     db.commit()
     db.refresh(event)
     return event
+
+
+# S2-010: Job Activity Timeline
+# Returns formatted timeline of all events for frontend rendering
+# Rules: S2-BR-009, S2-BR-013
+
+
+class TimelineItem(BaseModel):
+    id: str
+    event_type: str
+    timestamp: datetime
+    title: str
+    detail: str | None = None
+    was_override: bool = False
+    interview_datetime: datetime | None = None
+
+
+def format_timeline_item(event: JobEvent) -> TimelineItem:
+    """Format a raw JobEvent into a timeline-friendly shape."""
+    if event.event_type == JobEventType.STAGE_CHANGE:
+        title = f"Stage changed to {event.to_stage.value.capitalize()}"
+        detail = (
+            f"Moved from {event.from_stage.value.capitalize()}"
+            if event.from_stage
+            else None
+        )
+    elif event.event_type == JobEventType.INTERVIEW:
+        title = event.interview_round or "Interview"
+        detail = event.notes
+    elif event.event_type == JobEventType.FOLLOW_UP:
+        title = "Follow-up"
+        detail = event.notes
+    elif event.event_type == JobEventType.OUTCOME:
+        title = "Outcome recorded"
+        detail = event.notes
+    else:
+        title = event.event_type.value.replace("_", " ").capitalize()
+        detail = event.notes
+
+    return TimelineItem(
+        id=event.id,
+        event_type=event.event_type.value,
+        timestamp=event.created_at,
+        title=title,
+        detail=detail,
+        was_override=event.was_override,
+        interview_datetime=event.interview_datetime,
+    )
+
+
+@router.get("/{job_id}/timeline", response_model=List[TimelineItem])
+def get_job_timeline(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return a formatted activity timeline for a job in chronological order."""
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    events = db.exec(
+        select(JobEvent)
+        .where(JobEvent.job_id == job_id, JobEvent.owner_id == user_id)
+        .order_by(JobEvent.created_at)
+    ).all()
+
+    return [format_timeline_item(event) for event in events]
+
+
+# S2-013: Outcome Tracking Controls
+# Endpoints for recording and retrieving job outcomes
+# Rules: S2-BR-004, S2-BR-005
+# Outcomes can only be recorded when job is in a terminal stage
+
+
+OUTCOME_ALLOWED_STAGES = {JobStage.OFFER, JobStage.REJECTED, JobStage.ARCHIVED}
+
+
+class OutcomeCreate(BaseModel):
+    notes: str
+
+
+@router.post("/{job_id}/outcome", response_model=JobEvent, status_code=201)
+def create_outcome(
+    job_id: str,
+    payload: OutcomeCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Record a final outcome for a job.
+
+    Only allowed when job is in Offer, Rejected, or Archived stage.
+    """
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.stage not in OUTCOME_ALLOWED_STAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Outcomes can only be recorded for jobs in "
+                f"Offer, Rejected, or Archived stage. "
+                f"Current stage: {job.stage.value}"
+            ),
+        )
+
+    event = JobEvent(
+        job_id=job_id,
+        owner_id=user_id,
+        event_type=JobEventType.OUTCOME,
+        notes=payload.notes,
+        created_at=datetime.utcnow(),
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+@router.get("/{job_id}/outcome", response_model=List[JobEvent])
+def get_outcomes(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all outcome records for a job."""
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return db.exec(
+        select(JobEvent)
+        .where(
+            JobEvent.job_id == job_id,
+            JobEvent.owner_id == user_id,
+            JobEvent.event_type == JobEventType.OUTCOME,
+        )
+        .order_by(JobEvent.created_at)
+    ).all()

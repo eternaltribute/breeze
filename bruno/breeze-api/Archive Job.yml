@@ -1,0 +1,15 @@
+info:
+  name: Archive Job
+  type: http
+  seq: 13
+
+http:
+  method: POST
+  url: "{{base_url}}/jobs/98c6be81-510a-4114-b03a-bcfdcf0926f3/archive"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

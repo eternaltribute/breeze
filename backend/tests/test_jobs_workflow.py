@@ -245,3 +245,276 @@ def test_create_interview_no_token():
         },
     )
     assert response.status_code == 401
+
+
+# --- S2-010: Activity Timeline Tests ---
+
+
+def test_get_timeline_returns_formatted_items(client, test_job):
+    """Timeline should return formatted items not raw JobEvent objects."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "applied", "confirm_override": False},
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    item = data[0]
+    assert item["event_type"] == "stage_change"
+    assert item["title"] == "Stage changed to Applied"
+    assert item["detail"] == "Moved from Interested"
+    assert item["was_override"] is False
+    assert "timestamp" in item
+
+
+def test_timeline_override_shows_flag(client, test_job):
+    """Override transitions should show was_override=True in timeline."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "offer", "confirm_override": True},
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    assert data[0]["was_override"] is True
+
+
+def test_timeline_includes_interviews(client, test_job):
+    """Timeline should include interview events with correct title and detail."""
+    client.post(
+        f"/jobs/{test_job['id']}/interviews",
+        json={
+            "interview_round": "Technical Screen",
+            "interview_datetime": "2026-07-01T14:00:00",
+            "notes": "Focus on system design",
+        },
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["event_type"] == "interview"
+    assert data[0]["title"] == "Technical Screen"
+    assert data[0]["detail"] == "Focus on system design"
+
+
+def test_timeline_chronological_order(client, test_job):
+    """Timeline should return events in chronological order."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "applied", "confirm_override": False},
+    )
+    client.post(
+        f"/jobs/{test_job['id']}/interviews",
+        json={
+            "interview_round": "Phone Screen",
+            "interview_datetime": "2026-07-01T14:00:00",
+            "notes": "Initial screen",
+        },
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["event_type"] == "stage_change"
+    assert data[1]["event_type"] == "interview"
+
+
+def test_timeline_empty_for_new_job(client, test_job):
+    """A brand new job with no events should return an empty timeline."""
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_timeline_no_token():
+    """Unauthenticated timeline request should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.get("/jobs/fake-id/timeline")
+    assert response.status_code == 401
+
+
+# --- S2-013: Outcome Tracking Tests ---
+
+
+def test_create_outcome_in_valid_stage(client, test_job):
+    """Happy path: outcome can be recorded when job is in offer stage."""
+    # Move job to offer stage first
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "offer", "confirm_override": True},
+    )
+    response = client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Offer accepted, starting August 1"},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["event_type"] == "outcome"
+    assert data["notes"] == "Offer accepted, starting August 1"
+
+
+def test_create_outcome_in_invalid_stage(client, test_job):
+    """Outcome cannot be recorded when job is in a non-terminal stage."""
+    response = client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Should not work"},
+    )
+    assert response.status_code == 400
+
+
+def test_create_outcome_in_rejected_stage(client, test_job):
+    """Outcome can be recorded when job is in rejected stage."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "rejected", "confirm_override": False},
+    )
+    response = client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Rejected after final round"},
+    )
+    assert response.status_code == 201
+    assert response.json()["event_type"] == "outcome"
+
+
+def test_get_outcomes(client, test_job):
+    """GET /jobs/{job_id}/outcome should return all outcome records."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "rejected", "confirm_override": False},
+    )
+    client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Rejected after final round"},
+    )
+    response = client.get(f"/jobs/{test_job['id']}/outcome")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+def test_outcome_appears_in_timeline(client, test_job):
+    """Outcome events should appear in the activity timeline."""
+    client.patch(
+        f"/jobs/{test_job['id']}/stage",
+        json={"new_stage": "rejected", "confirm_override": False},
+    )
+    client.post(
+        f"/jobs/{test_job['id']}/outcome",
+        json={"notes": "Rejected after final round"},
+    )
+    response = client.get(f"/jobs/{test_job['id']}/timeline")
+    assert response.status_code == 200
+    data = response.json()
+    outcome_items = [i for i in data if i["event_type"] == "outcome"]
+    assert len(outcome_items) == 1
+    assert outcome_items[0]["title"] == "Outcome recorded"
+    assert outcome_items[0]["detail"] == "Rejected after final round"
+
+
+def test_create_outcome_no_token():
+    """Unauthenticated outcome creation should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.post(
+            "/jobs/fake-id/outcome",
+            json={"notes": "Should not work"},
+        )
+    assert response.status_code == 401
+
+
+# --- S2-014: Archive and Restore Tests ---
+
+
+def test_archive_job(client, test_job):
+    """Happy path: archiving a job moves it to archived stage."""
+    response = client.post(f"/jobs/{test_job['id']}/archive")
+    assert response.status_code == 200
+    assert response.json()["stage"] == "archived"
+
+
+def test_archive_already_archived_job(client, test_job):
+    """Archiving an already archived job should return 400."""
+    client.post(f"/jobs/{test_job['id']}/archive")
+    response = client.post(f"/jobs/{test_job['id']}/archive")
+    assert response.status_code == 400
+
+
+def test_restore_job(client, test_job):
+    """Happy path: restoring an archived job to a specified stage."""
+    client.post(f"/jobs/{test_job['id']}/archive")
+    response = client.post(
+        f"/jobs/{test_job['id']}/restore",
+        json={"restore_to": "applied"},
+    )
+    assert response.status_code == 200
+    assert response.json()["stage"] == "applied"
+
+
+def test_restore_non_archived_job(client, test_job):
+    """Restoring a job that is not archived should return 400."""
+    response = client.post(
+        f"/jobs/{test_job['id']}/restore",
+        json={"restore_to": "applied"},
+    )
+    assert response.status_code == 400
+
+
+def test_restore_to_archived_stage(client, test_job):
+    """Restoring a job to archived stage should return 400."""
+    client.post(f"/jobs/{test_job['id']}/archive")
+    response = client.post(
+        f"/jobs/{test_job['id']}/restore",
+        json={"restore_to": "archived"},
+    )
+    assert response.status_code == 400
+
+
+def test_archive_logs_event(client, test_job, db):
+    """Archiving a job should log a stage change event."""
+    from sqlmodel import select
+
+    from app.models import JobEvent, JobEventType
+
+    client.post(f"/jobs/{test_job['id']}/archive")
+    events = db.exec(
+        select(JobEvent).where(
+            JobEvent.job_id == test_job["id"],
+            JobEvent.event_type == JobEventType.STAGE_CHANGE,
+        )
+    ).all()
+    assert len(events) == 1
+    assert events[0].to_stage.value == "archived"
+
+
+def test_restore_logs_event(client, test_job, db):
+    """Restoring a job should log a stage change event with was_override=True."""
+    from sqlmodel import select
+
+    from app.models import JobEvent, JobEventType
+
+    client.post(f"/jobs/{test_job['id']}/archive")
+    client.post(
+        f"/jobs/{test_job['id']}/restore",
+        json={"restore_to": "applied"},
+    )
+    events = db.exec(
+        select(JobEvent).where(
+            JobEvent.job_id == test_job["id"],
+            JobEvent.event_type == JobEventType.STAGE_CHANGE,
+        )
+    ).all()
+    assert len(events) == 2
+    restore_event = events[1]
+    assert restore_event.from_stage.value == "archived"
+    assert restore_event.to_stage.value == "applied"
+    assert restore_event.was_override is True
+
+
+def test_archive_no_token():
+    """Unauthenticated archive request should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.post("/jobs/fake-id/archive")
+    assert response.status_code == 401
