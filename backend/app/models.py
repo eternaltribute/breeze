@@ -1,5 +1,6 @@
+import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
@@ -73,10 +74,10 @@ class Job(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class LocationType(str, Enum):
-    REMOTE = "remote"
-    HYBRID = "hybrid"
-    ON_SITE = "on_site"
+class LocationType(str, enum.Enum):
+    REMOTE = "Remote"
+    HYBRID = "Hybrid"
+    ON_SITE = "On-site"
 
 
 class EmploymentType(str, Enum):
@@ -96,12 +97,27 @@ class User(SQLModel, table=True):
     phone_number: Optional[str] = Field(default=None)
     professional_summary: Optional[str] = Field(default=None)
     desired_role: Optional[str] = Field(default=None)
-    location_type: Optional[LocationType] = Field(default=None)
+    location_type: Optional[str] = Field(default=None)
     desired_location: Optional[str] = Field(default=None)
     employment_type: Optional[EmploymentType] = Field(default=None)
-    desired_salary_min: Optional[int] = Field(default=None)
-    desired_salary_max: Optional[int] = Field(default=None)
+    desired_salary: Optional[int] = Field(default=None)
 
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Experience(SQLModel, table=True):
+    __tablename__ = "experiences"
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
+    title: str
+    company: str
+    city: str
+    state: str
+    start_date: date
+    end_date: date
+    description: str
+    order: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -118,3 +134,17 @@ class UserSkill(SQLModel, table=True):
     skill_id: int = Field(foreign_key="skills.id", primary_key=True)
     proficiency: str
     order: int = 0
+
+
+class Education(SQLModel, table=True):
+    __tablename__ = "education"
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
+    school: str
+    degree: str
+    field_of_study: str
+    start_date: date
+    end_date: date
+    order: int = 0
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

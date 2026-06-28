@@ -355,6 +355,7 @@ function SortableSkillRow({
 function Profile() {
   const { getToken } = useAuth();
   const { user } = useUser();
+  const BASE = import.meta.env.VITE_API_BASE_URL;
   const [profile, setProfile] = useState(initialProfile);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState({});
@@ -616,7 +617,7 @@ function Profile() {
     setExperiences((prev) => prev.filter((e) => e.id !== id));
   };
 
-  const handleSaveExperiences = () => {
+  const handleSaveExperiences = async () => {
     const errors = {};
 
     experiences.forEach((exp) => {
@@ -663,18 +664,68 @@ function Profile() {
       return;
     }
 
-    console.log("Saving experiences:", experiences);
-    setExperienceSaved(true);
-    setExperiences(
-      experiences.map((exp) => ({
-        ...exp,
-        saved: true,
-        collapsed: true,
-      }))
-    );
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/profile/experiences`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          experiences: experiences.map((exp, i) => ({
+            title: exp.title,
+            company: exp.company,
+            city: exp.city,
+            state: exp.state,
+            start_date: exp.startDate,
+            end_date: exp.endDate,
+            description: exp.description,
+            order: i,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setExperienceSaved(true);
+      setExperiences(experiences.map((exp) => ({ ...exp, saved: true, collapsed: true })));
+    } catch (err) {
+      console.error("Failed to save experiences:", err);
+    }
   };
 
-  // ── Education ────────────────────────────────────────-----------------------------------------------
+  useEffect(() => {
+    const fetchExperiences = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/profile/experiences`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setExperiences(
+            data.map((e) => ({
+              id: e.id,
+              title: e.title,
+              company: e.company,
+              city: e.city,
+              state: e.state,
+              startDate: e.start_date,
+              endDate: e.end_date,
+              description: e.description,
+              saved: true,
+              collapsed: true,
+              hasStartedEditing: false,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to load experiences:", err);
+      }
+    };
+    fetchExperiences();
+  }, [BASE, getToken]);
+
+  // ── Education ──────────────────────────────────────────
   const [education, setEducation] = useState([]);
   const [educationErrors, setEducationErrors] = useState({});
   const [educationSaved, setEducationSaved] = useState(false);
@@ -766,7 +817,7 @@ function Profile() {
     setEducation((prev) => prev.filter((e) => e.id !== id));
   };
 
-  const handleSaveEducation = () => {
+  const handleSaveEducation = async () => {
     const errors = {};
 
     education.forEach((edu) => {
@@ -783,16 +834,62 @@ function Profile() {
       return;
     }
 
-    setEducationSaved(true);
-
-    setEducation(
-      education.map((edu) => ({
-        ...edu,
-        saved: true,
-        collapsed: true,
-      }))
-    );
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/profile/education`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          education: education.map((edu, i) => ({
+            school: edu.school,
+            degree: edu.degree,
+            field_of_study: edu.fieldOfStudy,
+            start_date: edu.startDate,
+            end_date: edu.endDate,
+            order: i,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      setEducationSaved(true);
+      setEducation(education.map((edu) => ({ ...edu, saved: true, collapsed: true })));
+    } catch (err) {
+      console.error("Failed to save education:", err);
+    }
   };
+
+  useEffect(() => {
+    const fetchEducation = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/profile/education`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setEducation(
+            data.map((e) => ({
+              id: e.id,
+              school: e.school,
+              degree: e.degree,
+              fieldOfStudy: e.field_of_study,
+              startDate: e.start_date,
+              endDate: e.end_date,
+              saved: true,
+              collapsed: true,
+              hasStartedEditing: false,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Failed to load education:", err);
+      }
+    };
+    fetchEducation();
+  }, [BASE, getToken]);
   const hasOpenEducation = education.some((edu) => !edu.collapsed);
 
   const canSaveEducation =
@@ -889,7 +986,21 @@ function Profile() {
     setPreferencesErrors({});
 
     try {
-      // save to backend
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/profile/preferences`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          desired_role: preferences.targetRole,
+          desired_location: preferences.locationPreference,
+          location_type: preferences.workMode,
+          desired_salary: Number(preferences.salaryPreference),
+        }),
+      });
+      if (!res.ok) throw new Error("Save failed");
 
       setSavedPreferences({ ...preferences });
       setPreferencesCompleted(true);
@@ -904,8 +1015,6 @@ function Profile() {
     }
   };
   const [confirmClear, setConfirmClear] = useState(false);
-
-  const BASE = import.meta.env.VITE_API_BASE_URL;
 
   // ── Fetch profile on load ─────────────────────────────────────────────────
   useEffect(() => {
@@ -933,6 +1042,24 @@ function Profile() {
             data.professional_summary?.trim()
           ) {
             setProfileSaved(true);
+          }
+
+          const prefs = {
+            targetRole: data.desired_role ?? "",
+            locationPreference: data.desired_location ?? "",
+            workMode: data.location_type ?? "",
+            salaryPreference: data.desired_salary?.toString() ?? "",
+          };
+          setPreferences(prefs);
+          setSavedPreferences(prefs);
+
+          if (
+            data.desired_role &&
+            data.desired_location &&
+            data.location_type &&
+            data.desired_salary
+          ) {
+            setPreferencesCompleted(true);
           }
         }
       } catch (err) {
@@ -2727,9 +2854,9 @@ function Profile() {
                   style={inputStyle}
                 >
                   <option value="">Select Work Mode</option>
-                  <option value="Remote">Remote</option>
-                  <option value="Hybrid">Hybrid</option>
-                  <option value="On-site">On-site</option>
+                  <option value="REMOTE">Remote</option>
+                  <option value="HYBRID">Hybrid</option>
+                  <option value="ON_SITE">On-site</option>
                 </select>
 
                 {preferencesErrors.workMode && (
