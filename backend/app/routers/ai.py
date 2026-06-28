@@ -1,0 +1,113 @@
+# S2-021: AI Resume Draft from Profile + Job Context
+# Generates a resume draft using Anthropic Claude API
+# Rules: S2-BR-018 (explicit user action), S2-BR-019 (profile + job context),
+# S2-BR-020 (output is editable before save)
+
+import anthropic
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlmodel import Session, select
+
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models import Job
+
+router = APIRouter(prefix="/jobs", tags=["ai"])
+
+
+class ResumeDraftResponse(BaseModel):
+    draft: str
+    job_id: str
+
+
+@router.post("/{job_id}/ai/resume", response_model=ResumeDraftResponse)
+def generate_resume_draft(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generate an AI resume draft using profile and job context (S2-BR-019).
+
+    Triggered by explicit user action (S2-BR-018).
+    Output is returned for editing before save (S2-BR-020).
+    """
+    user_id = current_user.get("sub")
+
+    # Fetch job and verify ownership
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Fetch user
+    # Note: using raw SQL to avoid missing colum issue (desired salary min/max)
+    # todo: switch back to sql model select(user) after sergios migration adds table
+    # Fetch user profile using raw SQL to avoid missing column issues
+    from sqlmodel import text
+
+    result = db.exec(
+        text(
+            "SELECT id, email, first_name, last_name, "
+            "phone_number, professional_summary "
+            "FROM users WHERE id = :user_id"
+        ).bindparams(user_id=user_id)
+    ).first()
+    if not result:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Build profile context
+    profile_context = f"""
+Name: {result.first_name or ''} {result.last_name or ''}
+Email: {result.email or ''}
+Phone: {result.phone_number or 'Not provided'}
+Professional Summary: {result.professional_summary or 'Not provided'}
+""".strip()
+    # user = db.exec(select(User).where(User.id == user_id)).first()
+    # if not user:
+    #    raise HTTPException(status_code=404, detail="User not found")
+
+    # Build profile context
+    # profile_context = f"""
+    # Name: {user.first_name or ''} {user.last_name or ''}
+    # Email: {user.email or ''}
+    # Phone: {user.phone_number or 'Not provided'}
+    # Professional Summary: {user.professional_summary or 'Not provided'}
+    # """.strip()
+
+    # Build job context
+    job_context = f"""
+Company: {job.company}
+Job Title: {job.title}
+Job Posting:
+{job.job_posting_body}
+""".strip()
+
+    # Call Anthropic API
+    import os
+
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1000,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Generate a professional resume draft tailored for the "
+                    f"following job posting. Use the candidate's profile "
+                    f"information to personalize it.\n\n"
+                    f"CANDIDATE PROFILE:\n{profile_context}\n\n"
+                    f"JOB DETAILS:\n{job_context}\n\n"
+                    f"Generate a clean, professional resume in plain text format. "
+                    f"Include sections for Summary, Experience (if available), "
+                    f"Skills, and Education. "
+                    f"Tailor the content to match the job requirements. "
+                    f"If profile information is limited, create a strong "
+                    f"template the candidate can fill in."
+                ),
+            }
+        ],
+    )
+
+    draft = message.content[0].text
+
+    return ResumeDraftResponse(draft=draft, job_id=job_id)
