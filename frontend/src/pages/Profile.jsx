@@ -613,8 +613,38 @@ function Profile() {
     );
   };
 
-  const deleteExperience = (id) => {
-    setExperiences((prev) => prev.filter((e) => e.id !== id));
+  const deleteExperience = async (id) => {
+    const updated = experiences.filter((e) => e.id !== id);
+    setExperiences(updated);
+
+    try {
+      const token = await getToken({ skipCache: true });
+
+      const res = await fetch(`${BASE}/profile/experiences`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          experiences: updated.map((exp, i) => ({
+            title: exp.title,
+            company: exp.company,
+            city: exp.city,
+            state: exp.state,
+            start_date: exp.startDate,
+            end_date: exp.endDate,
+            description: exp.description,
+            order: i,
+          })),
+        }),
+      });
+
+      if (!res.ok) throw new Error("Experience delete save failed");
+      setExperienceSaved(true);
+    } catch (err) {
+      console.error("Failed to delete experience:", err);
+    }
   };
 
   const handleSaveExperiences = async () => {
@@ -813,8 +843,36 @@ function Profile() {
       })
     );
   };
-  const deleteEducation = (id) => {
-    setEducation((prev) => prev.filter((e) => e.id !== id));
+  const deleteEducation = async (id) => {
+    const updated = education.filter((e) => e.id !== id);
+    setEducation(updated);
+
+    try {
+      const token = await getToken({ skipCache: true });
+
+      const res = await fetch(`${BASE}/profile/education`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          education: updated.map((edu, i) => ({
+            school: edu.school,
+            degree: edu.degree,
+            field_of_study: edu.fieldOfStudy,
+            start_date: edu.startDate,
+            end_date: edu.endDate,
+            order: i,
+          })),
+        }),
+      });
+
+      if (!res.ok) throw new Error("Education delete save failed");
+      setEducationSaved(true);
+    } catch (err) {
+      console.error("Failed to delete education:", err);
+    }
   };
 
   const handleSaveEducation = async () => {
@@ -2750,14 +2808,40 @@ function Profile() {
                   ) : (
                     <div style={{ display: "flex", gap: "6px" }}>
                       <button
-                        onClick={() => {
-                          setPreferences({
+                        onClick={async () => {
+                          const clearedPreferences = {
                             targetRole: "",
                             locationPreference: "",
                             workMode: "",
                             salaryPreference: "",
-                          });
+                          };
+
+                          setPreferences(clearedPreferences);
+                          setSavedPreferences(clearedPreferences);
+                          setPreferencesCompleted(false);
                           setConfirmClear(false);
+
+                          try {
+                            const token = await getToken({ skipCache: true });
+
+                            const res = await fetch(`${BASE}/profile/preferences`, {
+                              method: "PUT",
+                              headers: {
+                                Authorization: `Bearer ${token}`,
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({
+                                desired_role: null,
+                                desired_location: null,
+                                location_type: null,
+                                desired_salary: null,
+                              }),
+                            });
+
+                            if (!res.ok) throw new Error("Preferences clear failed");
+                          } catch (err) {
+                            console.error("Failed to clear preferences:", err);
+                          }
                         }}
                         style={{
                           backgroundColor: "#FF6138",
