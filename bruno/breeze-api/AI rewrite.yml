@@ -5,8 +5,17 @@ info:
 
 http:
   method: POST
-  url: "{{base_url}}/jobs/{job_id}/ai/rewrite"
-  auth: inherit
+  url: "{{base_url}}/jobs/98c6be81-510a-4114-b03a-bcfdcf0926f3/ai/rewrite"
+  body:
+    type: json
+    data: |-
+      {
+        "draft": "paste some text from your S2-021 output here",
+        "instructions": "make it more concise"
+      }
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
 
 settings:
   encodeUrl: true
