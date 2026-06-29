@@ -575,3 +575,82 @@ def test_ai_resume_draft_returns_draft(client, test_job, monkeypatch):
     assert "draft" in data
     assert data["job_id"] == test_job["id"]
     assert len(data["draft"]) > 0
+
+
+# --- S2-023: AI Rewrite/Improve Tests ---
+
+
+def test_ai_rewrite_no_token():
+    """Unauthenticated AI rewrite request should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.post(
+            "/jobs/fake-id/ai/rewrite",
+            json={"draft": "Some draft content"},
+        )
+    assert response.status_code == 401
+
+
+def test_ai_rewrite_invalid_job(client):
+    """AI rewrite request for non-existent job should return 404."""
+    response = client.post(
+        "/jobs/non-existent-id/ai/rewrite",
+        json={"draft": "Some draft content"},
+    )
+    assert response.status_code == 404
+
+
+def test_ai_rewrite_returns_improved_draft(client, test_job, monkeypatch):
+    """Happy path: AI rewrite returns improved draft and job_id."""
+    from unittest.mock import MagicMock
+
+    import anthropic
+
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="This is an improved draft")]
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_message
+    monkeypatch.setattr(anthropic, "Anthropic", lambda **kwargs: mock_client)
+
+    response = client.post(
+        f"/jobs/{test_job['id']}/ai/rewrite",
+        json={"draft": "Original draft content here"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "draft" in data
+    assert data["job_id"] == test_job["id"]
+    assert len(data["draft"]) > 0
+
+
+def test_ai_rewrite_with_instructions(client, test_job, monkeypatch):
+    """Rewrite with optional instructions should still return 200."""
+    from unittest.mock import MagicMock
+
+    import anthropic
+
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="Concise improved draft")]
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_message
+    monkeypatch.setattr(anthropic, "Anthropic", lambda **kwargs: mock_client)
+
+    response = client.post(
+        f"/jobs/{test_job['id']}/ai/rewrite",
+        json={
+            "draft": "Original draft content here",
+            "instructions": "make it more concise",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["draft"] == "Concise improved draft"
+
+
+def test_ai_rewrite_missing_draft(client, test_job):
+    """Rewrite request without draft field should return 422."""
+    response = client.post(
+        f"/jobs/{test_job['id']}/ai/rewrite",
+        json={"instructions": "make it better"},
+    )
+    assert response.status_code == 422

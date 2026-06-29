@@ -1016,7 +1016,7 @@ function JobDetail() {
           company: company.trim(),
           title: title.trim(),
           job_posting_body: jobPostingBody.trim(), // backend uses snake_case
-          stage: stage.toLowerCase(), // backend stores lowercase
+          //stage: stage.toLowerCase(), // backend stores lowercase
           location: location.trim() || null,
           job_url: jobUrl.trim() || null,
           salary_range: salaryRange.trim() || null,
@@ -1039,10 +1039,61 @@ function JobDetail() {
       setOverviewSaving(false);
     }
   };
+  // ── handleStageChange — calls PATCH /jobs/:id/stage (S2-008) ─────────────
+  const handleStageChange = async (newStage) => {
+    if (newStage.toLowerCase() === stage.toLowerCase()) return;
 
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/jobs/${id}/stage`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          new_stage: newStage.toLowerCase(),
+          confirm_override: false,
+        }),
+      });
+
+      if (res.status === 409) {
+        const confirmed = window.confirm(
+          `Moving to "${newStage}" is not a standard forward transition. Are you sure?`
+        );
+        if (!confirmed) return;
+
+        const retryRes = await fetch(`${BASE}/jobs/${id}/stage`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            new_stage: newStage.toLowerCase(),
+            confirm_override: true,
+          }),
+        });
+
+        if (!retryRes.ok) throw new Error("Stage update failed");
+        setStage(newStage);
+        setTimelineRefreshKey((k) => k + 1);
+        return;
+      }
+
+      if (!res.ok) throw new Error("Stage update failed");
+
+      setStage(newStage);
+      setTimelineRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error("Stage change failed:", err);
+      alert("Failed to update stage. Please try again.");
+    }
+  };
   // ── handleDetailSave — saves deadline + recruiter notes (S2-007) ──────────
   // TODO (Ronald): once deadline and recruiter_notes are added to the Job
   // model and PUT /jobs/:id, remove the console.warn and this will fully work.
+
   const handleDetailSave = async () => {
     const errors = {};
 
@@ -1275,7 +1326,7 @@ function JobDetail() {
               <Label text="Stage" required />
               <select
                 value={stage}
-                onChange={(e) => setStage(e.target.value)}
+                onChange={(e) => handleStageChange(e.target.value)}
                 style={{ ...inputStyle, cursor: "pointer" }}
               >
                 {STAGES.map((s) => (
