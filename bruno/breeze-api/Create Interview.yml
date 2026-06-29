@@ -6,7 +6,17 @@ info:
 http:
   method: POST
   url: "{{base_url}}/jobs/ba72ec7d-b663-4549-9498-3a2063c15872/interviews"
-  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "interview_round": "Technical Screen",
+        "interview_datetime": "2026-07-01T14:00:00",
+        "notes": "Focus on system design and Python"
+      }
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
 
 settings:
   encodeUrl: true

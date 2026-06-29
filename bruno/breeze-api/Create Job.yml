@@ -12,7 +12,7 @@ http:
       {
         "company": "Fiserv",
         "title": "Backend Engineer Intern",
-        "job_posting_body": "this is a test job posting"
+        "job_posting_body": "this is a test job posting 6/26/2026"
       }
   auth:
     type: bearer

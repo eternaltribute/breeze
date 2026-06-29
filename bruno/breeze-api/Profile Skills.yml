@@ -1,11 +1,11 @@
 info:
-  name: Job Timeline
+  name: Profile Skills
   type: http
-  seq: 11
+  seq: 15
 
 http:
   method: GET
-  url: "{{base_url}}/jobs/98c6be81-510a-4114-b03a-bcfdcf0926f3/timeline"
+  url: "{{base_url}}/profile/skills"
   auth:
     type: bearer
     token: "{{jwt_token}}"

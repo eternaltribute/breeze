@@ -4,9 +4,17 @@ info:
   seq: 12
 
 http:
-  method: GET
+  method: POST
   url: "{{base_url}}/jobs/98c6be81-510a-4114-b03a-bcfdcf0926f3/outcome"
-  auth: inherit
+  body:
+    type: json
+    data: |-
+      {
+        "notes":"Offer accepted, starting August 1"
+      }
+  auth:
+    type: bearer
+    token: "{{jwt_token}}"
 
 settings:
   encodeUrl: true
