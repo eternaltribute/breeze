@@ -22,7 +22,8 @@ class JobEventCreate(BaseModel):
     to_stage: JobStage | None = None
     was_override: bool = False
     notes: str | None = None
-    
+
+
 @router.get("/{job_id}/events", response_model=List[JobEvent])
 def get_job_events(
     job_id: str,
@@ -337,9 +338,11 @@ def get_outcomes(
         .order_by(JobEvent.created_at)
     ).all()
 
+
 # S2-012 - Implement Follow-Up and Reminder Tracking
 # Rules: S2-BR-012, S2-BR-013
 # Outcome: Users can create and manage follow-up tasks/reminders tied to a job
+
 
 class FollowUpCreate(BaseModel):
     follow_up_due_date: datetime
@@ -442,6 +445,7 @@ def update_follow_up(
     db.refresh(event)
     return event
 
+
 @router.delete("/{job_id}/follow-ups/{event_id}", status_code=204)
 def delete_follow_up(
     job_id: str,
@@ -471,4 +475,3 @@ def delete_follow_up(
     db.commit()
 
     return Response(status_code=204)
-
