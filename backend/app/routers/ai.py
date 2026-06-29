@@ -111,3 +111,67 @@ Job Posting:
     draft = message.content[0].text
 
     return ResumeDraftResponse(draft=draft, job_id=job_id)
+
+
+# S2-023: AI Rewrite/Improve Actions for Draft Content
+# Takes an existing draft and returns an improved version
+# Rules: S2-BR-018 (explicit user action), S2-BR-020 (output editable before save)
+
+
+class RewriteRequest(BaseModel):
+    draft: str
+    instructions: str | None = None
+
+
+class RewriteResponse(BaseModel):
+    draft: str
+    job_id: str
+
+
+@router.post("/{job_id}/ai/rewrite", response_model=RewriteResponse)
+def rewrite_draft(
+    job_id: str,
+    payload: RewriteRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Rewrite/improve an existing draft using AI (S2-BR-018).
+
+    Output is returned for editing before save (S2-BR-020).
+    """
+    user_id = current_user.get("sub")
+
+    # Verify job exists and belongs to user
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Build the rewrite prompt
+    instructions_text = (
+        f"\n\nSpecific instructions from the user: {payload.instructions}"
+        if payload.instructions
+        else ""
+    )
+
+    import os
+
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1000,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Please improve and rewrite the following resume/cover "
+                    f"letter draft. Make it more professional, compelling, "
+                    f"and well-structured.{instructions_text}\n\n"
+                    f"EXISTING DRAFT:\n{payload.draft}"
+                ),
+            }
+        ],
+    )
+
+    improved_draft = message.content[0].text
+
+    return RewriteResponse(draft=improved_draft, job_id=job_id)
