@@ -29,7 +29,7 @@
 //   so once the model and migration are added, this frontend will work as-is.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 
@@ -348,7 +348,425 @@ function ArchiveRestoreSection({ jobId, stage, getToken, onStageChange }) {
 // Each event has: event_type, title, detail, timestamp
 // Calls GET /jobs/{job_id}/timeline — Ronald's endpoint
 // ─────────────────────────────────────────────────────────────────────────────
-function TimelineSection({ jobId, getToken }) {
+function FollowUpSection({ jobId, getToken, onCreated }) {
+  const [dueDate, setDueDate] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(null);
+
+  const [followUps, setFollowUps] = useState([]);
+  const activeFollowUps = followUps.filter((item) => !item.follow_up_completed);
+  const completedFollowUps = followUps.filter((item) => item.follow_up_completed);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const handleDeleteFollowUp = async (eventId) => {
+    try {
+      const token = await getToken({ skipCache: true });
+
+      const res = await fetch(`${BASE}/jobs/${jobId}/follow-ups/${eventId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Follow-up delete failed");
+
+      await loadFollowUps();
+      onCreated?.();
+    } catch (err) {
+      console.error("Follow-up delete failed:", err);
+      setError("Could not delete follow-up. Please try again.");
+    }
+  };
+
+  const loadFollowUps = useCallback(async () => {
+    try {
+      const token = await getToken({ skipCache: true });
+
+      const res = await fetch(`${BASE}/jobs/${jobId}/follow-ups`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error("Follow-up load failed");
+
+      const data = await res.json();
+      setFollowUps(data);
+    } catch (err) {
+      console.error("Follow-up load failed:", err);
+    }
+  }, [getToken, jobId]);
+
+  useEffect(() => {
+    loadFollowUps();
+  }, [loadFollowUps]);
+
+  const handleToggleComplete = async (eventId, completed) => {
+    try {
+      const token = await getToken({ skipCache: true });
+
+      const res = await fetch(`${BASE}/jobs/${jobId}/follow-ups/${eventId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          follow_up_completed: completed,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Follow-up update failed");
+
+      await loadFollowUps();
+      onCreated?.();
+    } catch (err) {
+      console.error("Follow-up update failed:", err);
+      setError("Could not update follow-up. Please try again.");
+    }
+  };
+
+  const handleSave = async () => {
+    setError(null);
+
+    if (!dueDate) {
+      setError("Choose when you want to be reminded.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const token = await getToken({ skipCache: true });
+
+      const res = await fetch(`${BASE}/jobs/${jobId}/follow-ups`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          follow_up_due_date: dueDate,
+          notes: notes.trim() || null,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Follow-up save failed");
+
+      await loadFollowUps();
+      onCreated?.();
+
+      setDueDate("");
+      setNotes("");
+      setSaved(true);
+      onCreated?.();
+
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error("Follow-up save failed:", err);
+      setError("Could not save follow-up. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={panelStyle}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 700,
+          color: "var(--color-heading, #003C78)",
+          marginTop: 0,
+          marginBottom: "8px",
+        }}
+      >
+        Follow-up Reminder
+      </h2>
+
+      <p style={{ fontSize: "13px", color: "var(--color-subtext, #6b7280)", marginBottom: "16px" }}>
+        Create a reminder tied to this job.
+      </p>
+
+      <div style={{ marginBottom: "16px" }}>
+        <Label text="Remind me on" required />
+        <input
+          type="datetime-local"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          style={inputStyle}
+        />
+      </div>
+
+      <div style={{ marginBottom: "16px" }}>
+        <Label text="Follow-up Notes" />
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={4}
+          style={{ ...inputStyle, resize: "vertical", lineHeight: "1.5" }}
+          placeholder="e.g. Email recruiter, send thank-you note, check application status..."
+        />
+      </div>
+
+      {error && <p style={{ fontSize: "12px", color: "#DC2626", marginBottom: "8px" }}>{error}</p>}
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        style={{
+          backgroundColor: saving ? "#9ca3af" : "#003C78",
+          color: "white",
+          border: "none",
+          borderRadius: "8px",
+          padding: "10px 24px",
+          fontSize: "14px",
+          fontWeight: 600,
+          cursor: saving ? "not-allowed" : "pointer",
+          width: "100%",
+        }}
+      >
+        {saving ? "Saving..." : "Create Follow-up"}
+      </button>
+
+      {activeFollowUps.length > 0 && (
+        <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "13px",
+              fontWeight: 700,
+              color: "var(--color-heading, #003C78)",
+            }}
+          >
+            Active follow-ups
+          </p>
+
+          {activeFollowUps.map((item) => (
+            <label
+              key={item.id}
+              style={{
+                display: "flex",
+                gap: "10px",
+                alignItems: "flex-start",
+                padding: "10px",
+                borderRadius: "8px",
+                border: "1px solid var(--color-border-default, #e5e7eb)",
+                backgroundColor: "var(--bg, #F8FAFC)",
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={false}
+                onChange={() => handleToggleComplete(item.id, true)}
+                style={{ marginTop: "3px" }}
+              />
+
+              <span style={{ flex: 1 }}>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "var(--color-heading, #003C78)",
+                  }}
+                >
+                  {new Date(item.follow_up_due_date).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                </span>
+
+                {item.notes && (
+                  <span
+                    style={{
+                      display: "block",
+                      marginTop: "2px",
+                      fontSize: "12px",
+                      color: "var(--color-subtext, #6b7280)",
+                    }}
+                  >
+                    {item.notes}
+                  </span>
+                )}
+              </span>
+              {confirmDeleteId === item.id ? (
+                <span
+                  style={{
+                    display: "flex",
+                    gap: "6px",
+                    alignItems: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDeleteFollowUp(item.id);
+                      setConfirmDeleteId(null);
+                    }}
+                    style={{
+                      border: "none",
+                      backgroundColor: "#DC2626",
+                      color: "white",
+                      borderRadius: "6px",
+                      padding: "5px 8px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Yes
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setConfirmDeleteId(null);
+                    }}
+                    style={{
+                      border: "1px solid var(--color-border-default, #e5e7eb)",
+                      backgroundColor: "white",
+                      color: "var(--color-subtext, #6b7280)",
+                      borderRadius: "6px",
+                      padding: "5px 8px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Delete reminder"
+                  title="Delete reminder"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setConfirmDeleteId(item.id);
+                  }}
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    borderRadius: "6px",
+                    border: "1px solid #FCA5A5",
+                    backgroundColor: "#FEF2F2",
+                    color: "#DC2626",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </label>
+          ))}
+        </div>
+      )}
+
+      {completedFollowUps.length > 0 && (
+        <details style={{ marginTop: "16px" }}>
+          <summary
+            style={{
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 700,
+              color: "var(--color-subtext, #6b7280)",
+            }}
+          >
+            Completed follow-ups ({completedFollowUps.length})
+          </summary>
+
+          <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            {completedFollowUps.map((item) => (
+              <label
+                key={item.id}
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "flex-start",
+                  padding: "10px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--color-border-default, #e5e7eb)",
+                  backgroundColor: "#F0FDF4",
+                  cursor: "pointer",
+                  opacity: 0.8,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked
+                  onChange={() => handleToggleComplete(item.id, false)}
+                  style={{ marginTop: "3px" }}
+                />
+
+                <span style={{ flex: 1 }}>
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "var(--color-heading, #003C78)",
+                      textDecoration: "line-through",
+                    }}
+                  >
+                    {new Date(item.follow_up_due_date).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+
+                  {item.notes && (
+                    <span
+                      style={{
+                        display: "block",
+                        marginTop: "2px",
+                        fontSize: "12px",
+                        color: "var(--color-subtext, #6b7280)",
+                        textDecoration: "line-through",
+                      }}
+                    >
+                      {item.notes}
+                    </span>
+                  )}
+                </span>
+              </label>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {saved && (
+        <p style={{ fontSize: "13px", color: "#16a34a", fontWeight: 500, marginTop: "8px" }}>
+          Follow-up saved!
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TimelineSection({ jobId, getToken, refreshKey }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -372,7 +790,7 @@ function TimelineSection({ jobId, getToken }) {
       }
     };
     fetchTimeline();
-  }, [jobId, getToken]);
+  }, [jobId, getToken, refreshKey]);
 
   // Format timestamp to readable date + time
   const formatDate = (ts) => {
@@ -498,6 +916,8 @@ function JobDetail() {
   const [job, setJob] = useState(null); // raw job data from API
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState(null); // error loading the job
+
+  const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
 
   // ── Overview section state (S2-006) ───────────────────────────────────────
   // Each field mirrors a Job model field
@@ -957,7 +1377,7 @@ function JobDetail() {
           </div>
 
           {/* ── S2-010: Activity Timeline ──────────────────────────────── */}
-          <TimelineSection jobId={id} getToken={getToken} />
+          <TimelineSection jobId={id} getToken={getToken} refreshKey={timelineRefreshKey} />
         </div>
 
         {/* ── RIGHT: Deadline + Recruiter Notes panel (S2-007) ─────────────── */}
@@ -1043,7 +1463,11 @@ function JobDetail() {
               </p>
             )}
           </div>
-
+          <FollowUpSection
+            jobId={id}
+            getToken={getToken}
+            onCreated={() => setTimelineRefreshKey((key) => key + 1)}
+          />
           {/* ── S2-013: Outcome Section ───────────────────────────────────── */}
           {/* Only shown when job is in a final stage: Offer, Rejected, Archived */}
           {/* Analogy: like a "case closed" notes field — only available at the end */}
