@@ -38,6 +38,7 @@ def update_preferences(
     db.refresh(user)
     return user
 
+
 @router.get("/preferences")
 def get_preferences(
     current_user: dict = Depends(get_current_user),
