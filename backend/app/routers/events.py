@@ -5,7 +5,7 @@
 from datetime import datetime
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -22,8 +22,7 @@ class JobEventCreate(BaseModel):
     to_stage: JobStage | None = None
     was_override: bool = False
     notes: str | None = None
-
-
+    
 @router.get("/{job_id}/events", response_model=List[JobEvent])
 def get_job_events(
     job_id: str,
@@ -220,8 +219,8 @@ def format_timeline_item(event: JobEvent) -> TimelineItem:
         title = event.interview_round or "Interview"
         detail = event.notes
     elif event.event_type == JobEventType.FOLLOW_UP:
-        title = "Follow-up"
-        detail = event.notes
+        title = "Follow-up reminder scheduled"
+        detail = event.notes or "Reminder scheduled"
     elif event.event_type == JobEventType.OUTCOME:
         title = "Outcome recorded"
         detail = event.notes
@@ -337,3 +336,139 @@ def get_outcomes(
         )
         .order_by(JobEvent.created_at)
     ).all()
+
+# S2-012 - Implement Follow-Up and Reminder Tracking
+# Rules: S2-BR-012, S2-BR-013
+# Outcome: Users can create and manage follow-up tasks/reminders tied to a job
+
+class FollowUpCreate(BaseModel):
+    follow_up_due_date: datetime
+    notes: str | None = None
+
+
+class FollowUpUpdate(BaseModel):
+    follow_up_completed: bool | None = None
+    notes: str | None = None
+    follow_up_due_date: datetime | None = None
+
+
+@router.post("/{job_id}/follow-ups", response_model=JobEvent, status_code=201)
+def create_follow_up(
+    job_id: str,
+    payload: FollowUpCreate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    event = JobEvent(
+        job_id=job_id,
+        owner_id=user_id,
+        event_type=JobEventType.FOLLOW_UP,
+        follow_up_due_date=payload.follow_up_due_date,
+        follow_up_completed=False,
+        notes=payload.notes,
+        created_at=datetime.utcnow(),
+    )
+
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
+
+
+@router.get("/{job_id}/follow-ups", response_model=List[JobEvent])
+def get_follow_ups(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return db.exec(
+        select(JobEvent)
+        .where(
+            JobEvent.job_id == job_id,
+            JobEvent.owner_id == user_id,
+            JobEvent.event_type == JobEventType.FOLLOW_UP,
+        )
+        .order_by(JobEvent.follow_up_due_date)
+    ).all()
+
+
+@router.patch("/{job_id}/follow-ups/{event_id}", response_model=JobEvent)
+def update_follow_up(
+    job_id: str,
+    event_id: str,
+    payload: FollowUpUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    event = db.exec(
+        select(JobEvent).where(
+            JobEvent.id == event_id,
+            JobEvent.job_id == job_id,
+            JobEvent.owner_id == user_id,
+            JobEvent.event_type == JobEventType.FOLLOW_UP,
+        )
+    ).first()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Follow-up not found")
+
+    if payload.follow_up_completed is not None:
+        event.follow_up_completed = payload.follow_up_completed
+    if payload.notes is not None:
+        event.notes = payload.notes
+    if payload.follow_up_due_date is not None:
+        event.follow_up_due_date = payload.follow_up_due_date
+
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
+
+@router.delete("/{job_id}/follow-ups/{event_id}", status_code=204)
+def delete_follow_up(
+    job_id: str,
+    event_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    event = db.exec(
+        select(JobEvent).where(
+            JobEvent.id == event_id,
+            JobEvent.job_id == job_id,
+            JobEvent.owner_id == user_id,
+            JobEvent.event_type == JobEventType.FOLLOW_UP,
+        )
+    ).first()
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Follow-up not found")
+
+    db.delete(event)
+    db.commit()
+
+    return Response(status_code=204)
+

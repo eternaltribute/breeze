@@ -37,3 +37,21 @@ def update_preferences(
     db.commit()
     db.refresh(user)
     return user
+
+@router.get("/preferences")
+def get_preferences(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+    user = db.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "desired_role": user.desired_role,
+        "desired_location": user.desired_location,
+        "location_type": user.location_type,
+        "desired_salary": user.desired_salary,
+    }
