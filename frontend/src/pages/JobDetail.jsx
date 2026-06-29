@@ -1039,7 +1039,7 @@ function JobDetail() {
       setOverviewSaving(false);
     }
   };
-// ── handleStageChange — calls PATCH /jobs/:id/stage (S2-008) ─────────────
+  // ── handleStageChange — calls PATCH /jobs/:id/stage (S2-008) ─────────────
   const handleStageChange = async (newStage) => {
     if (newStage.toLowerCase() === stage.toLowerCase()) return;
 
