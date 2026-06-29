@@ -45,6 +45,9 @@ function Settings() {
         const educationData = educationRes.ok ? await educationRes.json() : [];
         const preferencesData = preferencesRes.ok ? await preferencesRes.json() : {};
 
+        const rawPreferences =
+          preferencesData.preferences ?? preferencesData.preference ?? preferencesData ?? {};
+
         const result = calculateProfileCompletion({
           profile: {
             firstName: profileData.first_name ?? "",
@@ -57,12 +60,29 @@ function Settings() {
           experiences: experiencesData || [],
           education: educationData || [],
           preferences: {
-            targetRole: preferencesData.target_role ?? preferencesData.targetRole ?? "",
+            targetRole:
+              rawPreferences.desired_role ??
+              rawPreferences.target_role ??
+              rawPreferences.targetRole ??
+              "",
+
             locationPreference:
-              preferencesData.location_preference ?? preferencesData.locationPreference ?? "",
-            workMode: preferencesData.work_mode ?? preferencesData.workMode ?? "",
+              rawPreferences.desired_location ??
+              rawPreferences.location_preference ??
+              rawPreferences.locationPreference ??
+              "",
+
+            workMode:
+              rawPreferences.location_type ??
+              rawPreferences.work_mode ??
+              rawPreferences.workMode ??
+              "",
+
             salaryPreference:
-              preferencesData.salary_preference ?? preferencesData.salaryPreference ?? "",
+              rawPreferences.desired_salary ??
+              rawPreferences.salary_preference ??
+              rawPreferences.salaryPreference ??
+              "",
           },
         });
 
