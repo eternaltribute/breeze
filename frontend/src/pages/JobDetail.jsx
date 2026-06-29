@@ -269,7 +269,7 @@ function ArchiveRestoreSection({ jobId, stage, getToken, onStageChange }) {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ stage: restoreStage.toLowerCase() }),
+        body: JSON.stringify({ restore_to: restoreStage.toLowerCase() }),
       });
       if (!res.ok) throw new Error("Restore failed");
       onStageChange(restoreStage); // update stage pill back to chosen stage
