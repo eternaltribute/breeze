@@ -1,5 +1,4 @@
 from unittest.mock import patch
-from app.models import User
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,8 +6,8 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 from app.database import get_db
+from app.models import User
 from main import app
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -24,6 +23,7 @@ def db_fixture():
     with Session(engine) as session:
         yield session
     SQLModel.metadata.drop_all(engine)
+
 
 @pytest.fixture(name="test_user")
 def test_user_fixture(db: Session):
@@ -49,6 +49,7 @@ def client_fixture(db: Session):
     with patch("app.dependencies.get_jwks", return_value={"keys": []}):
         app.dependency_overrides[get_db] = get_db_override
         from app.dependencies import get_current_user
+
         app.dependency_overrides[get_current_user] = get_current_user_override
         yield TestClient(app)
         app.dependency_overrides.clear()
@@ -80,7 +81,6 @@ def create_job(client, stage=None):
 
 
 def test_get_jobs_returns_stage_field(client):
-    """GET /jobs should return jobs with a stage field for frontend metric computation."""
     create_job(client)
     res = client.get("/jobs")
     assert res.status_code == 200
@@ -90,7 +90,6 @@ def test_get_jobs_returns_stage_field(client):
 
 
 def test_stage_counts_across_multiple_jobs(client):
-    """GET /jobs should return correct stage distribution for analytics."""
     create_job(client, stage="interested")
     create_job(client, stage="applied")
     create_job(client, stage="applied")
@@ -213,7 +212,6 @@ def test_archived_jobs_excluded_from_active_count(client):
 
 
 def test_profile_returns_all_required_fields(client, test_user):
-    """GET /auth/profile should return fields needed for analytics and cover letter generation."""
     res = client.get("/auth/profile")
     assert res.status_code == 200
     data = res.json()
