@@ -1,16 +1,17 @@
 info:
-  name: Create Outcome
+  name: AI rewrite
   type: http
-  seq: 12
+  seq: 18
 
 http:
   method: POST
-  url: "{{base_url}}/jobs/98c6be81-510a-4114-b03a-bcfdcf0926f3/outcome"
+  url: "{{base_url}}/jobs/98c6be81-510a-4114-b03a-bcfdcf0926f3/ai/rewrite"
   body:
     type: json
     data: |-
       {
-        "notes":"Offer accepted, starting August 1"
+        "draft": "paste some text from your S2-021 output here",
+        "instructions": "make it more concise"
       }
   auth:
     type: bearer

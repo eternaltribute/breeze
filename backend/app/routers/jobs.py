@@ -34,6 +34,37 @@ class JobUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+class JobReminderCount(BaseModel):
+    job_id: str
+    active_count: int
+
+
+@router.get("/reminders", response_model=List[JobReminderCount])
+def get_job_reminder_counts(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+
+    follow_ups = db.exec(
+        select(JobEvent).where(
+            JobEvent.owner_id == user_id,
+            JobEvent.event_type == JobEventType.FOLLOW_UP,
+            JobEvent.follow_up_completed.is_(False),
+        )
+    ).all()
+
+    counts = {}
+
+    for event in follow_ups:
+        counts[event.job_id] = counts.get(event.job_id, 0) + 1
+
+    return [
+        JobReminderCount(job_id=job_id, active_count=count)
+        for job_id, count in counts.items()
+    ]
+
+
 @router.get("", response_model=List[Job])
 def get_jobs(
     current_user: dict = Depends(get_current_user),

@@ -100,6 +100,7 @@ function JobCard({
   location,
   stage,
   lastActivity,
+  reminderCount,
   onEdit,
   onDelete,
 }) {
@@ -161,7 +162,23 @@ function JobCard({
       <p style={{ margin: 0, color: "var(--text)", fontSize: "12px" }}>
         Last activity: {lastActivity}
       </p>
-
+      {reminderCount > 0 && (
+        <div
+          style={{
+            display: "inline-block",
+            alignSelf: "flex-start",
+            backgroundColor: "#FFFBEB",
+            color: "#92400E",
+            border: "1px solid #F59E0B",
+            borderRadius: "999px",
+            padding: "4px 10px",
+            fontSize: "12px",
+            fontWeight: 600,
+          }}
+        >
+          {reminderCount === 1 ? "1 active reminder" : `${reminderCount} active reminders`}
+        </div>
+      )}
       {/* ── Delete control (top-right corner) ────────────────────────────── */}
       {/*
         Step 1: confirming = false → quiet ✕ sits in the corner
@@ -304,7 +321,7 @@ function Dashboard() {
 
   // Full job list from the API — never changes after fetch
   const [jobs, setJobs] = useState([]);
-
+  const [remindersByJob, setRemindersByJob] = useState({});
   // S2-001: search box text
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -317,6 +334,33 @@ function Dashboard() {
   const [sortKey, setSortKey] = useState("lastActivity");
 
   // Fetch jobs once on mount
+  useEffect(() => {
+    const fetchReminderCounts = async () => {
+      try {
+        const token = await getToken({ skipCache: true });
+
+        const res = await fetch(`${BASE}/jobs/reminders`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        const byJob = data.reduce((acc, item) => {
+          acc[item.job_id] = item.active_count;
+          return acc;
+        }, {});
+
+        setRemindersByJob(byJob);
+      } catch (err) {
+        console.error("Failed to fetch reminder counts:", err);
+      }
+    };
+
+    fetchReminderCounts();
+  }, [getToken]);
+
   useEffect(() => {
     const fetchJobs = async () => {
       try {
@@ -664,6 +708,7 @@ function Dashboard() {
           <JobCard
             key={job.id}
             {...job}
+            reminderCount={remindersByJob[job.id] ?? 0}
             onEdit={() => handleEditJob(job)}
             onDelete={handleDeleteJob}
           />
