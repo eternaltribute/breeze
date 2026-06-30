@@ -49,6 +49,8 @@ class JobEvent(SQLModel, table=True):
     # Shared across event types
     notes: Optional[str] = Field(default=None)
 
+    interview_round: Optional[int] = Field(default=None)
+
 
 class Job(SQLModel, table=True):
     __tablename__ = "jobs"

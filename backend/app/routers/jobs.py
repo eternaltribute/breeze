@@ -157,6 +157,7 @@ class StageTransitionRequest(BaseModel):
     new_stage: JobStage
     confirm_override: bool = False
     notes: str | None = None
+    interview_round: Optional[int] = None
 
 
 @router.patch("/{job_id}/stage", response_model=Job)
@@ -177,8 +178,8 @@ def transition_stage(
     current_stage = job.stage
     new_stage = payload.new_stage
 
-    # No-op if same stage
-    if current_stage == new_stage:
+    # No-op if same stage and no interview_round update
+    if current_stage == new_stage and payload.interview_round is None:
         raise HTTPException(status_code=400, detail="Job is already in this stage")
 
     is_forward = new_stage in ALLOWED_TRANSITIONS.get(current_stage, set())
@@ -201,6 +202,8 @@ def transition_stage(
     # Apply the stage change
     job.stage = new_stage
     job.updated_at = datetime.utcnow()
+    if payload.interview_round is not None:
+        job.interview_round = payload.interview_round
     db.add(job)
 
     # Log the transition to job_events (S2-BR-008/S2-009)
