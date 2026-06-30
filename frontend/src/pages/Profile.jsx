@@ -1,5 +1,5 @@
 import { calculateProfileCompletion } from "../utils/profileCompletion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -37,7 +37,9 @@ const initialProfile = {
   phone: "",
   summary: "",
 };
+
 const CUSTOM_SKILL_VALUE = "__custom__";
+const SAVED_MESSAGE_TIMEOUT_MS = 3000;
 
 function SortableExperience({ exp, children }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
@@ -568,6 +570,19 @@ function Profile() {
   const [experienceErrors, setExperienceErrors] = useState({});
   const [experienceSaved, setExperienceSaved] = useState(false);
   const [confirmDeleteExperienceId, setConfirmDeleteExperienceId] = useState(null);
+  const experienceSavedTimeoutRef = useRef(null);
+
+  const scheduleExperienceSavedMessageClear = () => {
+    if (experienceSavedTimeoutRef.current) {
+      clearTimeout(experienceSavedTimeoutRef.current);
+    }
+
+    experienceSavedTimeoutRef.current = setTimeout(() => {
+      setExperienceSaved(false);
+      setExperiences((prev) => prev.map((exp) => ({ ...exp, saved: false })));
+    }, SAVED_MESSAGE_TIMEOUT_MS);
+  };
+
   const handleExperienceDragEnd = (event) => {
     const { active, over } = event;
 
@@ -751,6 +766,7 @@ function Profile() {
       if (!res.ok) throw new Error("Save failed");
       setExperienceSaved(true);
       setExperiences(experiences.map((exp) => ({ ...exp, saved: true, collapsed: true })));
+      scheduleExperienceSavedMessageClear();
     } catch (err) {
       console.error("Failed to save experiences:", err);
     }
@@ -775,7 +791,7 @@ function Profile() {
               startDate: e.start_date,
               endDate: e.end_date,
               description: e.description,
-              saved: true,
+              saved: false,
               collapsed: true,
               hasStartedEditing: false,
             }))
@@ -793,6 +809,31 @@ function Profile() {
   const [educationErrors, setEducationErrors] = useState({});
   const [educationSaved, setEducationSaved] = useState(false);
   const [confirmDeleteEducationId, setConfirmDeleteEducationId] = useState(null);
+  const educationSavedTimeoutRef = useRef(null);
+
+  const scheduleEducationSavedMessageClear = () => {
+    if (educationSavedTimeoutRef.current) {
+      clearTimeout(educationSavedTimeoutRef.current);
+    }
+
+    educationSavedTimeoutRef.current = setTimeout(() => {
+      setEducationSaved(false);
+      setEducation((prev) => prev.map((edu) => ({ ...edu, saved: false })));
+    }, SAVED_MESSAGE_TIMEOUT_MS);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (experienceSavedTimeoutRef.current) {
+        clearTimeout(experienceSavedTimeoutRef.current);
+      }
+
+      if (educationSavedTimeoutRef.current) {
+        clearTimeout(educationSavedTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleEducationDragEnd = (event) => {
     const { active, over } = event;
 
@@ -947,6 +988,7 @@ function Profile() {
       if (!res.ok) throw new Error("Save failed");
       setEducationSaved(true);
       setEducation(education.map((edu) => ({ ...edu, saved: true, collapsed: true })));
+      scheduleEducationSavedMessageClear();
     } catch (err) {
       console.error("Failed to save education:", err);
     }
@@ -969,7 +1011,7 @@ function Profile() {
               fieldOfStudy: e.field_of_study,
               startDate: e.start_date,
               endDate: e.end_date,
-              saved: true,
+              saved: false,
               collapsed: true,
               hasStartedEditing: false,
             }))
@@ -984,7 +1026,6 @@ function Profile() {
   const hasOpenEducation = education.some((edu) => !edu.collapsed);
 
   const canSaveEducation =
-    hasOpenEducation &&
     education.length > 0 &&
     education.every(
       (edu) =>
