@@ -7,11 +7,20 @@
 //             location, salary, url, notes)
 // S2-007  Job Deadline and Recruiter/Contact Notes Fields
 //           — separate editable section for deadline + recruiter notes
+// S2-011  Interview Tracking in Job Detail
+//           — when the user moves the stage INTO "Interview" (and was not
+//             already in Interview), the Stage dropdown temporarily swaps
+//             into a "which round?" button picker (1st–5th). Leaving
+//             Interview (Interview -> Offer/Rejected) is unaffected and
+//             behaves exactly like every other stage change.
 //
 // Business rules satisfied:
 //   S2-BR-001  job must include company, title, and full job posting body
 //   S2-BR-003  job posting body must be editable after creation
 //   S2-BR-004  canonical stages are the six defined in STAGES constant
+//   S2-BR-009  stage transitions must persist timestamped history
+//   S2-BR-010  a job may have multiple interview entries while in Interview stage
+//   S2-BR-011  interview entries require round type, date/time, and notes
 //   S2-BR-013  timeline must reflect stage changes (stage shown in overview)
 //   S2-BR-017  section-level save must return clear field-level validation errors
 //
@@ -27,6 +36,19 @@
 //     recruiter_notes: Optional[str]   (free text)
 //   The PUT /jobs/:id endpoint already accepts extra fields via JobUpdate,
 //   so once the model and migration are added, this frontend will work as-is.
+//
+// TODO (Ronald): PATCH /jobs/:id/stage needs to accept an optional
+//   `interview_round` integer field (1-5). It is only ever sent on the FIRST
+//   transition into Interview stage (e.g. Applied -> Interview). When present,
+//   please:
+//     1. Store it (e.g. on an interview record/event tied to this job).
+//     2. Write a timeline event, something like:
+//          title: "Moved to Interview — 1st Round"
+//          event_type: "interview"
+//        so it renders correctly in TimelineSection (S2-010) using the
+//        existing "interview" dot color.
+//   Until this exists on the backend, the round is selected in the UI and
+//   sent in the request body, but the backend will currently ignore it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from "react";
@@ -37,6 +59,15 @@ const BASE = import.meta.env.VITE_API_BASE_URL;
 
 // ── Canonical stages (S2-BR-004) ─────────────────────────────────────────────
 const STAGES = ["Interested", "Applied", "Interview", "Offer", "Rejected", "Archived"];
+
+// ── Interview round labels — used by the round picker (S2-011) ───────────────
+const INTERVIEW_ROUNDS = [
+  { value: 1, label: "1st Round" },
+  { value: 2, label: "2nd Round" },
+  { value: 3, label: "3rd Round" },
+  { value: 4, label: "4th Round" },
+  { value: 5, label: "5th Round" },
+];
 
 // ── Stage pill color — same function as Dashboard so colors stay consistent ──
 const stageColor = (stage) => {
@@ -75,6 +106,8 @@ function fromApi(data) {
     // S2-007 fields — will be empty string until Ronald adds them to the model
     deadline: data.deadline ?? "",
     recruiterNotes: data.recruiter_notes ?? "",
+    // S2-011 — will be null until Ronald adds interview_round to the model
+    interviewRound: data.interview_round ?? null,
     lastActivity: (data.updated_at ?? data.created_at)?.split("T")[0] ?? "",
     createdAt: data.created_at?.split("T")[0] ?? "",
   };
@@ -343,10 +376,8 @@ function ArchiveRestoreSection({ jobId, stage, getToken, onStageChange }) {
   );
 }
 // ─────────────────────────────────────────────────────────────────────────────
-// TimelineSection — S2-010
-// Fetches and displays job activity events in chronological order.
-// Each event has: event_type, title, detail, timestamp
-// Calls GET /jobs/{job_id}/timeline — Ronald's endpoint
+// FollowUpSection — S2-012
+// (Unchanged from before — included here only because it lives in this file.)
 // ─────────────────────────────────────────────────────────────────────────────
 function FollowUpSection({ jobId, getToken, onCreated }) {
   const [dueDate, setDueDate] = useState("");
@@ -766,6 +797,12 @@ function FollowUpSection({ jobId, getToken, onCreated }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TimelineSection — S2-010
+// Fetches and displays job activity events in chronological order.
+// Each event has: event_type, title, detail, timestamp
+// Calls GET /jobs/{job_id}/timeline — Ronald's endpoint
+// ─────────────────────────────────────────────────────────────────────────────
 function TimelineSection({ jobId, getToken, refreshKey }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -935,6 +972,12 @@ function JobDetail() {
   const [overviewSaved, setOverviewSaved] = useState(false); // shows "Saved!" flash
   const [overviewErrors, setOverviewErrors] = useState({}); // field-level errors (S2-BR-017)
 
+  // ── S2-011: Interview round tracker ─────────────────────────────────────
+  // Unlike a popup, this does NOT control whether the picker is shown.
+  // The picker is shown any time stage === "Interview" (see render below).
+  // This only tracks WHICH round button is currently highlighted.
+  const [interviewRound, setInterviewRound] = useState(null);
+
   // ── Deadline + Recruiter Notes section state (S2-007) ─────────────────────
   const [deadline, setDeadline] = useState("");
   const [recruiterNotes, setRecruiterNotes] = useState("");
@@ -970,6 +1013,7 @@ function JobDetail() {
         setNotes(mapped.notes);
         setDeadline(mapped.deadline);
         setRecruiterNotes(mapped.recruiterNotes);
+        setInterviewRound(mapped.interviewRound);
       } catch (err) {
         console.error("Failed to fetch job:", err);
         setPageError("Could not load this job. It may have been deleted.");
@@ -1039,22 +1083,29 @@ function JobDetail() {
       setOverviewSaving(false);
     }
   };
+
   // ── handleStageChange — calls PATCH /jobs/:id/stage (S2-008) ─────────────
+  // Plain stage change — no round logic here. The round picker (S2-011)
+  // is a separate, persistent control (see handleRoundSelect below) that
+  // shows up automatically once this brings stage to "Interview".
   const handleStageChange = async (newStage) => {
     if (newStage.toLowerCase() === stage.toLowerCase()) return;
 
     try {
       const token = await getToken({ skipCache: true });
+
+      const body = {
+        new_stage: newStage.toLowerCase(),
+        confirm_override: false,
+      };
+
       const res = await fetch(`${BASE}/jobs/${id}/stage`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          new_stage: newStage.toLowerCase(),
-          confirm_override: false,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (res.status === 409) {
@@ -1069,14 +1120,14 @@ function JobDetail() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            new_stage: newStage.toLowerCase(),
-            confirm_override: true,
-          }),
+          body: JSON.stringify({ ...body, confirm_override: true }),
         });
 
         if (!retryRes.ok) throw new Error("Stage update failed");
         setStage(newStage);
+        // Leaving Interview clears the round highlight so it doesn't show
+        // a stale round if the job re-enters Interview again later.
+        if (newStage !== "Interview") setInterviewRound(null);
         setTimelineRefreshKey((k) => k + 1);
         return;
       }
@@ -1084,12 +1135,53 @@ function JobDetail() {
       if (!res.ok) throw new Error("Stage update failed");
 
       setStage(newStage);
+      if (newStage !== "Interview") setInterviewRound(null);
       setTimelineRefreshKey((k) => k + 1);
     } catch (err) {
       console.error("Stage change failed:", err);
       alert("Failed to update stage. Please try again.");
     }
   };
+
+  // ── handleRoundSelect — S2-011: updates which interview round the job is
+  // currently on. This does NOT change stage (it's already "Interview") —
+  // it's a standalone update, available any time stage === "Interview",
+  // and the picker itself never disappears after you click a round.
+  const handleRoundSelect = async (round) => {
+    const previousRound = interviewRound;
+    setInterviewRound(round); // optimistic — button highlights immediately
+
+    try {
+      const token = await getToken({ skipCache: true });
+
+      // TODO (Ronald): PATCH /jobs/:id/stage needs to accept interview_round
+      // on its own even when new_stage doesn't change ("interview" ->
+      // "interview" — same stage, just a round update, not a transition).
+      // Please also log a timeline event each time this changes, e.g.
+      //   title: "Interview — 2nd Round", event_type: "interview"
+      const res = await fetch(`${BASE}/jobs/${id}/stage`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          new_stage: "interview",
+          confirm_override: true, // same-stage update, not a real transition
+          interview_round: round,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Round update failed");
+
+      setTimelineRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error("Round update failed:", err);
+      setInterviewRound(previousRound); // roll back the highlight on failure
+      alert("Failed to update interview round. Please try again.");
+    }
+  };
+
   // ── handleDetailSave — saves deadline + recruiter notes (S2-007) ──────────
   // TODO (Ronald): once deadline and recruiter_notes are added to the Job
   // model and PUT /jobs/:id, remove the console.warn and this will fully work.
@@ -1321,9 +1413,10 @@ function JobDetail() {
               <FieldError message={overviewErrors.title} />
             </div>
 
-            {/* Stage — dropdown using canonical stages (S2-BR-004) */}
+            {/* ── Stage — dropdown is always a dropdown (S2-BR-004) ───────── */}
             <div style={{ marginBottom: "16px" }}>
               <Label text="Stage" required />
+
               <select
                 value={stage}
                 onChange={(e) => handleStageChange(e.target.value)}
@@ -1335,6 +1428,61 @@ function JobDetail() {
                   </option>
                 ))}
               </select>
+
+              {/* ── S2-011: Interview round picker ──────────────────────────
+                  Stays visible for as long as stage === "Interview" — it
+                  does NOT disappear after you pick a round. Whichever round
+                  was last clicked stays highlighted (filled-in button), and
+                  clicking a different one just moves the highlight. */}
+              {stage === "Interview" && (
+                <div
+                  style={{
+                    marginTop: "12px",
+                    padding: "12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--color-border-default, #e5e7eb)",
+                    backgroundColor: "var(--bg, #F8FAFC)",
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: "0 0 10px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "var(--color-heading, #003C78)",
+                    }}
+                  >
+                    Interview round
+                  </p>
+
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    {INTERVIEW_ROUNDS.map((r) => {
+                      const isSelected = interviewRound === r.value;
+                      return (
+                        <button
+                          key={r.value}
+                          type="button"
+                          onClick={() => handleRoundSelect(r.value)}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: "8px",
+                            border: isSelected
+                              ? "2px solid #003C78"
+                              : "1px solid var(--color-border-default, #e5e7eb)",
+                            backgroundColor: isSelected ? "#003C78" : "white",
+                            color: isSelected ? "white" : "var(--color-heading, #003C78)",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {r.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Location — optional */}
