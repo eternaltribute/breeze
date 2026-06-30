@@ -7,6 +7,7 @@ from app.database import get_db, init_db
 from app.routers import (
     ai,
     auth,
+    cover_letter,
     education,
     events,
     experiences,
@@ -41,6 +42,7 @@ app.include_router(experiences.router)
 app.include_router(education.router)
 app.include_router(preferences.router)
 app.include_router(resume.router)
+app.include_router(cover_letter.router)
 
 
 @app.on_event("startup")
