@@ -148,3 +148,15 @@ class Education(SQLModel, table=True):
     order: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Resume(SQLModel, table=True):
+    __tablename__ = "resumes"
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
+    job_id: Optional[str] = Field(default=None, foreign_key="jobs.id")
+    file_name: Optional[str] = Field(default=None)
+    file_url: Optional[str] = Field(default=None)
+    resume_text: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)

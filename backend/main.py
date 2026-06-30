@@ -13,6 +13,7 @@ from app.routers import (
     jobs,
     preferences,
     protected,
+    resume,
     skills,
 )
 
@@ -39,6 +40,7 @@ app.include_router(ai.router)  # registers AI router with FastAPI S2-021
 app.include_router(experiences.router)
 app.include_router(education.router)
 app.include_router(preferences.router)
+app.include_router(resume.router)
 
 
 @app.on_event("startup")
