@@ -41,6 +41,13 @@
 //                           returns  { document_id: string }
 //   POST /resume/parse-pdf — accepts multipart form with the PDF file
 //                            returns { text: string }
+//   POST /resume/generate-for-job — S2-021 — accepts { job_id: string }
+//                            looks up the Job (by job_id + current_user, for
+//                            ownership) AND the current_user's Profile
+//                            (experience, education, skills, summary), then
+//                            calls Claude with both as context to draft a
+//                            resume tailored to that job.
+//                            returns { resume_text: string }
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useCallback, useEffect } from "react";
@@ -194,6 +201,154 @@ function FeedbackItem({ section, tip }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AIReviewPanel — extracted so it can render at full card size in the
+// empty-state chooser (alongside Upload + Generate) AND as the narrower
+// sticky sidebar once a resume is loaded — same content, two different
+// surroundings, instead of writing this panel out twice.
+// ─────────────────────────────────────────────────────────────────────────────
+function AIReviewPanel({
+  resumeText,
+  aiScore,
+  analyzing,
+  handleAnalyze,
+  metrics,
+  feedback,
+  sticky = false,
+}) {
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--bg-card, #fff)",
+        border: "1px solid var(--color-border-default, #e5e7eb)",
+        borderRadius: "12px",
+        padding: "24px",
+        boxShadow: "var(--shadow)",
+        ...(sticky ? { position: "sticky", top: "24px" } : {}),
+      }}
+    >
+      <h2
+        style={{
+          fontSize: "16px",
+          fontWeight: 700,
+          color: "var(--color-heading, #003C78)",
+          marginTop: 0,
+          marginBottom: "6px",
+        }}
+      >
+        AI Review
+      </h2>
+      <p
+        style={{
+          fontSize: "13px",
+          color: "var(--color-subtext, #6b7280)",
+          marginBottom: "20px",
+        }}
+      >
+        Upload a resume then click Analyze to get your score.
+      </p>
+
+      {/* Overall score ring — shown after analysis */}
+      {aiScore !== null && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
+          <ScoreRing score={aiScore} />
+        </div>
+      )}
+
+      {/* Analyze button — S2-021, triggers POST /resume/analyze */}
+      <button
+        onClick={handleAnalyze}
+        disabled={!resumeText || analyzing}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          width: "100%",
+          padding: "12px",
+          borderRadius: "8px",
+          border: "none",
+          backgroundColor: !resumeText || analyzing ? "#9ca3af" : "#046A97",
+          color: "white",
+          fontSize: "14px",
+          fontWeight: 600,
+          cursor: !resumeText || analyzing ? "not-allowed" : "pointer",
+          marginBottom: "20px",
+          transition: "background-color 0.2s",
+        }}
+      >
+        <Sparkles size={16} />
+        {analyzing ? "Analyzing..." : "Analyze Resume"}
+      </button>
+
+      {/* ── 5 metric bars — shown after analysis returns metrics ───────── */}
+      {/* Each metric is scored 0-20, they add up to 100 total */}
+      {/* These values come from Ronald's POST /resume/analyze response */}
+      {metrics && (
+        <div style={{ marginBottom: "20px" }}>
+          <p
+            style={{
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "var(--color-subtext, #6b7280)",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginBottom: "14px",
+            }}
+          >
+            Score Breakdown
+          </p>
+          {/* Contact Info: does it have name, email, phone, LinkedIn? */}
+          <MetricBar label="Contact Info" score={metrics.contact_info} />
+          {/* Summary: is there a professional summary at the top? */}
+          <MetricBar label="Summary" score={metrics.summary} />
+          {/* Experience: are bullet points strong and quantified? */}
+          <MetricBar label="Experience" score={metrics.experience} />
+          {/* Skills: is there a dedicated skills / keywords section? */}
+          <MetricBar label="Skills" score={metrics.skills} />
+          {/* Length: is the resume an appropriate length for experience level? */}
+          <MetricBar label="Length" score={metrics.length} />
+        </div>
+      )}
+
+      {/* AI suggestions list */}
+      {feedback.length > 0 && (
+        <div>
+          <p
+            style={{
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "var(--color-subtext, #6b7280)",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginBottom: "12px",
+            }}
+          >
+            Suggestions
+          </p>
+          {feedback.map((item, i) => (
+            <FeedbackItem key={i} section={item.section} tip={item.tip} />
+          ))}
+        </div>
+      )}
+
+      {/* Empty state — before any file is uploaded */}
+      {!resumeText && !analyzing && (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "24px 0",
+            color: "var(--color-subtext, #9ca3af)",
+          }}
+        >
+          <FileText size={32} style={{ marginBottom: "8px", opacity: 0.4 }} />
+          <p style={{ fontSize: "13px", margin: 0 }}>Upload a resume to get started</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // UploadZone — drag-and-drop file upload area
 // Analogy: the physical inbox tray on a desk — you drop your document in here
 // Uses react-dropzone which handles all the browser drag-and-drop events for us
@@ -253,8 +408,133 @@ function UploadZone({ onFileAccepted }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GenerateFromProfileCard — S2-021
+// The second "front door" option, sitting right next to UploadZone. Instead
+// of bringing in a resume you already have, this builds one from scratch
+// using your profile (experience, education, skills) plus a job's posting.
+//
+// Analogy: UploadZone is "bring your own suit to be altered." This card is
+// "have a new suit tailored to this exact occasion from your measurements."
+// Both end in the same place — the editable editor — but they start from
+// different inputs.
+//
+// jobs / selectedJobId / setSelectedJobId / onGenerate / generating are all
+// passed down from ResumeHelper, since that's where the job list and the
+// generate handler already live (also used later for the "link to a job"
+// dropdown after generation, so the same job stays selected).
+// ─────────────────────────────────────────────────────────────────────────────
+function GenerateFromProfileCard({
+  jobs,
+  selectedJobId,
+  setSelectedJobId,
+  onGenerate,
+  generating,
+}) {
+  return (
+    <div
+      style={{
+        border: "2px dashed var(--color-border-default, #e5e7eb)",
+        borderRadius: "12px",
+        padding: "48px 24px",
+        textAlign: "center",
+        backgroundColor: "var(--bg, #F8FAFC)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+      }}
+    >
+      <Sparkles size={36} style={{ color: "#046A97", marginBottom: "12px" }} />
+      <p
+        style={{
+          margin: "0 0 6px",
+          fontSize: "15px",
+          fontWeight: 600,
+          color: "var(--color-heading, #003C78)",
+        }}
+      >
+        Generate Tailored Resume
+      </p>
+      <p
+        style={{
+          margin: "0 0 20px",
+          fontSize: "13px",
+          color: "var(--color-subtext, #6b7280)",
+        }}
+      >
+        Build a resume from your profile, tailored to a specific job
+      </p>
+
+      {/* Job picker — reuses the same selectedJobId state the rest of the
+          page already uses for linking, so picking it here also pre-fills
+          the "Link to a job" dropdown later. */}
+      <select
+        value={selectedJobId}
+        onChange={(e) => setSelectedJobId(e.target.value)}
+        aria-label="Select a job to tailor the resume to"
+        style={{
+          width: "100%",
+          maxWidth: "320px",
+          padding: "10px 14px",
+          borderRadius: "8px",
+          border: "1px solid var(--color-border-default, #e5e7eb)",
+          backgroundColor: "var(--bg-card, #fff)",
+          color: "var(--color-heading, #003C78)",
+          fontSize: "14px",
+          cursor: "pointer",
+          marginBottom: "16px",
+        }}
+      >
+        <option value="">Select a job…</option>
+        {jobs.map((job) => (
+          <option key={job.id} value={job.id}>
+            {job.title} — {job.company}
+          </option>
+        ))}
+      </select>
+
+      {/* Generate button — disabled until a job is picked (S2-BR-018: explicit user action) */}
+      <button
+        onClick={onGenerate}
+        disabled={!selectedJobId || generating}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          width: "100%",
+          maxWidth: "320px",
+          padding: "10px 16px",
+          borderRadius: "8px",
+          border: "none",
+          backgroundColor: !selectedJobId || generating ? "#9ca3af" : "#046A97",
+          color: "white",
+          fontSize: "14px",
+          fontWeight: 600,
+          cursor: !selectedJobId || generating ? "not-allowed" : "pointer",
+        }}
+      >
+        <Sparkles size={14} />
+        {generating ? "Generating…" : "Generate Tailored Resume"}
+      </button>
+
+      {jobs.length === 0 && (
+        <p
+          style={{
+            margin: "12px 0 0",
+            fontSize: "12px",
+            color: "var(--color-subtext, #9ca3af)",
+          }}
+        >
+          Add a job on your Dashboard first to tailor a resume to it.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ResumeHelper — main page component
-// Covers tickets: S2-021 (analyze), S2-023 (improve), S2-024 (save)
+// Covers tickets: S2-021 (analyze + generate-for-job), S2-023 (improve), S2-024 (save)
 // ─────────────────────────────────────────────────────────────────────────────
 function ResumeHelper() {
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -270,6 +550,7 @@ function ResumeHelper() {
   const [analyzing, setAnalyzing] = useState(false); // loading state for analyze call
   const [improving, setImproving] = useState(false); // loading state for improve call
   const [saving, setSaving] = useState(false); // loading state for save call
+  const [generatingForJob, setGeneratingForJob] = useState(false); // loading state for S2-021 generate call
   const [improveInstruction, setImproveInstruction] = useState(""); // what the user wants improved
   const [jobs, setJobs] = useState([]); // user's job list for the link dropdown
   const [selectedJobId, setSelectedJobId] = useState(""); // job to link this resume to
@@ -415,6 +696,63 @@ function ResumeHelper() {
       console.error("Resume analysis failed:", err);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  // ── S2-021: Generate a tailored resume from profile + selected job ────────
+  // Analogy: a tailor needs two things — your measurements (profile) and the
+  // occasion (this job). We don't gather your profile data here on the
+  // frontend — Ronald's backend already knows who's logged in via the auth
+  // token, so it looks up the profile itself once it has the job_id. We just
+  // hand it the job_id and place the tailored draft straight into the editor
+  // above, where it's editable just like an uploaded resume (S2-BR-020).
+  //
+  // TODO (Ronald): implement POST /resume/generate-for-job
+  //   Request:  { job_id: string }
+  //   Behavior: look up the Job (by job_id + current_user for ownership) and
+  //             the current_user's Profile (experience, education, skills,
+  //             summary), then call Claude with both as context to draft a
+  //             tailored resume.
+  //   Response: { resume_text: string }
+  const handleGenerateForJob = async () => {
+    if (!selectedJobId) return;
+    setGeneratingForJob(true);
+    try {
+      const token = await getToken({ skipCache: true });
+
+      // ── Uncomment once Ronald's endpoint is ready ─────────────────────────
+      // const res = await fetch(`${BASE}/resume/generate-for-job`, {
+      //   method: "POST",
+      //   headers: {
+      //     Authorization: `Bearer ${token}`,
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({ job_id: selectedJobId }),
+      // });
+      // if (!res.ok) throw new Error("Generate failed");
+      // const data = await res.json();
+      // setResumeText(data.resume_text); // drops the draft straight into the editor
+      // ── End real call ─────────────────────────────────────────────────────
+
+      // ── TEMPORARY placeholder — remove once Ronald's endpoint is live ─────
+      // Lets us build and demo this UI before the backend route exists.
+      console.log(
+        "Auth token ready for POST /resume/generate-for-job:",
+        !!token,
+        "job:",
+        selectedJobId
+      );
+      await new Promise((r) => setTimeout(r, 1200)); // simulate network delay
+      setResumeText(
+        "[Placeholder draft — Ronald's POST /resume/generate-for-job isn't live yet]\n\n" +
+          "Once connected, this will replace this text with a resume drafted from your " +
+          "profile (experience, education, skills) tailored to the selected job's posting."
+      );
+      // ── End placeholder ───────────────────────────────────────────────────
+    } catch (err) {
+      console.error("Resume generation for job failed:", err);
+    } finally {
+      setGeneratingForJob(false);
     }
   };
 
@@ -569,414 +907,322 @@ function ResumeHelper() {
         Upload your resume, get AI feedback and a score, improve sections, then save to a job.
       </p>
 
-      {/* Two-column layout */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 340px",
-          gap: "24px",
-          alignItems: "start",
-        }}
-      >
-        {/* ── LEFT: Upload zone + editor + improve action ──────────────────── */}
-        <div>
-          {!resumeText ? (
-            <UploadZone onFileAccepted={handleFileAccepted} />
-          ) : (
-            <>
-              {/* Editor card */}
+      {/* ── Layout switches shape depending on whether a resume is loaded ──
+          Empty state: three equal-width cards side by side (Upload | Generate | AI Review)
+          Loaded state: editor + narrower sticky AI Review sidebar, as before ── */}
+      {!resumeText ? (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: "24px",
+            alignItems: "stretch",
+          }}
+        >
+          {/* Option 1: bring an existing resume */}
+          <UploadZone onFileAccepted={handleFileAccepted} />
+
+          {/* Option 2: build one from profile + a selected job */}
+          <GenerateFromProfileCard
+            jobs={jobs}
+            selectedJobId={selectedJobId}
+            setSelectedJobId={setSelectedJobId}
+            onGenerate={handleGenerateForJob}
+            generating={generatingForJob}
+          />
+
+          {/* Same AI Review card, shown here at full size to match the other two */}
+          <AIReviewPanel
+            resumeText={resumeText}
+            aiScore={aiScore}
+            analyzing={analyzing}
+            handleAnalyze={handleAnalyze}
+            metrics={metrics}
+            feedback={feedback}
+          />
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 340px",
+            gap: "24px",
+            alignItems: "start",
+          }}
+        >
+          {/* ── LEFT: editor + improve action ──────────────────── */}
+          <div>
+            {/* Editor card */}
+            <div
+              style={{
+                backgroundColor: "var(--bg-card, #fff)",
+                border: "1px solid var(--color-border-default, #e5e7eb)",
+                borderRadius: "12px",
+                overflow: "hidden",
+                boxShadow: "var(--shadow)",
+              }}
+            >
+              {/* Toolbar */}
               <div
                 style={{
-                  backgroundColor: "var(--bg-card, #fff)",
-                  border: "1px solid var(--color-border-default, #e5e7eb)",
-                  borderRadius: "12px",
-                  overflow: "hidden",
-                  boxShadow: "var(--shadow)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "14px 20px",
+                  borderBottom: "1px solid var(--color-border-default, #e5e7eb)",
+                  backgroundColor: "var(--bg, #F8FAFC)",
                 }}
               >
-                {/* Toolbar */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "14px 20px",
-                    borderBottom: "1px solid var(--color-border-default, #e5e7eb)",
-                    backgroundColor: "var(--bg, #F8FAFC)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <FileText size={16} style={{ color: "var(--color-subtext, #6b7280)" }} />
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "var(--color-heading, #003C78)",
-                      }}
-                    >
-                      {fileName || "resume.txt"}
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleClear}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FileText size={16} style={{ color: "var(--color-subtext, #6b7280)" }} />
+                  <span
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "6px 12px",
-                      borderRadius: "6px",
-                      border: "1px solid var(--color-border-default, #e5e7eb)",
-                      backgroundColor: "transparent",
-                      color: "var(--color-subtext, #6b7280)",
                       fontSize: "13px",
-                      cursor: "pointer",
+                      fontWeight: 600,
+                      color: "var(--color-heading, #003C78)",
                     }}
                   >
-                    <X size={14} /> Clear
-                  </button>
+                    {fileName || "resume.txt"}
+                  </span>
                 </div>
+                <button
+                  onClick={handleClear}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--color-border-default, #e5e7eb)",
+                    backgroundColor: "transparent",
+                    color: "var(--color-subtext, #6b7280)",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <X size={14} /> Clear
+                </button>
+              </div>
 
-                {/* Editable resume text area — S2-BR-020: output is editable before save */}
-                <textarea
-                  value={resumeText}
-                  onChange={(e) => setResumeText(e.target.value)}
-                  spellCheck
-                  aria-label="Resume content editor"
+              {/* Editable resume text area — S2-BR-020: output is editable before save */}
+              <textarea
+                value={resumeText}
+                onChange={(e) => setResumeText(e.target.value)}
+                spellCheck
+                aria-label="Resume content editor"
+                style={{
+                  width: "100%",
+                  minHeight: "500px",
+                  padding: "24px",
+                  border: "none",
+                  outline: "none",
+                  resize: "vertical",
+                  fontFamily: "monospace",
+                  fontSize: "13px",
+                  lineHeight: 1.7,
+                  color: "var(--color-heading, #003C78)",
+                  backgroundColor: "var(--bg-card, #fff)",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            {/* ── S2-023: Improve section ───────────────────────────────── */}
+            {/* User types an instruction, clicks Improve, AI rewrites the resume */}
+            {/* Result appears in the editor above — user can then edit or discard it */}
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "16px 20px",
+                borderRadius: "12px",
+                border: "1px solid var(--color-border-default, #e5e7eb)",
+                backgroundColor: "var(--bg-card, #fff)",
+                boxShadow: "var(--shadow)",
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 10px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: "var(--color-heading, #003C78)",
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Brain size={16} style={{ color: "#046A97" }} />
+                  <Sparkles size={13} style={{ color: "#046A97" }} />
+                  Improve with AI
+                </span>
+              </p>
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: "12px",
+                  color: "var(--color-subtext, #6b7280)",
+                }}
+              >
+                Tell the AI what to fix — it rewrites your resume and you can edit the result before
+                saving.
+              </p>
+              <div style={{ display: "flex", gap: "10px" }}>
+                {/* Instruction input — what should the AI do? */}
+                <input
+                  type="text"
+                  value={improveInstruction}
+                  onChange={(e) => setImproveInstruction(e.target.value)}
+                  placeholder='e.g. "Make my bullet points more concise" or "Add more action verbs"'
+                  aria-label="Improvement instruction for AI"
+                  onKeyDown={(e) => e.key === "Enter" && handleImprove()}
+                  style={{
+                    flex: 1,
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--color-border-default, #e5e7eb)",
+                    fontSize: "13px",
+                    color: "var(--color-input-text, #111827)",
+                    backgroundColor: "var(--color-input-bg, white)",
+                    outline: "none",
+                  }}
+                />
+                {/* Improve button — triggers POST /resume/improve */}
+                <button
+                  onClick={handleImprove}
+                  disabled={improving || !improveInstruction.trim()}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "10px 16px",
+                    borderRadius: "8px",
+                    border: "none",
+                    backgroundColor:
+                      improving || !improveInstruction.trim() ? "#9ca3af" : "#046A97",
+                    color: "white",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: improving || !improveInstruction.trim() ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <Wand2 size={14} />
+                  {improving ? "Improving..." : "Improve"}
+                </button>
+              </div>
+            </div>
+
+            {/* ── Action row: job link + download + save ────────────────── */}
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                marginTop: "14px",
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              {/* Job link dropdown — S2-024: link resume to a specific application */}
+              <div style={{ position: "relative", flex: "1", minWidth: "200px" }}>
+                <select
+                  value={selectedJobId}
+                  onChange={(e) => setSelectedJobId(e.target.value)}
+                  aria-label="Link resume to a job application"
                   style={{
                     width: "100%",
-                    minHeight: "500px",
-                    padding: "24px",
-                    border: "none",
-                    outline: "none",
-                    resize: "vertical",
-                    fontFamily: "monospace",
-                    fontSize: "13px",
-                    lineHeight: 1.7,
-                    color: "var(--color-heading, #003C78)",
+                    padding: "10px 36px 10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--color-border-default, #e5e7eb)",
                     backgroundColor: "var(--bg-card, #fff)",
-                    boxSizing: "border-box",
+                    color: "var(--color-heading, #003C78)",
+                    fontSize: "14px",
+                    cursor: "pointer",
+                    appearance: "none",
+                  }}
+                >
+                  <option value="">Link to a job (optional)</option>
+                  {jobs.map((job) => (
+                    <option key={job.id} value={job.id}>
+                      {job.title} — {job.company}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={16}
+                  style={{
+                    position: "absolute",
+                    right: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    pointerEvents: "none",
+                    color: "var(--color-subtext, #6b7280)",
                   }}
                 />
               </div>
 
-              {/* ── S2-023: Improve section ───────────────────────────────── */}
-              {/* User types an instruction, clicks Improve, AI rewrites the resume */}
-              {/* Result appears in the editor above — user can then edit or discard it */}
-              <div
-                style={{
-                  marginTop: "16px",
-                  padding: "16px 20px",
-                  borderRadius: "12px",
-                  border: "1px solid var(--color-border-default, #e5e7eb)",
-                  backgroundColor: "var(--bg-card, #fff)",
-                  boxShadow: "var(--shadow)",
-                }}
-              >
-                <p
-                  style={{
-                    margin: "0 0 10px",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    color: "var(--color-heading, #003C78)",
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Brain size={16} style={{ color: "#046A97" }} />
-                    <Sparkles size={13} style={{ color: "#046A97" }} />
-                    Improve with AI
-                  </span>
-                </p>
-                <p
-                  style={{
-                    margin: "0 0 12px",
-                    fontSize: "12px",
-                    color: "var(--color-subtext, #6b7280)",
-                  }}
-                >
-                  Tell the AI what to fix — it rewrites your resume and you can edit the result
-                  before saving.
-                </p>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  {/* Instruction input — what should the AI do? */}
-                  <input
-                    type="text"
-                    value={improveInstruction}
-                    onChange={(e) => setImproveInstruction(e.target.value)}
-                    placeholder='e.g. "Make my bullet points more concise" or "Add more action verbs"'
-                    aria-label="Improvement instruction for AI"
-                    onKeyDown={(e) => e.key === "Enter" && handleImprove()}
-                    style={{
-                      flex: 1,
-                      padding: "10px 14px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--color-border-default, #e5e7eb)",
-                      fontSize: "13px",
-                      color: "var(--color-input-text, #111827)",
-                      backgroundColor: "var(--color-input-bg, white)",
-                      outline: "none",
-                    }}
-                  />
-                  {/* Improve button — triggers POST /resume/improve */}
-                  <button
-                    onClick={handleImprove}
-                    disabled={improving || !improveInstruction.trim()}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "10px 16px",
-                      borderRadius: "8px",
-                      border: "none",
-                      backgroundColor:
-                        improving || !improveInstruction.trim() ? "#9ca3af" : "#046A97",
-                      color: "white",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      cursor: improving || !improveInstruction.trim() ? "not-allowed" : "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <Wand2 size={14} />
-                    {improving ? "Improving..." : "Improve"}
-                  </button>
-                </div>
-              </div>
-
-              {/* ── Action row: job link + download + save ────────────────── */}
-              <div
+              {/* Download as .txt */}
+              <button
+                onClick={handleDownload}
                 style={{
                   display: "flex",
-                  gap: "12px",
-                  marginTop: "14px",
                   alignItems: "center",
-                  flexWrap: "wrap",
+                  gap: "8px",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--color-border-default, #e5e7eb)",
+                  backgroundColor: "transparent",
+                  color: "var(--color-heading, #003C78)",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: "pointer",
                 }}
               >
-                {/* Job link dropdown — S2-024: link resume to a specific application */}
-                <div style={{ position: "relative", flex: "1", minWidth: "200px" }}>
-                  <select
-                    value={selectedJobId}
-                    onChange={(e) => setSelectedJobId(e.target.value)}
-                    aria-label="Link resume to a job application"
-                    style={{
-                      width: "100%",
-                      padding: "10px 36px 10px 14px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--color-border-default, #e5e7eb)",
-                      backgroundColor: "var(--bg-card, #fff)",
-                      color: "var(--color-heading, #003C78)",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      appearance: "none",
-                    }}
-                  >
-                    <option value="">Link to a job (optional)</option>
-                    {jobs.map((job) => (
-                      <option key={job.id} value={job.id}>
-                        {job.title} — {job.company}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={16}
-                    style={{
-                      position: "absolute",
-                      right: "12px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      pointerEvents: "none",
-                      color: "var(--color-subtext, #6b7280)",
-                    }}
-                  />
-                </div>
+                <Download size={16} /> Download .txt
+              </button>
 
-                {/* Download as .txt */}
-                <button
-                  onClick={handleDownload}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "10px 18px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--color-border-default, #e5e7eb)",
-                    backgroundColor: "transparent",
-                    color: "var(--color-heading, #003C78)",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  <Download size={16} /> Download .txt
-                </button>
-
-                {/* Save to backend — S2-024 */}
-                <button
-                  onClick={handleSave}
-                  disabled={saving} //|| resumeText.trim() || !uploadedFile}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "10px 18px",
-                    borderRadius: "8px",
-                    border: "none",
-                    backgroundColor: saving ? "#9ca3af" : "#003C78",
-                    color: "white",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    cursor: saving ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <Save size={16} />
-                  {saving ? "Saving..." : "Save Resume"}
-                </button>
-
-                {/* Brief success message after save */}
-                {saveSuccess && (
-                  <span style={{ fontSize: "13px", color: "#22c55e", fontWeight: 600 }}>
-                    ✓ Saved successfully
-                  </span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ── RIGHT: AI Review panel ───────────────────────────────────────── */}
-        <div
-          style={{
-            backgroundColor: "var(--bg-card, #fff)",
-            border: "1px solid var(--color-border-default, #e5e7eb)",
-            borderRadius: "12px",
-            padding: "24px",
-            boxShadow: "var(--shadow)",
-            position: "sticky",
-            top: "24px", // stays on screen as user scrolls editor
-          }}
-        >
-          <h2
-            style={{
-              fontSize: "16px",
-              fontWeight: 700,
-              color: "var(--color-heading, #003C78)",
-              marginTop: 0,
-              marginBottom: "6px",
-            }}
-          >
-            AI Review
-          </h2>
-          <p
-            style={{
-              fontSize: "13px",
-              color: "var(--color-subtext, #6b7280)",
-              marginBottom: "20px",
-            }}
-          >
-            Upload a resume then click Analyze to get your score.
-          </p>
-
-          {/* Overall score ring — shown after analysis */}
-          {aiScore !== null && (
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "24px" }}>
-              <ScoreRing score={aiScore} />
-            </div>
-          )}
-
-          {/* Analyze button — S2-021, triggers POST /resume/analyze */}
-          <button
-            onClick={handleAnalyze}
-            disabled={!resumeText || analyzing}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              width: "100%",
-              padding: "12px",
-              borderRadius: "8px",
-              border: "none",
-              backgroundColor: !resumeText || analyzing ? "#9ca3af" : "#046A97",
-              color: "white",
-              fontSize: "14px",
-              fontWeight: 600,
-              cursor: !resumeText || analyzing ? "not-allowed" : "pointer",
-              marginBottom: "20px",
-              transition: "background-color 0.2s",
-            }}
-          >
-            <Sparkles size={16} />
-            {analyzing ? "Analyzing..." : "Analyze Resume"}
-          </button>
-
-          {/* ── 5 metric bars — shown after analysis returns metrics ───────── */}
-          {/* Each metric is scored 0-20, they add up to 100 total */}
-          {/* These values come from Ronald's POST /resume/analyze response */}
-          {metrics && (
-            <div style={{ marginBottom: "20px" }}>
-              <p
+              {/* Save to backend — S2-024 */}
+              <button
+                onClick={handleSave}
+                disabled={saving} //|| resumeText.trim() || !uploadedFile}
                 style={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "var(--color-subtext, #6b7280)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "none",
+                  backgroundColor: saving ? "#9ca3af" : "#003C78",
+                  color: "white",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: saving ? "not-allowed" : "pointer",
                 }}
               >
-                Score Breakdown
-              </p>
-              {/* Contact Info: does it have name, email, phone, LinkedIn? */}
-              <MetricBar label="Contact Info" score={metrics.contact_info} />
-              {/* Summary: is there a professional summary at the top? */}
-              <MetricBar label="Summary" score={metrics.summary} />
-              {/* Experience: are bullet points strong and quantified? */}
-              <MetricBar label="Experience" score={metrics.experience} />
-              {/* Skills: is there a dedicated skills / keywords section? */}
-              <MetricBar label="Skills" score={metrics.skills} />
-              {/* Length: is the resume an appropriate length for experience level? */}
-              <MetricBar label="Length" score={metrics.length} />
-            </div>
-          )}
+                <Save size={16} />
+                {saving ? "Saving..." : "Save Resume"}
+              </button>
 
-          {/* AI suggestions list */}
-          {feedback.length > 0 && (
-            <div>
-              <p
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "var(--color-subtext, #6b7280)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: "12px",
-                }}
-              >
-                Suggestions
-              </p>
-              {feedback.map((item, i) => (
-                <FeedbackItem key={i} section={item.section} tip={item.tip} />
-              ))}
+              {/* Brief success message after save */}
+              {saveSuccess && (
+                <span style={{ fontSize: "13px", color: "#22c55e", fontWeight: 600 }}>
+                  ✓ Saved successfully
+                </span>
+              )}
             </div>
-          )}
+          </div>
 
-          {/* Empty state — before any file is uploaded */}
-          {!resumeText && !analyzing && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "24px 0",
-                color: "var(--color-subtext, #9ca3af)",
-              }}
-            >
-              <FileText size={32} style={{ marginBottom: "8px", opacity: 0.4 }} />
-              <p style={{ fontSize: "13px", margin: 0 }}>Upload a resume to get started</p>
-            </div>
-          )}
+          {/* ── RIGHT: AI Review panel ───────────────────────────────────────── */}
+          <AIReviewPanel
+            resumeText={resumeText}
+            aiScore={aiScore}
+            analyzing={analyzing}
+            handleAnalyze={handleAnalyze}
+            metrics={metrics}
+            feedback={feedback}
+            sticky
+          />
         </div>
-      </div>
+      )}
     </div>
   );
 }
