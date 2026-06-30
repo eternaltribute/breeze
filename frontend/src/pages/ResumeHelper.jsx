@@ -243,6 +243,8 @@ function UploadZone({ onFileAccepted }) {
 // Covers tickets: S2-021 (analyze), S2-023 (improve), S2-024 (save)
 // ─────────────────────────────────────────────────────────────────────────────
 function ResumeHelper() {
+  const [uploadedFile, setUploadedFile] = useState(null);
+
   const { getToken } = useAuth(); // Clerk auth — same hook used in Analytics.jsx
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -281,6 +283,7 @@ function ResumeHelper() {
   // When a file is dropped, read it and extract the text so we can display it
   const handleFileAccepted = useCallback(async (file) => {
     setFileName(file.name);
+    setUploadedFile(file);
     setAiScore(null); // reset AI results when a new file comes in
     setMetrics(null);
     setFeedback([]);
@@ -308,6 +311,7 @@ function ResumeHelper() {
   const handleClear = () => {
     setResumeText("");
     setFileName("");
+    setUploadedFile(null);
     setAiScore(null);
     setMetrics(null);
     setFeedback([]);
@@ -442,6 +446,23 @@ function ResumeHelper() {
     try {
       const token = await getToken({ skipCache: true });
 
+      const formData = new FormData();
+      formData.append("file", uploadedFile);
+      formData.append("resume_text", resumeText);
+      if (selectedJobId) formData.append("job_id", selectedJobId);
+
+      const res = await fetch(`${BASE}/resume/save`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Save failed");
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+
       // ── Uncomment once Ronald's endpoint is ready ─────────────────────────
       // const res = await fetch(`${BASE}/resume/save`, {
       //   method: "POST",
@@ -461,10 +482,10 @@ function ResumeHelper() {
       // ── End real call ─────────────────────────────────────────────────────
 
       // ── TEMPORARY placeholder ─────────────────────────────────────────────
-      console.log("Auth token ready for POST /resume/save:", !!token);
-      await new Promise((r) => setTimeout(r, 800));
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      //console.log("Auth token ready for POST /resume/save:", !!token);
+      //await new Promise((r) => setTimeout(r, 800));
+      //setSaveSuccess(true);
+      //setTimeout(() => setSaveSuccess(false), 3000);
       // ── End placeholder ───────────────────────────────────────────────────
     } catch (err) {
       console.error("Resume save failed:", err);
@@ -764,7 +785,7 @@ function ResumeHelper() {
                 {/* Save to backend — S2-024 */}
                 <button
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving} //|| resumeText.trim() || !uploadedFile}
                   style={{
                     display: "flex",
                     alignItems: "center",
