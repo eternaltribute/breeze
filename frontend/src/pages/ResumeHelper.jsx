@@ -281,31 +281,44 @@ function ResumeHelper() {
 
   // ── Handle file upload ─────────────────────────────────────────────────────
   // When a file is dropped, read it and extract the text so we can display it
-  const handleFileAccepted = useCallback(async (file) => {
-    setFileName(file.name);
-    setUploadedFile(file);
-    setAiScore(null); // reset AI results when a new file comes in
-    setMetrics(null);
-    setFeedback([]);
+  const handleFileAccepted = useCallback(
+    async (file) => {
+      setFileName(file.name);
+      setUploadedFile(file);
+      setAiScore(null); // reset AI results when a new file comes in
+      setMetrics(null);
+      setFeedback([]);
 
-    if (file.name.endsWith(".docx")) {
-      // mammoth converts DOCX binary format into plain text
-      // Analogy: mammoth is like a translator that reads Word files and gives us the words
-      const arrayBuffer = await file.arrayBuffer(); // read raw file bytes into memory
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      setResumeText(result.value);
-    } else if (file.name.endsWith(".pdf")) {
-      // PDF text extraction needs a backend call — mammoth only handles DOCX
-      // TODO (Ronald): implement POST /resume/parse-pdf
-      //   accepts: multipart form with the PDF file
-      //   returns: { text: string }
-      setResumeText(
-        "PDF text extraction requires the backend endpoint.\n\n" +
-          "For now, please paste your resume text directly into this editor.\n\n" +
-          "Ronald: TODO — POST /resume/parse-pdf"
-      );
-    }
-  }, []);
+      if (file.name.endsWith(".docx")) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        setResumeText(result.value);
+      } else if (file.name.endsWith(".pdf")) {
+        try {
+          const token = await getToken({ skipCache: true });
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const res = await fetch(`${BASE}/resume/parse-pdf`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          });
+
+          if (!res.ok) throw new Error("PDF parsing failed");
+
+          const data = await res.json();
+          setResumeText(data.text);
+        } catch (err) {
+          console.error("PDF parse error:", err);
+          setResumeText(
+            "Could not extract text from this PDF. Please paste your resume text directly."
+          );
+        }
+      }
+    },
+    [getToken]
+  );
 
   // ── Clear everything ───────────────────────────────────────────────────────
   const handleClear = () => {
