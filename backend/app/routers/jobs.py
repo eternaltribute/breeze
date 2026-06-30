@@ -134,6 +134,12 @@ def delete_job(
     job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    # Delete linked job_events first to avoid foreign key violation
+    events = db.exec(select(JobEvent).where(JobEvent.job_id == job_id)).all()
+    for event in events:
+        db.delete(event)
+
     db.delete(job)
     db.commit()
     return Response(status_code=204)
