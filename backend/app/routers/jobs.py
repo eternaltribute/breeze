@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Field, Session, select
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -32,6 +32,7 @@ class JobUpdate(BaseModel):
     job_url: Optional[str] = None
     salary_range: Optional[str] = None
     notes: Optional[str] = None
+    interview_round: Optional[int] = Field(default=None)
 
 
 class JobReminderCount(BaseModel):
