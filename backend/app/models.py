@@ -160,3 +160,15 @@ class Resume(SQLModel, table=True):
     resume_text: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CoverLetter(SQLModel, table=True):
+    __tablename__ = "cover_letters"
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
+    job_id: str = Field(foreign_key="jobs.id", nullable=False, index=True)
+    cover_letter_text: str
+    file_name: Optional[str] = Field(default=None)
+    file_url: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
