@@ -217,3 +217,84 @@ describe("canSave — S2-024", () => {
     expect(canSave("My resume text", true)).toBe(false);
   });
 });
+
+// ── S2-021: Generate Tailored Resume from Job — helper functions ─────────────
+// These mirror the logic in GenerateFromProfileCard and the empty-state
+// chooser added to ResumeHelper.jsx.
+
+// canGenerateForJob: mirrors the Generate button's disabled logic.
+// Requires a job to be selected, and blocks double-clicks while in flight.
+function canGenerateForJob(selectedJobId, isGenerating) {
+  return Boolean(selectedJobId) && !isGenerating;
+}
+
+// shouldShowChooser: mirrors which screen renders at the top of the page —
+// the three-card chooser (Upload / Generate / AI Review) when there's no
+// resume text yet, or the full editor once there is.
+function shouldShowChooser(resumeText) {
+  return !resumeText || resumeText.trim().length === 0;
+}
+
+// hasNoJobsAvailable: mirrors the "Add a job on your Dashboard first" hint
+// shown under the Generate button when the user has no jobs to pick from.
+function hasNoJobsAvailable(jobs) {
+  return jobs.length === 0;
+}
+
+// formatJobOptionLabel: mirrors the "{title} — {company}" text shown for
+// each option in the job dropdown.
+function formatJobOptionLabel(job) {
+  return `${job.title} — ${job.company}`;
+}
+
+describe("canGenerateForJob — S2-021, S2-BR-018", () => {
+  it("returns true when a job is selected and not currently generating", () => {
+    expect(canGenerateForJob("job-123", false)).toBe(true);
+  });
+
+  it("returns false when no job is selected", () => {
+    // Can't generate a tailored resume without knowing which job to tailor it to
+    expect(canGenerateForJob("", false)).toBe(false);
+  });
+
+  it("returns false while already generating", () => {
+    // Prevents double-clicking the generate button
+    expect(canGenerateForJob("job-123", true)).toBe(false);
+  });
+});
+
+describe("shouldShowChooser — empty-state layout", () => {
+  it("returns true when resumeText is an empty string", () => {
+    expect(shouldShowChooser("")).toBe(true);
+  });
+
+  it("returns true when resumeText is only whitespace", () => {
+    expect(shouldShowChooser("   ")).toBe(true);
+  });
+
+  it("returns false once resumeText has real content", () => {
+    expect(shouldShowChooser("John Doe\nSoftware Engineer")).toBe(false);
+  });
+});
+
+describe("hasNoJobsAvailable — Generate card empty state", () => {
+  it("returns true when the user has no jobs yet", () => {
+    expect(hasNoJobsAvailable([])).toBe(true);
+  });
+
+  it("returns false when the user has at least one job", () => {
+    expect(hasNoJobsAvailable([{ id: "1", title: "SWE", company: "Acme" }])).toBe(false);
+  });
+});
+
+describe("formatJobOptionLabel — job dropdown display", () => {
+  it("formats title and company with an em dash separator", () => {
+    const job = { id: "1", title: "Frontend Engineer", company: "Google" };
+    expect(formatJobOptionLabel(job)).toBe("Frontend Engineer — Google");
+  });
+
+  it("handles a different title/company pair correctly", () => {
+    const job = { id: "2", title: "Backend Intern", company: "Stripe" };
+    expect(formatJobOptionLabel(job)).toBe("Backend Intern — Stripe");
+  });
+});
