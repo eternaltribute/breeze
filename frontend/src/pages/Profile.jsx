@@ -37,6 +37,7 @@ const initialProfile = {
   phone: "",
   summary: "",
 };
+const CUSTOM_SKILL_VALUE = "__custom__";
 
 function SortableExperience({ exp, children }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
@@ -113,6 +114,7 @@ function SortableSkillRow({
     // Sit on top of other rows while dragging
     zIndex: isDragging ? 10 : "auto",
   };
+
   return (
     <div
       ref={setNodeRef}
@@ -369,6 +371,9 @@ function Profile() {
   const [skillError, setSkillError] = useState("");
   const [skillsSaved, setSkillsSaved] = useState(false);
 
+  // user to input skill
+  const [isCustomSkill, setIsCustomSkill] = useState(false);
+
   // editingSkillId: stores the id of the skill row currently in edit mode.
   // null means no row is being edited. Think of it as "which flashcard is flipped over right now"
   const [editingSkillId, setEditingSkillId] = useState(null);
@@ -385,16 +390,31 @@ function Profile() {
   // ── Skill categories for the dropdowns ───────────────────────────────────
   const skillCategories = [
     {
-      label: "Frontend",
-      skills: ["HTML", "CSS", "JavaScript", "React", "TypeScript", "Tailwind CSS"],
+      label: "Design",
+      skills: [
+        "Graphic Design",
+        "Brand Identity",
+        "Typography",
+        "Layout Design",
+        "Print Design",
+        "Packaging Design",
+      ],
     },
     {
-      label: "Backend",
-      skills: ["Python", "Node.js", "Java", "FastAPI", "Express", "PostgreSQL"],
+      label: "Creative Tools",
+      skills: ["Adobe Photoshop", "Adobe Illustrator", "Adobe InDesign", "Figma", "Canva"],
     },
     {
-      label: "Tools",
-      skills: ["Git", "Docker", "GitHub Actions", "Figma", "Vite", "VS Code"],
+      label: "Marketing",
+      skills: ["Social Media Design", "Content Creation", "Email Campaigns", "SEO", "Copywriting"],
+    },
+    {
+      label: "Business",
+      skills: ["Customer Service", "Project Management", "Sales", "Data Entry", "Scheduling"],
+    },
+    {
+      label: "Technology",
+      skills: ["HTML", "CSS", "JavaScript", "React", "Python", "PostgreSQL"],
     },
   ];
 
@@ -466,15 +486,28 @@ function Profile() {
 
   // ── Add / Delete handlers (unchanged from before) ────────────────────────
   const handleAddSkill = () => {
-    if (!newSkill.name) return;
-    if (skills.some((s) => s.name === newSkill.name)) {
+    const skillToAdd = {
+      ...newSkill,
+      name: newSkill.name.trim(),
+      category: newSkill.category.trim() || "Other",
+    };
+
+    if (!skillToAdd.name) return;
+
+    const isDuplicate = skills.some(
+      (s) => s.name.trim().toLowerCase() === skillToAdd.name.toLowerCase()
+    );
+
+    if (isDuplicate) {
       setSkillError("That skill is already in your list.");
       return;
     }
+
     setSkillError("");
     setSkillsSaved(false);
-    setSkills([...skills, { id: Date.now(), ...newSkill }]);
+    setSkills([...skills, { id: Date.now(), ...skillToAdd }]);
     setNewSkill({ name: "", category: "", proficiency: "" });
+    setIsCustomSkill(false);
   };
 
   const handleDeleteSkill = async (id) => {
@@ -1520,11 +1553,19 @@ function Profile() {
             ─────────────────────────────────────────────────────────────── */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
               <select
-                value={newSkill.name}
+                value={isCustomSkill ? CUSTOM_SKILL_VALUE : newSkill.name}
                 disabled={isAnyEditing}
                 onChange={(e) => {
                   const val = e.target.value;
+
+                  if (val === CUSTOM_SKILL_VALUE) {
+                    setIsCustomSkill(true);
+                    setNewSkill({ ...newSkill, name: "", category: "" });
+                    return;
+                  }
+
                   const cat = skillCategories.find((c) => c.skills.includes(val))?.label ?? "";
+                  setIsCustomSkill(false);
                   setNewSkill({ ...newSkill, name: val, category: cat });
                 }}
                 style={{
@@ -1534,6 +1575,7 @@ function Profile() {
                 }}
               >
                 <option value="">Select a skill...</option>
+
                 {skillCategories.map((group) => (
                   <optgroup key={group.label} label={group.label}>
                     {group.skills.map((s) => (
@@ -1543,7 +1585,34 @@ function Profile() {
                     ))}
                   </optgroup>
                 ))}
+
+                <option value={CUSTOM_SKILL_VALUE}>Custom skill...</option>
               </select>
+
+              {isCustomSkill && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Custom skill"
+                    value={newSkill.name}
+                    disabled={isAnyEditing}
+                    onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
+                    style={inputStyle}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Category"
+                    value={newSkill.category}
+                    disabled={isAnyEditing}
+                    onChange={(e) => setNewSkill({ ...newSkill, category: e.target.value })}
+                    style={{
+                      ...inputStyle,
+                      maxWidth: "180px",
+                    }}
+                  />
+                </>
+              )}
 
               <select
                 value={newSkill.proficiency}
@@ -1601,7 +1670,7 @@ function Profile() {
                   marginTop: "8px",
                 }}
               >
-                Choose both a skill and proficiency before adding.
+                Choose a skill and proficiency, then click + Add before saving.
               </p>
             ) : null}
             {skillError && (
