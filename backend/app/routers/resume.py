@@ -73,3 +73,38 @@ async def save_resume(
     db.refresh(record)
 
     return {"document_id": record.id, "file_url": file_url}
+
+
+@router.post("/parse-pdf")
+async def parse_pdf(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Extract text from an uploaded PDF file."""
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="File must be a PDF")
+
+    file_bytes = await file.read()
+
+    try:
+        import io
+
+        import pypdf
+
+        reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() or ""
+
+        if not text.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="Could not extract text from PDF. Try pasting text directly.",
+            )
+
+        return {"text": text.strip()}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF parsing failed: {str(e)}")
