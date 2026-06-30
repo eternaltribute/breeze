@@ -15,6 +15,13 @@
 // AI calls — ALL go through Ronald's FastAPI backend. Never call Anthropic directly.
 // The Anthropic API key lives in backend environment variables only.
 //
+// Supported upload formats: PDF, DOCX, and TXT.
+//   - DOCX is parsed client-side with mammoth (no backend call needed).
+//   - TXT is read directly client-side via the browser's built-in file.text()
+//     — plain text doesn't need any parsing library, it's already just text.
+//   - PDF still requires a backend call (see TODO below) since PDF binary
+//     format can't be read as plain text in the browser.
+//
 // TODOs for Ronald:
 //   POST /resume/analyze  — accepts { resume_text: string, job_id?: string }
 //                           returns  {
@@ -32,6 +39,8 @@
 //                           returns  { improved_text: string }
 //   POST /resume/save     — accepts { resume_text: string, job_id?: string }
 //                           returns  { document_id: string }
+//   POST /resume/parse-pdf — accepts multipart form with the PDF file
+//                            returns { text: string }
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useCallback, useEffect } from "react";
@@ -188,13 +197,18 @@ function FeedbackItem({ section, tip }) {
 // UploadZone — drag-and-drop file upload area
 // Analogy: the physical inbox tray on a desk — you drop your document in here
 // Uses react-dropzone which handles all the browser drag-and-drop events for us
+//
+// S2-011-adjacent change: now accepts .txt in addition to PDF and DOCX.
 // ─────────────────────────────────────────────────────────────────────────────
 function UploadZone({ onFileAccepted }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
-      // Only PDF and DOCX are allowed per S2 document handling rules (PRD §4.4)
+      // PDF, DOCX, and TXT are accepted (PDF/DOCX per PRD §4.4; TXT added
+      // since it's trivial to read in the browser and gives users a fast
+      // path when they already have a plain-text resume).
       "application/pdf": [".pdf"],
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+      "text/plain": [".txt"],
     },
     maxFiles: 1,
     onDropAccepted: (files) => onFileAccepted(files[0]),
@@ -232,7 +246,7 @@ function UploadZone({ onFileAccepted }) {
         {isDragActive ? "Drop your resume here" : "Upload your resume"}
       </p>
       <p style={{ margin: 0, fontSize: "13px", color: "var(--color-subtext, #6b7280)" }}>
-        Drag and drop, or click to browse — PDF or DOCX only
+        Drag and drop, or click to browse — PDF, DOCX, or TXT
       </p>
     </div>
   );
@@ -281,6 +295,9 @@ function ResumeHelper() {
 
   // ── Handle file upload ─────────────────────────────────────────────────────
   // When a file is dropped, read it and extract the text so we can display it
+  //
+  // Three branches now: .docx (mammoth), .txt (built-in file.text()), .pdf
+  // (needs backend — browsers can't read PDF binary as plain text).
   const handleFileAccepted = useCallback(async (file) => {
     setFileName(file.name);
     setUploadedFile(file);
@@ -294,8 +311,16 @@ function ResumeHelper() {
       const arrayBuffer = await file.arrayBuffer(); // read raw file bytes into memory
       const result = await mammoth.extractRawText({ arrayBuffer });
       setResumeText(result.value);
+    } else if (file.name.endsWith(".txt")) {
+      // Plain text files don't need any parsing/translation — they're
+      // already just words. file.text() is a built-in browser method that
+      // reads the file's raw bytes straight into a string. No library needed.
+      const text = await file.text();
+      setResumeText(text);
     } else if (file.name.endsWith(".pdf")) {
-      // PDF text extraction needs a backend call — mammoth only handles DOCX
+      // PDF text extraction needs a backend call — mammoth only handles DOCX,
+      // and there's no built-in browser equivalent for PDF binary like there
+      // is for plain text.
       // TODO (Ronald): implement POST /resume/parse-pdf
       //   accepts: multipart form with the PDF file
       //   returns: { text: string }
@@ -503,7 +528,7 @@ function ResumeHelper() {
     const url = URL.createObjectURL(blob); // temporary browser download URL
     const a = document.createElement("a"); // invisible link element
     a.href = url;
-    a.download = fileName ? fileName.replace(/\.(pdf|docx)$/i, ".txt") : "resume.txt";
+    a.download = fileName ? fileName.replace(/\.(pdf|docx|txt)$/i, ".txt") : "resume.txt";
     a.click();
     URL.revokeObjectURL(url); // clean up memory after download triggers
   };
