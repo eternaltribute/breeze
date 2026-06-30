@@ -49,8 +49,6 @@ class JobEvent(SQLModel, table=True):
     # Shared across event types
     notes: Optional[str] = Field(default=None)
 
-    interview_round: Optional[int] = Field(default=None)
-
 
 class Job(SQLModel, table=True):
     __tablename__ = "jobs"
@@ -71,7 +69,7 @@ class Job(SQLModel, table=True):
     job_url: Optional[str] = Field(default=None)
     salary_range: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
-
+    interview_round: Optional[int] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
