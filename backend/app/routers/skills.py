@@ -69,8 +69,13 @@ def save_user_skills(
 
     for item in payload.skills:
         skill = db.exec(select(Skill).where(Skill.name == item.name)).first()
+
         if not skill:
-            raise HTTPException(status_code=400, detail=f"Unknown skill: '{item.name}'")
+            skill = Skill(name=item.name)
+            db.add(skill)
+            db.flush()
+            db.refresh(skill)
+
         db.add(
             UserSkill(
                 user_id=user.id,
