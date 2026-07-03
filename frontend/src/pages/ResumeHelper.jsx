@@ -719,36 +719,17 @@ function ResumeHelper() {
     setGeneratingForJob(true);
     try {
       const token = await getToken({ skipCache: true });
-
-      // ── Uncomment once Ronald's endpoint is ready ─────────────────────────
-      // const res = await fetch(`${BASE}/resume/generate-for-job`, {
-      //   method: "POST",
-      //   headers: {
-      //     Authorization: `Bearer ${token}`,
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({ job_id: selectedJobId }),
-      // });
-      // if (!res.ok) throw new Error("Generate failed");
-      // const data = await res.json();
-      // setResumeText(data.resume_text); // drops the draft straight into the editor
-      // ── End real call ─────────────────────────────────────────────────────
-
-      // ── TEMPORARY placeholder — remove once Ronald's endpoint is live ─────
-      // Lets us build and demo this UI before the backend route exists.
-      console.log(
-        "Auth token ready for POST /resume/generate-for-job:",
-        !!token,
-        "job:",
-        selectedJobId
-      );
-      await new Promise((r) => setTimeout(r, 1200)); // simulate network delay
-      setResumeText(
-        "[Placeholder draft — Ronald's POST /resume/generate-for-job isn't live yet]\n\n" +
-          "Once connected, this will replace this text with a resume drafted from your " +
-          "profile (experience, education, skills) tailored to the selected job's posting."
-      );
-      // ── End placeholder ───────────────────────────────────────────────────
+      const res = await fetch(`${BASE}/resume/generate-for-job`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: selectedJobId }),
+      });
+      if (!res.ok) throw new Error("Generate failed");
+      const data = await res.json();
+      setResumeText(data.resume_text);
     } catch (err) {
       console.error("Resume generation for job failed:", err);
     } finally {
@@ -769,31 +750,21 @@ function ResumeHelper() {
     setImproving(true);
     try {
       const token = await getToken({ skipCache: true });
-
-      // ── Uncomment once Ronald's endpoint is ready ─────────────────────────
-      // const res = await fetch(`${BASE}/resume/improve`, {
-      //   method: "POST",
-      //   headers: {
-      //     Authorization: `Bearer ${token}`,
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     resume_text: resumeText,
-      //     instruction: improveInstruction,
-      //   }),
-      // });
-      // const data = await res.json();
-      // setResumeText(data.improved_text); // replace editor content with improved version
-      // ── End real call ─────────────────────────────────────────────────────
-
-      // ── TEMPORARY placeholder ─────────────────────────────────────────────
-      console.log("Auth token ready for POST /resume/improve:", !!token);
-      console.log("Instruction:", improveInstruction);
-      await new Promise((r) => setTimeout(r, 1000));
-      // Prepend a note so the user can see the "improvement" happened
-      setResumeText(`[AI improved: "${improveInstruction}"]\n\n` + resumeText);
-      setImproveInstruction(""); // clear the instruction box after success
-      // ── End placeholder ───────────────────────────────────────────────────
+      const res = await fetch(`${BASE}/resume/improve`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          resume_text: resumeText,
+          instruction: improveInstruction,
+        }),
+      });
+      if (!res.ok) throw new Error("Improve failed");
+      const data = await res.json();
+      setResumeText(data.improved_text);
+      setImproveInstruction("");
     } catch (err) {
       console.error("Resume improve failed:", err);
     } finally {
@@ -804,8 +775,6 @@ function ResumeHelper() {
   // ── S2-024: Save resume as a document linked to a job ─────────────────────
   // Saves the current resume text as a Document record in the database,
   // optionally linked to a specific job application.
-  //
-  // TODO (Ronald): implement POST /resume/save
   //   Request:  { resume_text: string, job_id?: string }
   //   Response: { document_id: string }
   const handleSave = async () => {
@@ -815,7 +784,13 @@ function ResumeHelper() {
       const token = await getToken({ skipCache: true });
 
       const formData = new FormData();
-      formData.append("file", uploadedFile);
+      if (uploadedFile) {
+        formData.append("file", uploadedFile);
+      } else {
+        // Generate a text blob as the file when no file was uploaded
+        const blob = new Blob([resumeText], { type: "text/plain" });
+        formData.append("file", blob, "resume.txt");
+      }
       formData.append("resume_text", resumeText);
       if (selectedJobId) formData.append("job_id", selectedJobId);
 
