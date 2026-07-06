@@ -77,6 +77,32 @@ async def save_resume(
     return {"document_id": record.id, "file_url": file_url}
 
 
+@router.get("/job/{job_id}")
+def get_resume_for_job(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+
+    record = db.exec(
+        select(Resume)
+        .where(Resume.job_id == job_id)
+        .where(Resume.user_id == user_id)
+        .order_by(Resume.updated_at.desc())
+    ).first()
+
+    if not record:
+        raise HTTPException(status_code=404, detail="No resume found")
+
+    return {
+        "document_id": record.id,
+        "resume_text": record.resume_text,
+        "file_name": record.file_name,
+        "file_url": record.file_url,
+    }
+
+
 @router.post("/parse-pdf")
 async def parse_pdf(
     file: UploadFile = File(...),
