@@ -11,6 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useUser, useAuth } from "@clerk/clerk-react";
+import { FileText, Mail } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -43,6 +44,8 @@ function fromApi(job) {
     lastActivity: (job.updated_at ?? job.created_at)?.split("T")[0] ?? "",
     deadline: job.deadline ?? "",
     createdAt: job.created_at?.split("T")[0] ?? "",
+    resumeCount: Number(job.resume_count ?? job.resumeCount ?? 0),
+    coverLetterCount: Number(job.cover_letter_count ?? job.coverLetterCount ?? 0),
   };
 }
 
@@ -101,6 +104,8 @@ function JobCard({
   stage,
   lastActivity,
   reminderCount,
+  resumeCount,
+  coverLetterCount,
   onEdit,
   onDelete,
 }) {
@@ -293,20 +298,68 @@ function JobCard({
       )}
 
       {/* ── Edit button ───────────────────────────────────────────────────── */}
-      <button
-        onClick={onEdit}
-        style={{
-          backgroundColor: "#003C78",
-          color: "white",
-          border: "none",
-          borderRadius: "8px",
-          padding: "8px 12px",
-          cursor: "pointer",
-          alignSelf: "flex-start",
-        }}
-      >
-        View
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        <button
+          onClick={onEdit}
+          style={{
+            backgroundColor: "#003C78",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            padding: "8px 12px",
+            cursor: "pointer",
+            alignSelf: "flex-start",
+          }}
+        >
+          View
+        </button>
+
+        {resumeCount > 0 && (
+          <span
+            title={`${resumeCount} resume attached`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              border: "1px solid #BBF7D0",
+              backgroundColor: "#F0FDF4",
+              color: "#166534",
+              borderRadius: "999px",
+              padding: "6px 10px",
+              fontSize: "12px",
+              fontWeight: 700,
+              lineHeight: 1,
+            }}
+          >
+            <FileText size={14} aria-hidden="true" />
+            <span>{resumeCount}</span>
+            <span>resume</span>
+          </span>
+        )}
+
+        {coverLetterCount > 0 && (
+          <span
+            title={`${coverLetterCount} cover letter attached`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              border: "1px solid #BFDBFE",
+              backgroundColor: "#EFF6FF",
+              color: "#003C78",
+              borderRadius: "999px",
+              padding: "6px 10px",
+              fontSize: "12px",
+              fontWeight: 700,
+              lineHeight: 1,
+            }}
+          >
+            <Mail size={14} aria-hidden="true" />
+            <span>{coverLetterCount}</span>
+            <span>letter</span>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -322,6 +375,8 @@ function Dashboard() {
   // Full job list from the API — never changes after fetch
   const [jobs, setJobs] = useState([]);
   const [remindersByJob, setRemindersByJob] = useState({});
+  const [resumesByJob, setResumesByJob] = useState({});
+  const [coverLettersByJob, setCoverLettersByJob] = useState({});
   // S2-001: search box text
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -370,7 +425,53 @@ function Dashboard() {
         });
         if (res.ok) {
           const data = await res.json();
-          setJobs(data.map(fromApi));
+          const mappedJobs = data.map(fromApi);
+          setJobs(mappedJobs);
+
+          const resumeResults = await Promise.all(
+            mappedJobs.map(async (job) => {
+              if (job.resumeCount > 0) return [job.id, job.resumeCount];
+
+              try {
+                const resumeRes = await fetch(`${BASE}/resume/job/${job.id}`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (resumeRes.status === 404 || !resumeRes.ok) return [job.id, 0];
+
+                const resumeData = await resumeRes.json().catch(() => null);
+                const count = resumeData?.resume_text?.trim() || resumeData?.file_url ? 1 : 0;
+                return [job.id, count];
+              } catch (err) {
+                console.error("Failed to fetch resume count:", err);
+                return [job.id, 0];
+              }
+            })
+          );
+
+          const coverLetterResults = await Promise.all(
+            mappedJobs.map(async (job) => {
+              if (job.coverLetterCount > 0) return [job.id, job.coverLetterCount];
+
+              try {
+                const coverLetterRes = await fetch(`${BASE}/cover-letter/job/${job.id}`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (coverLetterRes.status === 404 || !coverLetterRes.ok) return [job.id, 0];
+
+                const coverLetterData = await coverLetterRes.json().catch(() => null);
+                const count = coverLetterData?.cover_letter_text?.trim() ? 1 : 0;
+                return [job.id, count];
+              } catch (err) {
+                console.error("Failed to fetch cover letter count:", err);
+                return [job.id, 0];
+              }
+            })
+          );
+
+          setResumesByJob(Object.fromEntries(resumeResults));
+          setCoverLettersByJob(Object.fromEntries(coverLetterResults));
         }
       } catch (err) {
         console.error("Failed to fetch jobs:", err);
@@ -709,6 +810,8 @@ function Dashboard() {
             key={job.id}
             {...job}
             reminderCount={remindersByJob[job.id] ?? 0}
+            resumeCount={resumesByJob[job.id] ?? job.resumeCount ?? 0}
+            coverLetterCount={coverLettersByJob[job.id] ?? job.coverLetterCount ?? 0}
             onEdit={() => handleEditJob(job)}
             onDelete={handleDeleteJob}
           />
