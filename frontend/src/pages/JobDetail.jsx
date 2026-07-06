@@ -1779,7 +1779,6 @@ function JobDetail() {
                 placeholder="Any personal notes about this application…"
               />
             </div>
-
           </div>
 
           {/* ── S2-010: Activity Timeline ──────────────────────────────── */}
@@ -1833,7 +1832,6 @@ function JobDetail() {
                 placeholder="Recruiter name, email, LinkedIn, phone, notes from calls…"
               />
             </div>
-
           </div>
           <FollowUpSection
             jobId={id}

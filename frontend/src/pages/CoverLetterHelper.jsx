@@ -186,11 +186,16 @@ function getReview(draft) {
   const hasGreeting = /^(dear|hello|hi)\b/i.test(text);
   const hasClosing = /(sincerely|best regards|thank you|regards),?/i.test(text);
   const hasCompanyMention = /\b(company|team|role|position|opportunity)\b/i.test(text);
-  const hasSpecifics = /\b(project|experience|skills|built|led|created|developed|managed)\b/i.test(text);
+  const hasSpecifics = /\b(project|experience|skills|built|led|created|developed|managed)\b/i.test(
+    text
+  );
   const hasAction = /\b(interview|discuss|speak|connect|next steps)\b/i.test(text);
 
   const metrics = {
-    structure: Math.min(20, (hasGreeting ? 8 : 0) + (hasClosing ? 8 : 0) + (wordCount > 120 ? 4 : 0)),
+    structure: Math.min(
+      20,
+      (hasGreeting ? 8 : 0) + (hasClosing ? 8 : 0) + (wordCount > 120 ? 4 : 0)
+    ),
     personalization: Math.min(20, (hasCompanyMention ? 10 : 0) + (hasSpecifics ? 10 : 0)),
     clarity: wordCount >= 160 && wordCount <= 420 ? 20 : wordCount > 80 ? 14 : 8,
     tone: /!{2,}|\bvery very\b/i.test(text) ? 12 : 18,
@@ -200,16 +205,24 @@ function getReview(draft) {
   const score = Object.values(metrics).reduce((sum, value) => sum + value, 0);
   const feedback = [];
   if (!hasGreeting) feedback.push("Add a direct greeting so the letter opens professionally.");
-  if (!hasCompanyMention) feedback.push("Mention the company, team, role, or opportunity more directly.");
-  if (!hasSpecifics) feedback.push("Add one concrete experience or skill that connects you to the job.");
-  if (wordCount < 160) feedback.push("Expand the draft with a short body paragraph that shows fit.");
+  if (!hasCompanyMention)
+    feedback.push("Mention the company, team, role, or opportunity more directly.");
+  if (!hasSpecifics)
+    feedback.push("Add one concrete experience or skill that connects you to the job.");
+  if (wordCount < 160)
+    feedback.push("Expand the draft with a short body paragraph that shows fit.");
   if (wordCount > 420) feedback.push("Trim the draft so the strongest points are easier to scan.");
-  if (!hasAction) feedback.push("Close with a clear next step, such as interest in an interview or conversation.");
+  if (!hasAction)
+    feedback.push(
+      "Close with a clear next step, such as interest in an interview or conversation."
+    );
 
   return {
     score,
     metrics,
-    feedback: feedback.length ? feedback : ["Strong draft. Consider one final pass for job-specific keywords."],
+    feedback: feedback.length
+      ? feedback
+      : ["Strong draft. Consider one final pass for job-specific keywords."],
   };
 }
 
@@ -245,7 +258,13 @@ function CoverLetterReviewPanel({ draft, sticky = false }) {
   const review = useMemo(() => getReview(draft), [draft]);
 
   return (
-    <div style={{ ...panelStyle, padding: "24px", ...(sticky ? { position: "sticky", top: "24px" } : {}) }}>
+    <div
+      style={{
+        ...panelStyle,
+        padding: "24px",
+        ...(sticky ? { position: "sticky", top: "24px" } : {}),
+      }}
+    >
       <h2
         style={{
           display: "flex",
@@ -266,7 +285,9 @@ function CoverLetterReviewPanel({ draft, sticky = false }) {
       </p>
 
       {review.score === null ? (
-        <div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-subtext, #9ca3af)" }}>
+        <div
+          style={{ textAlign: "center", padding: "24px 0", color: "var(--color-subtext, #9ca3af)" }}
+        >
           <FileText size={32} style={{ marginBottom: "8px", opacity: 0.4 }} />
           <p style={{ fontSize: "13px", margin: 0 }}>No cover letter draft yet</p>
         </div>
@@ -284,7 +305,13 @@ function CoverLetterReviewPanel({ draft, sticky = false }) {
             >
               {review.score}
             </p>
-            <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "12px", margin: "6px 0 0" }}>
+            <p
+              style={{
+                color: "var(--color-subtext, #6b7280)",
+                fontSize: "12px",
+                margin: "6px 0 0",
+              }}
+            >
               Draft Score
             </p>
           </div>
@@ -849,7 +876,9 @@ function CoverLetterHelper() {
 
                 <button
                   onClick={handleImprove}
-                  disabled={!selectedJobId || !draft.trim() || !improveInstruction.trim() || improving}
+                  disabled={
+                    !selectedJobId || !draft.trim() || !improveInstruction.trim() || improving
+                  }
                   style={{
                     padding: "10px 16px",
                     borderRadius: "8px",
@@ -926,7 +955,8 @@ function CoverLetterHelper() {
                   padding: "10px 18px",
                   borderRadius: "8px",
                   border: "none",
-                  backgroundColor: !draft.trim() || !selectedJobId || saving ? "#9ca3af" : "#003C78",
+                  backgroundColor:
+                    !draft.trim() || !selectedJobId || saving ? "#9ca3af" : "#003C78",
                   color: "white",
                   fontWeight: 700,
                   cursor: !draft.trim() || !selectedJobId || saving ? "not-allowed" : "pointer",
