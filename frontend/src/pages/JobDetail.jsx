@@ -944,6 +944,228 @@ function TimelineSection({ jobId, getToken, refreshKey }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // JobDetail — main page component
 // ─────────────────────────────────────────────────────────────────────────────
+// Shows whether a resume has been saved for this job.
+function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
+  const [loading, setLoading] = useState(true);
+  const [resume, setResume] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchResume = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/resume/job/${jobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.status === 404) {
+          setResume(null);
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.detail || "Failed to load resume");
+
+        setResume(data);
+      } catch (err) {
+        console.error("Failed to load resume status:", err);
+        setError("Could not check resume status.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchResume();
+  }, [jobId, getToken]);
+
+  const hasResume = Boolean(resume?.resume_text?.trim() || resume?.file_url);
+  const preview = resume?.resume_text?.trim()
+    ? resume.resume_text.trim().replace(/\s+/g, " ").slice(0, 120)
+    : resume?.file_name || "";
+
+  return (
+    <div style={panelStyle}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 700,
+          color: "var(--color-heading, #003C78)",
+          marginTop: 0,
+          marginBottom: "8px",
+        }}
+      >
+        Resume
+      </h2>
+
+      {loading ? (
+        <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
+          Checking saved resume...
+        </p>
+      ) : error ? (
+        <p style={{ color: "#DC2626", fontSize: "13px", margin: 0 }}>{error}</p>
+      ) : hasResume ? (
+        <>
+          <div
+            style={{
+              border: "1px solid #BBF7D0",
+              backgroundColor: "#F0FDF4",
+              color: "#166534",
+              borderRadius: "8px",
+              padding: "10px 12px",
+              fontSize: "13px",
+              fontWeight: 700,
+              marginBottom: "12px",
+            }}
+          >
+            Saved resume found
+          </div>
+          {preview && (
+            <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
+              {preview}
+              {resume?.resume_text?.length > 120 ? "..." : ""}
+            </p>
+          )}
+        </>
+      ) : (
+        <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
+          No resume has been saved to this job yet.
+        </p>
+      )}
+
+      <button
+        onClick={onOpenHelper}
+        style={{
+          marginTop: "14px",
+          width: "100%",
+          padding: "10px 14px",
+          borderRadius: "8px",
+          border: "1px solid var(--color-border-default, #e5e7eb)",
+          backgroundColor: "transparent",
+          color: "var(--color-heading, #003C78)",
+          fontSize: "14px",
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        Open Resume Helper
+      </button>
+    </div>
+  );
+}
+
+// Shows whether a cover letter draft has been saved for this job.
+function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
+  const [loading, setLoading] = useState(true);
+  const [coverLetter, setCoverLetter] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchCoverLetter = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/cover-letter/job/${jobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.status === 404) {
+          setCoverLetter(null);
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.detail || "Failed to load cover letter");
+
+        setCoverLetter(data);
+      } catch (err) {
+        console.error("Failed to load cover letter status:", err);
+        setError("Could not check cover letter status.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCoverLetter();
+  }, [jobId, getToken]);
+
+  const hasDraft = Boolean(coverLetter?.cover_letter_text?.trim());
+  const preview = hasDraft
+    ? coverLetter.cover_letter_text.trim().replace(/\s+/g, " ").slice(0, 120)
+    : "";
+
+  return (
+    <div style={panelStyle}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 700,
+          color: "var(--color-heading, #003C78)",
+          marginTop: 0,
+          marginBottom: "8px",
+        }}
+      >
+        Cover Letter
+      </h2>
+
+      {loading ? (
+        <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
+          Checking saved draft...
+        </p>
+      ) : error ? (
+        <p style={{ color: "#DC2626", fontSize: "13px", margin: 0 }}>{error}</p>
+      ) : hasDraft ? (
+        <>
+          <div
+            style={{
+              border: "1px solid #BBF7D0",
+              backgroundColor: "#F0FDF4",
+              color: "#166534",
+              borderRadius: "8px",
+              padding: "10px 12px",
+              fontSize: "13px",
+              fontWeight: 700,
+              marginBottom: "12px",
+            }}
+          >
+            Saved draft found
+          </div>
+          <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
+            {preview}
+            {coverLetter.cover_letter_text.length > 120 ? "..." : ""}
+          </p>
+        </>
+      ) : (
+        <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
+          No cover letter draft has been saved to this job yet.
+        </p>
+      )}
+
+      <button
+        onClick={onOpenHelper}
+        style={{
+          marginTop: "14px",
+          width: "100%",
+          padding: "10px 14px",
+          borderRadius: "8px",
+          border: "1px solid var(--color-border-default, #e5e7eb)",
+          backgroundColor: "transparent",
+          color: "var(--color-heading, #003C78)",
+          fontSize: "14px",
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        Open Cover Letter Helper
+      </button>
+    </div>
+  );
+}
+
 function JobDetail() {
   const { id } = useParams(); // job id from the URL /jobs/:id
   const { getToken } = useAuth();
@@ -967,9 +1189,10 @@ function JobDetail() {
   const [salaryRange, setSalaryRange] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Overview save state
-  const [overviewSaving, setOverviewSaving] = useState(false);
-  const [overviewSaved, setOverviewSaved] = useState(false); // shows "Saved!" flash
+  // Job detail save state
+  const [jobDetailSaving, setJobDetailSaving] = useState(false);
+  const [jobDetailSaved, setJobDetailSaved] = useState(false);
+  const [jobDetailSaveError, setJobDetailSaveError] = useState("");
   const [overviewErrors, setOverviewErrors] = useState({}); // field-level errors (S2-BR-017)
 
   // ── S2-011: Interview round tracker ─────────────────────────────────────
@@ -982,9 +1205,7 @@ function JobDetail() {
   const [deadline, setDeadline] = useState("");
   const [recruiterNotes, setRecruiterNotes] = useState("");
 
-  // Deadline/recruiter save state
-  const [detailSaving, setDetailSaving] = useState(false);
-  const [detailSaved, setDetailSaved] = useState(false);
+  // Deadline/recruiter validation state
   const [detailErrors, setDetailErrors] = useState({});
 
   // ── Fetch job on mount ─────────────────────────────────────────────────────
@@ -1036,17 +1257,28 @@ function JobDetail() {
     return errors;
   };
 
-  // ── handleOverviewSave — saves core job fields (S2-006) ───────────────────
-  const handleOverviewSave = async () => {
-    // Validate first — show field errors without hitting the API (S2-BR-017)
-    const errors = validateOverview();
-    if (Object.keys(errors).length > 0) {
-      setOverviewErrors(errors);
+  // ── handleJobDetailSave — saves editable job detail fields together ──────
+  const handleJobDetailSave = async () => {
+    const overviewValidationErrors = validateOverview();
+    const detailValidationErrors = {};
+
+    // Validate deadline format if provided - must be a valid date
+    if (deadline && isNaN(Date.parse(deadline))) {
+      detailValidationErrors.deadline = "Please enter a valid date.";
+    }
+
+    setOverviewErrors(overviewValidationErrors);
+    setDetailErrors(detailValidationErrors);
+    setJobDetailSaveError("");
+
+    if (
+      Object.keys(overviewValidationErrors).length > 0 ||
+      Object.keys(detailValidationErrors).length > 0
+    ) {
       return;
     }
 
-    setOverviewErrors({});
-    setOverviewSaving(true);
+    setJobDetailSaving(true);
 
     try {
       const token = await getToken({ skipCache: true });
@@ -1065,6 +1297,10 @@ function JobDetail() {
           job_url: jobUrl.trim() || null,
           salary_range: salaryRange.trim() || null,
           notes: notes.trim() || null,
+          // TODO (Ronald): add deadline and recruiter_notes to JobUpdate model
+          // and Job SQLModel table. Until then this PUT may silently ignore them.
+          deadline: deadline || null,
+          recruiter_notes: recruiterNotes.trim() || null,
         }),
       });
 
@@ -1073,14 +1309,13 @@ function JobDetail() {
         throw new Error(msg || "Save failed");
       }
 
-      // Flash "Saved!" for 2 seconds then reset
-      setOverviewSaved(true);
-      setTimeout(() => setOverviewSaved(false), 2000);
+      setJobDetailSaved(true);
+      setTimeout(() => setJobDetailSaved(false), 2000);
     } catch (err) {
-      console.error("Overview save failed:", err);
-      setOverviewErrors({ general: "Save failed. Please try again." });
+      console.error("Job detail save failed:", err);
+      setJobDetailSaveError("Save failed. Please try again.");
     } finally {
-      setOverviewSaving(false);
+      setJobDetailSaving(false);
     }
   };
 
@@ -1179,58 +1414,6 @@ function JobDetail() {
       console.error("Round update failed:", err);
       setInterviewRound(previousRound); // roll back the highlight on failure
       alert("Failed to update interview round. Please try again.");
-    }
-  };
-
-  // ── handleDetailSave — saves deadline + recruiter notes (S2-007) ──────────
-  // TODO (Ronald): once deadline and recruiter_notes are added to the Job
-  // model and PUT /jobs/:id, remove the console.warn and this will fully work.
-
-  const handleDetailSave = async () => {
-    const errors = {};
-
-    // Validate deadline format if provided — must be a valid date
-    if (deadline && isNaN(Date.parse(deadline))) {
-      errors.deadline = "Please enter a valid date.";
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setDetailErrors(errors);
-      return;
-    }
-
-    setDetailErrors({});
-    setDetailSaving(true);
-
-    try {
-      const token = await getToken({ skipCache: true });
-
-      // TODO (Ronald): add deadline and recruiter_notes to JobUpdate model
-      // and Job SQLModel table. Until then this PUT will silently ignore them.
-      const res = await fetch(`${BASE}/jobs/${id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          deadline: deadline || null,
-          recruiter_notes: recruiterNotes.trim() || null,
-        }),
-      });
-
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || "Save failed");
-      }
-
-      setDetailSaved(true);
-      setTimeout(() => setDetailSaved(false), 2000);
-    } catch (err) {
-      console.error("Detail save failed:", err);
-      setDetailErrors({ general: "Save failed. Please try again." });
-    } finally {
-      setDetailSaving(false);
     }
   };
 
@@ -1333,21 +1516,28 @@ function JobDetail() {
           </p>
         </div>
 
-        {/* Stage pill — read-only display, editable in the Overview panel below */}
-        <span
+        <div
           style={{
-            backgroundColor: stageColor(stage),
-            color: "white",
-            borderRadius: "999px",
-            padding: "6px 18px",
-            fontSize: "13px",
-            fontWeight: 600,
-            alignSelf: "flex-start",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
             marginTop: "4px",
           }}
         >
-          {stage}
-        </span>
+          {/* Stage pill — read-only display, editable in the Overview panel below */}
+          <span
+            style={{
+              backgroundColor: stageColor(stage),
+              color: "white",
+              borderRadius: "999px",
+              padding: "6px 18px",
+              fontSize: "13px",
+              fontWeight: 600,
+            }}
+          >
+            {stage}
+          </span>
+        </div>
       </div>
 
       {/* Last activity + created date — metadata row */}
@@ -1357,6 +1547,50 @@ function JobDetail() {
       </p>
 
       {/* ── Two-column layout ─────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          gap: "10px",
+          flexWrap: "wrap",
+          marginTop: "-18px",
+          marginBottom: "28px",
+        }}
+      >
+        {jobDetailSaveError && (
+          <span style={{ fontSize: "13px", color: "#DC2626", fontWeight: 600 }}>
+            {jobDetailSaveError}
+          </span>
+        )}
+
+        {jobDetailSaved && (
+          <span style={{ fontSize: "13px", color: "#16a34a", fontWeight: 600 }}>
+            Job detail saved!
+          </span>
+        )}
+
+        <button
+          type="button"
+          onClick={handleJobDetailSave}
+          disabled={jobDetailSaving}
+          style={{
+            backgroundColor: "#003C78",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            padding: "10px 18px",
+            fontSize: "14px",
+            fontWeight: 700,
+            cursor: jobDetailSaving ? "not-allowed" : "pointer",
+            opacity: jobDetailSaving ? 0.7 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {jobDetailSaving ? "Saving..." : "Save Job Detail"}
+        </button>
+      </div>
+
       <div
         style={{
           display: "grid",
@@ -1545,34 +1779,6 @@ function JobDetail() {
                 placeholder="Any personal notes about this application…"
               />
             </div>
-
-            {/* Save Overview button — primary action (S2-BR-017) */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <button
-                onClick={handleOverviewSave}
-                disabled={overviewSaving}
-                style={{
-                  backgroundColor: "#003C78",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "10px 24px",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  cursor: overviewSaving ? "not-allowed" : "pointer",
-                  opacity: overviewSaving ? 0.7 : 1,
-                }}
-              >
-                {overviewSaving ? "Saving…" : "Save Overview"}
-              </button>
-
-              {/* "Saved!" flash — confirms successful save without a toast library */}
-              {overviewSaved && (
-                <span style={{ fontSize: "13px", color: "#16a34a", fontWeight: 500 }}>
-                  ✓ Saved!
-                </span>
-              )}
-            </div>
           </div>
 
           {/* ── S2-010: Activity Timeline ──────────────────────────────── */}
@@ -1593,13 +1799,6 @@ function JobDetail() {
             >
               Deadline & Contact
             </h2>
-
-            {/* General save error */}
-            {detailErrors.general && (
-              <p style={{ color: "#DC2626", fontSize: "13px", marginBottom: "16px" }}>
-                {detailErrors.general}
-              </p>
-            )}
 
             {/* Deadline — optional date field (S2-007) */}
             <div style={{ marginBottom: "16px" }}>
@@ -1633,39 +1832,21 @@ function JobDetail() {
                 placeholder="Recruiter name, email, LinkedIn, phone, notes from calls…"
               />
             </div>
-
-            {/* Save Deadline & Contact button */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <button
-                onClick={handleDetailSave}
-                disabled={detailSaving}
-                style={{
-                  backgroundColor: "#003C78",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "10px 24px",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  cursor: detailSaving ? "not-allowed" : "pointer",
-                  opacity: detailSaving ? 0.7 : 1,
-                  width: "100%",
-                }}
-              >
-                {detailSaving ? "Saving…" : "Save Deadline & Contact"}
-              </button>
-            </div>
-
-            {detailSaved && (
-              <p style={{ fontSize: "13px", color: "#16a34a", fontWeight: 500, marginTop: "8px" }}>
-                ✓ Saved!
-              </p>
-            )}
           </div>
           <FollowUpSection
             jobId={id}
             getToken={getToken}
             onCreated={() => setTimelineRefreshKey((key) => key + 1)}
+          />
+          <ResumeStatusSection
+            jobId={id}
+            getToken={getToken}
+            onOpenHelper={() => navigate("/resume-helper")}
+          />
+          <CoverLetterStatusSection
+            jobId={id}
+            getToken={getToken}
+            onOpenHelper={() => navigate("/cover-letter-helper")}
           />
           {/* ── S2-013: Outcome Section ───────────────────────────────────── */}
           {/* Only shown when job is in a final stage: Offer, Rejected, Archived */}
