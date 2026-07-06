@@ -4,6 +4,7 @@ import { useUser, useClerk } from "@clerk/clerk-react";
 import {
   LayoutDashboard,
   BarChart2,
+  BookOpen,
   FileText,
   User,
   Settings,
@@ -20,6 +21,7 @@ const navGroups = [
     items: [
       { label: "Dashboard", path: "/", icon: LayoutDashboard },
       { label: "Analytics", path: "/analytics", icon: BarChart2 },
+      { label: "Library", path: "/library", icon: BookOpen },
     ],
   },
   {
