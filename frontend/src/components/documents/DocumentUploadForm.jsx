@@ -60,9 +60,7 @@ export default function DocumentUploadForm({ onUpload }) {
     // before they even reach our validateFile function. We still want a
     // clear message in that case.
     if (fileRejections.length > 0) {
-      setError(
-        "That file type isn't supported. Please upload a PDF, DOCX, or TXT file."
-      );
+      setError("That file type isn't supported. Please upload a PDF, DOCX, or TXT file.");
       return;
     }
 
@@ -83,8 +81,7 @@ export default function DocumentUploadForm({ onUpload }) {
     multiple: false, // one file at a time keeps the mental model simple
     accept: {
       "application/pdf": [".pdf"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        [".docx"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
       "text/plain": [".txt"],
     },
   });
@@ -124,9 +121,7 @@ export default function DocumentUploadForm({ onUpload }) {
       // We don't know exactly what shape backend errors will take yet
       // (that's part of the API contract conversation with Ronald), so this
       // is a safe generic fallback for now.
-      setError(
-        err?.message || "Something went wrong uploading this document. Please try again."
-      );
+      setError(err?.message || "Something went wrong uploading this document. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -143,9 +138,7 @@ export default function DocumentUploadForm({ onUpload }) {
       >
         <input {...getInputProps()} disabled={isUploading} />
         {selectedFile ? (
-          <p className="text-sm font-medium text-[#003C78]">
-            {selectedFile.name}
-          </p>
+          <p className="text-sm font-medium text-[#003C78]">{selectedFile.name}</p>
         ) : isDragActive ? (
           <p className="text-sm text-gray-600">Drop the file here...</p>
         ) : (

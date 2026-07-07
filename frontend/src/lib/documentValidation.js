@@ -22,9 +22,7 @@ export const VALID_DOCUMENT_TYPES = ["resume", "cover_letter"];
 // Windows setups report .docx as a generic octet-stream mime type).
 const ALLOWED_FILE_TYPES = {
   ".pdf": ["application/pdf"],
-  ".docx": [
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ],
+  ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
   ".txt": ["text/plain"],
 };
 
