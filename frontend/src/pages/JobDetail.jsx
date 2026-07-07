@@ -45,7 +45,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
-import { Search, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Sparkles } from "lucide-react";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -83,6 +83,24 @@ const normalizeStage = (stage) => {
   return map[stage?.toLowerCase()] || "Interested";
 };
 
+const formatLocalDateTime = (value) => {
+  if (!value) return "";
+  const normalizedValue =
+    typeof value === "string" && !/[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? `${value}Z` : value;
+  const date = new Date(normalizedValue);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+};
+
 // ── fromApi — converts raw API job to the shape this page needs ───────────────
 function fromApi(data) {
   return {
@@ -100,8 +118,8 @@ function fromApi(data) {
     recruiterNotes: data.recruiter_notes ?? "",
     // S2-011 — will be null until Ronald adds interview_round to the model
     interviewRound: data.interview_round ?? null,
-    lastActivity: (data.updated_at ?? data.created_at)?.split("T")[0] ?? "",
-    createdAt: data.created_at?.split("T")[0] ?? "",
+    lastActivity: data.updated_at ?? data.created_at ?? "",
+    createdAt: data.created_at ?? "",
   };
 }
 
@@ -193,18 +211,47 @@ function OutcomeSection({ jobId, getToken }) {
   };
 
   return (
-    <div style={panelStyle}>
-      <h2
+    <div
+      style={{
+        ...panelStyle,
+        border: "2px solid #22c55e",
+        boxShadow: "0 12px 28px rgba(34, 197, 94, 0.16)",
+        backgroundColor: "#F0FDF4",
+      }}
+    >
+      <div
         style={{
-          fontSize: "18px",
-          fontWeight: 700,
-          color: "var(--color-heading, #003C78)",
-          marginTop: 0,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
           marginBottom: "8px",
         }}
       >
-        Outcome
-      </h2>
+        <h2
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            color: "var(--color-heading, #003C78)",
+            margin: 0,
+          }}
+        >
+          Outcome
+        </h2>
+        <span
+          style={{
+            backgroundColor: "#22c55e",
+            color: "white",
+            borderRadius: "999px",
+            padding: "5px 10px",
+            fontSize: "11px",
+            fontWeight: 800,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Active
+        </span>
+      </div>
       <p style={{ fontSize: "13px", color: "var(--color-subtext, #6b7280)", marginBottom: "16px" }}>
         Record the final outcome of this application.
       </p>
@@ -799,6 +846,9 @@ function TimelineSection({ jobId, getToken, refreshKey }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+  const visibleEvents = showAll ? events : events.slice(-5);
+  const hiddenCount = Math.max(events.length - visibleEvents.length, 0);
 
   // Fetch timeline events on mount
   useEffect(() => {
@@ -820,18 +870,6 @@ function TimelineSection({ jobId, getToken, refreshKey }) {
     };
     fetchTimeline();
   }, [jobId, getToken, refreshKey]);
-
-  // Format timestamp to readable date + time
-  const formatDate = (ts) => {
-    if (!ts) return "";
-    return new Date(ts).toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
 
   // Pick a color dot per event type
   const dotColor = (type) => {
@@ -873,9 +911,9 @@ function TimelineSection({ jobId, getToken, refreshKey }) {
         </p>
       )}
 
-      {/* Timeline list — each event is a dot + content row */}
-      {events.map((event, i) => (
-        <div key={i} style={{ display: "flex", gap: "14px", marginBottom: "20px" }}>
+      {/* Timeline list — latest five are shown by default so the page stays compact */}
+      {visibleEvents.map((event, i) => (
+        <div key={event.id || i} style={{ display: "flex", gap: "14px", marginBottom: "20px" }}>
           {/* Left: colored dot + vertical line */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div
@@ -889,7 +927,7 @@ function TimelineSection({ jobId, getToken, refreshKey }) {
               }}
             />
             {/* Vertical line connecting dots — hidden on last item */}
-            {i < events.length - 1 && (
+            {i < visibleEvents.length - 1 && (
               <div
                 style={{
                   width: "2px",
@@ -925,11 +963,34 @@ function TimelineSection({ jobId, getToken, refreshKey }) {
               </p>
             )}
             <p style={{ margin: 0, fontSize: "11px", color: "var(--color-subtext, #9ca3af)" }}>
-              {formatDate(event.timestamp)}
+              {formatLocalDateTime(event.timestamp)}
             </p>
           </div>
         </div>
       ))}
+
+      {!loading && !error && events.length > 5 && (
+        <button
+          type="button"
+          onClick={() => setShowAll((value) => !value)}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            border: "1px solid var(--color-border-default, #e5e7eb)",
+            borderRadius: "8px",
+            backgroundColor: "white",
+            color: "var(--color-heading, #003C78)",
+            fontSize: "12px",
+            fontWeight: 700,
+            padding: "8px 10px",
+            cursor: "pointer",
+          }}
+        >
+          {showAll ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {showAll ? "Show less activity" : `Show ${hiddenCount} older item${hiddenCount === 1 ? "" : "s"}`}
+        </button>
+      )}
     </div>
   );
 }
@@ -1125,18 +1186,47 @@ function InterviewProgressSection({
   const nextRoundMeta = INTERVIEW_ROUNDS.find((round) => round.value === nextRound);
 
   return (
-    <div style={panelStyle}>
-      <h2
+    <div
+      style={{
+        ...panelStyle,
+        border: "2px solid #FF6138",
+        boxShadow: "0 12px 28px rgba(255, 97, 56, 0.18)",
+        backgroundColor: "#FFF7ED",
+      }}
+    >
+      <div
         style={{
-          fontSize: "18px",
-          fontWeight: 700,
-          color: "var(--color-heading, #003C78)",
-          marginTop: 0,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
           marginBottom: "8px",
         }}
       >
-        Interview Progress
-      </h2>
+        <h2
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            color: "var(--color-heading, #003C78)",
+            margin: 0,
+          }}
+        >
+          Interview Progress
+        </h2>
+        <span
+          style={{
+            backgroundColor: "#FF6138",
+            color: "white",
+            borderRadius: "999px",
+            padding: "5px 10px",
+            fontSize: "11px",
+            fontWeight: 800,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Active
+        </span>
+      </div>
 
       <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", marginTop: 0 }}>
         Move through interview rounds in order and add notes before advancing.
@@ -1761,6 +1851,8 @@ function JobDetail() {
   }
 
   // ── Main render ────────────────────────────────────────────────────────────
+  const isFinalStage = ["Offer", "Rejected", "Archived"].includes(stage);
+
   return (
     <div
       style={{
@@ -1844,12 +1936,6 @@ function JobDetail() {
           </span>
         </div>
       </div>
-
-      {/* Last activity + created date — metadata row */}
-      <p style={{ fontSize: "12px", color: "var(--color-subtext, #6b7280)", marginBottom: "32px" }}>
-        Last activity: {job.lastActivity}
-        {job.createdAt && ` · Added: ${job.createdAt}`}
-      </p>
 
       {/* ── Two-column layout ─────────────────────────────────────────────── */}
       <div
@@ -2083,7 +2169,7 @@ function JobDetail() {
               />
             </div>
           </div>
-          {stage === "Interview" && (
+          {!isFinalStage && stage === "Interview" && (
             <InterviewProgressSection
               currentRound={interviewRound}
               notes={interviewRoundNotes}
@@ -2093,18 +2179,27 @@ function JobDetail() {
               onAdvance={handleInterviewRoundAdvance}
             />
           )}
-          <CompanyResearchSection
-            jobId={id}
-            company={company}
-            title={title}
-            location={location}
-            jobPostingBody={jobPostingBody}
-          />
-          <FollowUpSection
-            jobId={id}
-            getToken={getToken}
-            onCreated={() => setTimelineRefreshKey((key) => key + 1)}
-          />
+          {!isFinalStage && (
+            <>
+              <CompanyResearchSection
+                jobId={id}
+                company={company}
+                title={title}
+                location={location}
+                jobPostingBody={jobPostingBody}
+              />
+              <FollowUpSection
+                jobId={id}
+                getToken={getToken}
+                onCreated={() => setTimelineRefreshKey((key) => key + 1)}
+              />
+            </>
+          )}
+          {/* ── S2-013: Outcome Section ───────────────────────────────────── */}
+          {/* Only shown when job is in a final stage: Offer, Rejected, Archived */}
+          {/* Analogy: like a "case closed" notes field — only available at the end */}
+          {isFinalStage && <OutcomeSection jobId={id} getToken={getToken} />}
+
           <ResumeStatusSection
             jobId={id}
             getToken={getToken}
@@ -2115,12 +2210,6 @@ function JobDetail() {
             getToken={getToken}
             onOpenHelper={() => navigate("/cover-letter-helper")}
           />
-          {/* ── S2-013: Outcome Section ───────────────────────────────────── */}
-          {/* Only shown when job is in a final stage: Offer, Rejected, Archived */}
-          {/* Analogy: like a "case closed" notes field — only available at the end */}
-          {["Offer", "Rejected", "Archived"].includes(stage) && (
-            <OutcomeSection jobId={id} getToken={getToken} />
-          )}
 
           {/* ── S2-014: Archive / Restore ─────────────────────────────────── */}
           <ArchiveRestoreSection
@@ -2138,8 +2227,14 @@ function JobDetail() {
               border: "1px dashed var(--color-border-default, #e5e7eb)",
             }}
           >
-            <p style={{ fontSize: "12px", color: "var(--color-subtext, #6b7280)", margin: 0 }}>
-              <strong>Job ID:</strong> {job.id}
+            <p
+              style={{
+                fontSize: "12px",
+                color: "var(--color-subtext, #6b7280)",
+                margin: 0,
+              }}
+            >
+              <strong>Added:</strong> {formatLocalDateTime(job.createdAt)}
             </p>
             <p
               style={{
@@ -2148,16 +2243,7 @@ function JobDetail() {
                 margin: "6px 0 0",
               }}
             >
-              <strong>Added:</strong> {job.createdAt}
-            </p>
-            <p
-              style={{
-                fontSize: "12px",
-                color: "var(--color-subtext, #6b7280)",
-                margin: "6px 0 0",
-              }}
-            >
-              <strong>Last updated:</strong> {job.lastActivity}
+              <strong>Last updated:</strong> {formatLocalDateTime(job.lastActivity)}
             </p>
           </div>
         </div>
