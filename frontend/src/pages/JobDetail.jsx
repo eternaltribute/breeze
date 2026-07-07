@@ -37,23 +37,15 @@
 //   The PUT /jobs/:id endpoint already accepts extra fields via JobUpdate,
 //   so once the model and migration are added, this frontend will work as-is.
 //
-// TODO (Ronald): PATCH /jobs/:id/stage needs to accept an optional
-//   `interview_round` integer field (1-5). It is only ever sent on the FIRST
-//   transition into Interview stage (e.g. Applied -> Interview). When present,
-//   please:
-//     1. Store it (e.g. on an interview record/event tied to this job).
-//     2. Write a timeline event, something like:
-//          title: "Moved to Interview — 1st Round"
-//          event_type: "interview"
-//        so it renders correctly in TimelineSection (S2-010) using the
-//        existing "interview" dot color.
-//   Until this exists on the backend, the round is selected in the UI and
-//   sent in the request body, but the backend will currently ignore it.
+// Interview round progression is handled through PATCH /jobs/:id/stage with
+// `interview_round` and notes. The backend stores the current round and writes
+// an "interview" timeline event each time the user moves forward.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
+import { Search, Sparkles } from "lucide-react";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -846,6 +838,7 @@ function TimelineSection({ jobId, getToken, refreshKey }) {
     if (type === "stage_change") return "#046A97";
     if (type === "interview") return "#FF6138";
     if (type === "outcome") return "#22c55e";
+    if (type === "document") return "#166534";
     return "#9ca3af";
   };
 
@@ -944,6 +937,296 @@ function TimelineSection({ jobId, getToken, refreshKey }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // JobDetail — main page component
 // ─────────────────────────────────────────────────────────────────────────────
+const RESEARCH_TOPICS = [
+  "Company overview",
+  "Culture",
+  "Products",
+  "Interview prep",
+  "Recent news",
+];
+
+// S3-011: Company research prompt UX in job detail.
+// Backend-ready contract for the future AI endpoint:
+// POST /jobs/:jobId/company-research
+// Body: {
+//   company, title, location, job_posting_body,
+//   topics: string[],
+//   user_context: string
+// }
+// Expected response: { research_text: string, updated_at?: string }
+// S3-012 can persist and render research_text as editable job notes.
+function CompanyResearchSection({ jobId, company, title, location, jobPostingBody }) {
+  const [selectedTopics, setSelectedTopics] = useState(["Company overview", "Interview prep"]);
+  const [context, setContext] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+
+  const toggleTopic = (topic) => {
+    setSelectedTopics((current) =>
+      current.includes(topic) ? current.filter((item) => item !== topic) : [...current, topic]
+    );
+  };
+
+  const handleGenerate = () => {
+    setError("");
+    setStatusMessage("");
+
+    if (!company.trim() && !context.trim()) {
+      setError("Add a company name or research context first.");
+      return;
+    }
+
+    setGenerating(true);
+
+    const payload = {
+      job_id: jobId,
+      company,
+      title,
+      location,
+      job_posting_body: jobPostingBody,
+      topics: selectedTopics,
+      user_context: context.trim(),
+    };
+
+    console.info("Company research request prepared for backend:", payload);
+
+    // TODO (S3-011 backend): replace this timeout with the real AI request.
+    // Add getToken to this component's props when the backend endpoint is ready.
+    // const token = await getToken({ skipCache: true });
+    // const res = await fetch(`${BASE}/jobs/${jobId}/company-research`, {
+    //   method: "POST",
+    //   headers: {
+    //     Authorization: `Bearer ${token}`,
+    //     "Content-Type": "application/json",
+    //   },
+    //   body: JSON.stringify(payload),
+    // });
+    // const data = await res.json();
+    // Render data.research_text here or hand it to the S3-012 notes section.
+    window.setTimeout(() => {
+      setStatusMessage(
+        "Research request prepared. AI generation will appear here when the backend is connected."
+      );
+      setGenerating(false);
+    }, 350);
+  };
+
+  return (
+    <div style={panelStyle}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+        <Search size={18} color="var(--color-heading, #003C78)" aria-hidden="true" />
+        <h2
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            color: "var(--color-heading, #003C78)",
+            margin: 0,
+          }}
+        >
+          Company Research
+        </h2>
+      </div>
+
+      <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", marginTop: 0 }}>
+        Choose research areas and add any context you want AI to consider.
+      </p>
+
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
+        {RESEARCH_TOPICS.map((topic) => {
+          const selected = selectedTopics.includes(topic);
+          return (
+            <button
+              key={topic}
+              type="button"
+              onClick={() => toggleTopic(topic)}
+              style={{
+                borderRadius: "999px",
+                border: selected ? "1px solid #003C78" : "1px solid var(--color-border-default)",
+                backgroundColor: selected ? "#EFF6FF" : "transparent",
+                color: selected ? "#003C78" : "var(--color-subtext, #6b7280)",
+                padding: "7px 10px",
+                fontSize: "12px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              {topic}
+            </button>
+          );
+        })}
+      </div>
+
+      <Label text="Research Context" />
+      <textarea
+        value={context}
+        onChange={(e) => setContext(e.target.value)}
+        rows={4}
+        style={{ ...inputStyle, resize: "vertical", lineHeight: "1.5" }}
+        placeholder="Example: Focus on culture, recent product launches, and questions I can ask in a frontend interview."
+      />
+
+      {error && <p style={{ color: "#DC2626", fontSize: "13px", margin: "8px 0 0" }}>{error}</p>}
+
+      <button
+        type="button"
+        onClick={handleGenerate}
+        disabled={generating}
+        style={{
+          marginTop: "14px",
+          width: "100%",
+          padding: "10px 14px",
+          borderRadius: "8px",
+          border: "none",
+          backgroundColor: generating ? "#9CA3AF" : "#003C78",
+          color: "white",
+          fontSize: "14px",
+          fontWeight: 700,
+          cursor: generating ? "not-allowed" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+        }}
+      >
+        <Sparkles size={16} aria-hidden="true" />
+        {generating ? "Preparing..." : "Prepare Research Request"}
+      </button>
+
+      {statusMessage && (
+        <div
+          style={{
+            marginTop: "16px",
+            border: "1px solid #BBF7D0",
+            borderRadius: "8px",
+            backgroundColor: "#F0FDF4",
+            padding: "12px",
+            color: "#166534",
+            fontSize: "13px",
+            fontWeight: 700,
+          }}
+        >
+          {statusMessage}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InterviewProgressSection({
+  currentRound,
+  notes,
+  error,
+  saving,
+  onNotesChange,
+  onAdvance,
+}) {
+  const nextRound = currentRound ? currentRound + 1 : 1;
+  const nextRoundMeta = INTERVIEW_ROUNDS.find((round) => round.value === nextRound);
+
+  return (
+    <div style={panelStyle}>
+      <h2
+        style={{
+          fontSize: "18px",
+          fontWeight: 700,
+          color: "var(--color-heading, #003C78)",
+          marginTop: 0,
+          marginBottom: "8px",
+        }}
+      >
+        Interview Progress
+      </h2>
+
+      <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", marginTop: 0 }}>
+        Move through interview rounds in order and add notes before advancing.
+      </p>
+
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
+        {INTERVIEW_ROUNDS.map((round) => {
+          const isCurrent = currentRound === round.value;
+          const isComplete = currentRound && round.value < currentRound;
+          const isNext = round.value === nextRound;
+          return (
+            <button
+              key={round.value}
+              type="button"
+              disabled={!isNext || saving}
+              onClick={() => onAdvance(nextRound)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "8px",
+                border: isCurrent
+                  ? "2px solid #003C78"
+                  : "1px solid var(--color-border-default, #e5e7eb)",
+                backgroundColor: isCurrent ? "#003C78" : isComplete ? "#F0FDF4" : "white",
+                color: isCurrent
+                  ? "white"
+                  : isComplete
+                    ? "#166534"
+                    : isNext
+                      ? "var(--color-heading, #003C78)"
+                      : "var(--color-subtext, #9ca3af)",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: isNext && !saving ? "pointer" : "not-allowed",
+                opacity: !isNext && !isCurrent && !isComplete ? 0.6 : 1,
+              }}
+            >
+              {round.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <p style={{ color: "var(--color-heading, #003C78)", fontSize: "13px", fontWeight: 700 }}>
+        {currentRound
+          ? `Current round: ${INTERVIEW_ROUNDS.find((round) => round.value === currentRound)?.label}`
+          : "No interview round selected yet."}
+      </p>
+
+      {nextRoundMeta ? (
+        <>
+          <Label text={`Notes before moving to ${nextRoundMeta.label}`} required />
+          <textarea
+            value={notes}
+            onChange={(e) => onNotesChange(e.target.value)}
+            rows={4}
+            style={{ ...inputStyle, resize: "vertical", lineHeight: "1.5" }}
+            placeholder="Add prep notes, interviewer details, feedback, or what changed before moving forward."
+          />
+          {error && (
+            <p style={{ color: "#DC2626", fontSize: "13px", margin: "8px 0 0" }}>{error}</p>
+          )}
+          <button
+            type="button"
+            onClick={() => onAdvance(nextRound)}
+            disabled={saving}
+            style={{
+              marginTop: "14px",
+              width: "100%",
+              padding: "10px 14px",
+              borderRadius: "8px",
+              border: "none",
+              backgroundColor: saving ? "#9CA3AF" : "#003C78",
+              color: "white",
+              fontSize: "14px",
+              fontWeight: 700,
+              cursor: saving ? "not-allowed" : "pointer",
+            }}
+          >
+            {saving ? "Saving..." : `Move to ${nextRoundMeta.label}`}
+          </button>
+        </>
+      ) : (
+        <p style={{ color: "#166534", fontSize: "13px", fontWeight: 700, marginBottom: 0 }}>
+          All interview rounds are complete.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // Shows whether a resume has been saved for this job.
 function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
   const [loading, setLoading] = useState(true);
@@ -1200,6 +1483,9 @@ function JobDetail() {
   // The picker is shown any time stage === "Interview" (see render below).
   // This only tracks WHICH round button is currently highlighted.
   const [interviewRound, setInterviewRound] = useState(null);
+  const [interviewRoundNotes, setInterviewRoundNotes] = useState("");
+  const [interviewRoundSaving, setInterviewRoundSaving] = useState(false);
+  const [interviewRoundError, setInterviewRoundError] = useState("");
 
   // ── Deadline + Recruiter Notes section state (S2-007) ─────────────────────
   const [deadline, setDeadline] = useState("");
@@ -1320,9 +1606,8 @@ function JobDetail() {
   };
 
   // ── handleStageChange — calls PATCH /jobs/:id/stage (S2-008) ─────────────
-  // Plain stage change — no round logic here. The round picker (S2-011)
-  // is a separate, persistent control (see handleRoundSelect below) that
-  // shows up automatically once this brings stage to "Interview".
+  // Plain stage change — round progression is handled separately by the
+  // Interview Progress panel shown while stage === "Interview".
   const handleStageChange = async (newStage) => {
     if (newStage.toLowerCase() === stage.toLowerCase()) return;
 
@@ -1362,7 +1647,11 @@ function JobDetail() {
         setStage(newStage);
         // Leaving Interview clears the round highlight so it doesn't show
         // a stale round if the job re-enters Interview again later.
-        if (newStage !== "Interview") setInterviewRound(null);
+        if (newStage !== "Interview") {
+          setInterviewRound(null);
+          setInterviewRoundNotes("");
+          setInterviewRoundError("");
+        }
         setTimelineRefreshKey((k) => k + 1);
         return;
       }
@@ -1370,7 +1659,11 @@ function JobDetail() {
       if (!res.ok) throw new Error("Stage update failed");
 
       setStage(newStage);
-      if (newStage !== "Interview") setInterviewRound(null);
+      if (newStage !== "Interview") {
+        setInterviewRound(null);
+        setInterviewRoundNotes("");
+        setInterviewRoundError("");
+      }
       setTimelineRefreshKey((k) => k + 1);
     } catch (err) {
       console.error("Stage change failed:", err);
@@ -1378,22 +1671,27 @@ function JobDetail() {
     }
   };
 
-  // ── handleRoundSelect — S2-011: updates which interview round the job is
-  // currently on. This does NOT change stage (it's already "Interview") —
-  // it's a standalone update, available any time stage === "Interview",
-  // and the picker itself never disappears after you click a round.
-  const handleRoundSelect = async (round) => {
+  const handleInterviewRoundAdvance = async (round) => {
+    setInterviewRoundError("");
+
+    const nextRound = interviewRound ? interviewRound + 1 : 1;
+    if (round !== nextRound) {
+      setInterviewRoundError("Interview rounds can only move forward one step at a time.");
+      return;
+    }
+
+    if (!interviewRoundNotes.trim()) {
+      setInterviewRoundError("Add notes before moving to the next interview round.");
+      return;
+    }
+
     const previousRound = interviewRound;
-    setInterviewRound(round); // optimistic — button highlights immediately
+    setInterviewRound(round);
+    setInterviewRoundSaving(true);
 
     try {
       const token = await getToken({ skipCache: true });
 
-      // TODO (Ronald): PATCH /jobs/:id/stage needs to accept interview_round
-      // on its own even when new_stage doesn't change ("interview" ->
-      // "interview" — same stage, just a round update, not a transition).
-      // Please also log a timeline event each time this changes, e.g.
-      //   title: "Interview — 2nd Round", event_type: "interview"
       const res = await fetch(`${BASE}/jobs/${id}/stage`, {
         method: "PATCH",
         headers: {
@@ -1404,16 +1702,23 @@ function JobDetail() {
           new_stage: "interview",
           confirm_override: true, // same-stage update, not a real transition
           interview_round: round,
+          notes: interviewRoundNotes.trim(),
         }),
       });
 
-      if (!res.ok) throw new Error("Round update failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.detail || "Round update failed");
+      }
 
+      setInterviewRoundNotes("");
       setTimelineRefreshKey((k) => k + 1);
     } catch (err) {
       console.error("Round update failed:", err);
-      setInterviewRound(previousRound); // roll back the highlight on failure
-      alert("Failed to update interview round. Please try again.");
+      setInterviewRound(previousRound);
+      setInterviewRoundError(err.message || "Failed to update interview round. Please try again.");
+    } finally {
+      setInterviewRoundSaving(false);
     }
   };
 
@@ -1662,61 +1967,6 @@ function JobDetail() {
                   </option>
                 ))}
               </select>
-
-              {/* ── S2-011: Interview round picker ──────────────────────────
-                  Stays visible for as long as stage === "Interview" — it
-                  does NOT disappear after you pick a round. Whichever round
-                  was last clicked stays highlighted (filled-in button), and
-                  clicking a different one just moves the highlight. */}
-              {stage === "Interview" && (
-                <div
-                  style={{
-                    marginTop: "12px",
-                    padding: "12px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--color-border-default, #e5e7eb)",
-                    backgroundColor: "var(--bg, #F8FAFC)",
-                  }}
-                >
-                  <p
-                    style={{
-                      margin: "0 0 10px",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      color: "var(--color-heading, #003C78)",
-                    }}
-                  >
-                    Interview round
-                  </p>
-
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    {INTERVIEW_ROUNDS.map((r) => {
-                      const isSelected = interviewRound === r.value;
-                      return (
-                        <button
-                          key={r.value}
-                          type="button"
-                          onClick={() => handleRoundSelect(r.value)}
-                          style={{
-                            padding: "8px 14px",
-                            borderRadius: "8px",
-                            border: isSelected
-                              ? "2px solid #003C78"
-                              : "1px solid var(--color-border-default, #e5e7eb)",
-                            backgroundColor: isSelected ? "#003C78" : "white",
-                            color: isSelected ? "white" : "var(--color-heading, #003C78)",
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {r.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Location — optional */}
@@ -1833,6 +2083,23 @@ function JobDetail() {
               />
             </div>
           </div>
+          {stage === "Interview" && (
+            <InterviewProgressSection
+              currentRound={interviewRound}
+              notes={interviewRoundNotes}
+              error={interviewRoundError}
+              saving={interviewRoundSaving}
+              onNotesChange={setInterviewRoundNotes}
+              onAdvance={handleInterviewRoundAdvance}
+            />
+          )}
+          <CompanyResearchSection
+            jobId={id}
+            company={company}
+            title={title}
+            location={location}
+            jobPostingBody={jobPostingBody}
+          />
           <FollowUpSection
             jobId={id}
             getToken={getToken}

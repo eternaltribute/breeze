@@ -189,6 +189,32 @@ def transition_stage(
     if current_stage == new_stage and payload.interview_round is None:
         raise HTTPException(status_code=400, detail="Job is already in this stage")
 
+    if payload.interview_round is not None:
+        if new_stage != JobStage.INTERVIEW:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Interview round can only be updated "
+                    "while job is in Interview stage"
+                ),
+            )
+        if payload.interview_round < 1 or payload.interview_round > 5:
+            raise HTTPException(
+                status_code=400, detail="Interview round must be between 1 and 5"
+            )
+        if not payload.notes or not payload.notes.strip():
+            raise HTTPException(
+                status_code=400, detail="Interview round notes are required"
+            )
+        if (
+            job.interview_round is not None
+            and payload.interview_round <= job.interview_round
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Interview rounds can only move forward",
+            )
+
     is_forward = new_stage in ALLOWED_TRANSITIONS.get(current_stage, set())
 
     # Non-forward transition requires explicit confirmation (S2-BR-007)
@@ -213,18 +239,44 @@ def transition_stage(
         job.interview_round = payload.interview_round
     db.add(job)
 
-    # Log the transition to job_events (S2-BR-008/S2-009)
-    event = JobEvent(
-        job_id=job_id,
-        owner_id=user_id,
-        event_type=JobEventType.STAGE_CHANGE,
-        from_stage=current_stage,
-        to_stage=new_stage,
-        was_override=not is_forward,
-        notes=payload.notes,
-        created_at=datetime.utcnow(),
-    )
-    db.add(event)
+    if current_stage != new_stage:
+        # Log the transition to job_events (S2-BR-008/S2-009)
+        event = JobEvent(
+            job_id=job_id,
+            owner_id=user_id,
+            event_type=JobEventType.STAGE_CHANGE,
+            from_stage=current_stage,
+            to_stage=new_stage,
+            was_override=not is_forward,
+            notes=payload.notes,
+            created_at=datetime.utcnow(),
+        )
+        db.add(event)
+
+    if payload.interview_round is not None:
+        suffix = (
+            "st"
+            if payload.interview_round == 1
+            else (
+                "nd"
+                if payload.interview_round == 2
+                else "rd" if payload.interview_round == 3 else "th"
+            )
+        )
+
+        round_label = f"Interview - {payload.interview_round}{suffix} Round"
+
+        db.add(
+            JobEvent(
+                job_id=job_id,
+                owner_id=user_id,
+                event_type=JobEventType.INTERVIEW,
+                interview_round=round_label,
+                notes=payload.notes.strip(),
+                created_at=datetime.utcnow(),
+            )
+        )
+
     db.commit()
     db.refresh(job)
     return job

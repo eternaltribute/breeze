@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime
 from typing import Optional
 
 import anthropic
@@ -10,7 +11,7 @@ from sqlmodel import Session, select, text
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import Job, Resume
+from app.models import Job, JobEvent, JobEventType, Resume
 
 router = APIRouter(prefix="/resume", tags=["resume"])
 
@@ -28,6 +29,15 @@ async def save_resume(
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
+
+    linked_job = None
+    if job_id:
+        linked_job = db.exec(
+            select(Job).where(Job.id == job_id, Job.owner_id == user_id)
+        ).first()
+        if not linked_job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
     file_bytes = await file.read()
     path = f"{user_id}/{int(time.time())}_{file.filename}"
 
@@ -71,6 +81,16 @@ async def save_resume(
         resume_text=resume_text,
     )
     db.add(record)
+    if linked_job:
+        db.add(
+            JobEvent(
+                job_id=linked_job.id,
+                owner_id=user_id,
+                event_type=JobEventType.DOCUMENT,
+                notes=f"Resume connected|Saved {file.filename}",
+                created_at=datetime.utcnow(),
+            )
+        )
     db.commit()
     db.refresh(record)
 
