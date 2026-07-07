@@ -188,7 +188,9 @@ async def get_profile_photo(
 
     return ProfilePhotoResponse(
         profile_photo_path=user.profile_photo_path,
-        profile_photo_url=await create_signed_profile_photo_url(user.profile_photo_path),
+        profile_photo_url=await create_signed_profile_photo_url(
+            user.profile_photo_path
+        ),
     )
 
 
@@ -251,7 +253,9 @@ async def upload_profile_photo(
 
     return ProfilePhotoResponse(
         profile_photo_path=user.profile_photo_path,
-        profile_photo_url=await create_signed_profile_photo_url(user.profile_photo_path),
+        profile_photo_url=await create_signed_profile_photo_url(
+            user.profile_photo_path
+        ),
     )
 
 
