@@ -97,6 +97,7 @@ class User(SQLModel, table=True):
     last_name: Optional[str] = Field(default=None)
     phone_number: Optional[str] = Field(default=None)
     professional_summary: Optional[str] = Field(default=None)
+    profile_photo_path: Optional[str] = Field(default=None)
     desired_role: Optional[str] = Field(default=None)
     location_type: Optional[str] = Field(default=None)
     desired_location: Optional[str] = Field(default=None)
