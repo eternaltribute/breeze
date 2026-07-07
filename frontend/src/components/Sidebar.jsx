@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useUser, useClerk } from "@clerk/clerk-react";
+import { useUser, useClerk, useAuth } from "@clerk/clerk-react";
 import {
   LayoutDashboard,
   BarChart2,
@@ -14,6 +14,9 @@ import {
   ChevronUp,
   Mail,
 } from "lucide-react";
+import { fetchProfilePhoto, PROFILE_PHOTO_UPDATED_EVENT } from "../utils/profilePhoto";
+
+const BASE = import.meta.env.VITE_API_BASE_URL;
 
 const navGroups = [
   {
@@ -44,9 +47,31 @@ const navGroups = [
 function Sidebar() {
   const location = useLocation();
   const { user } = useUser();
+  const { getToken } = useAuth();
   const { signOut } = useClerk();
   const [popupOpen, setPopupOpen] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState("");
   const [darkMode, setDarkMode] = useState(document.documentElement.classList.contains("dark"));
+
+  useEffect(() => {
+    const syncProfilePhoto = async () => {
+      try {
+        const photoUrl = await fetchProfilePhoto(BASE, getToken);
+        setProfilePhoto(photoUrl);
+      } catch (err) {
+        console.error("Failed to load sidebar profile photo:", err);
+      }
+    };
+
+    syncProfilePhoto();
+    window.addEventListener(PROFILE_PHOTO_UPDATED_EVENT, syncProfilePhoto);
+
+    return () => {
+      window.removeEventListener(PROFILE_PHOTO_UPDATED_EVENT, syncProfilePhoto);
+    };
+  }, [getToken]);
+
+  const displayedProfilePhoto = profilePhoto || user?.imageUrl || "";
 
   return (
     <div
@@ -300,10 +325,10 @@ function Sidebar() {
               flexShrink: 0,
             }}
           >
-            {user?.imageUrl ? (
+            {displayedProfilePhoto ? (
               <img
-                src={user.imageUrl}
-                alt={user.fullName}
+                src={displayedProfilePhoto}
+                alt={user?.fullName ?? "Profile"}
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             ) : (

@@ -16,6 +16,20 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
+const SETTINGS_STORAGE_KEY = "breeze:user-preferences";
+
+const getShowDocumentIndicatorsPreference = () => {
+  try {
+    const stored = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!stored) return true;
+
+    const parsed = JSON.parse(stored);
+    return parsed.documents?.showJobCardIndicators ?? true;
+  } catch (err) {
+    console.error("Failed to load document indicator preference:", err);
+    return true;
+  }
+};
 
 // Converts lowercase backend stage to display title-case
 const normalizeStage = (stage) => {
@@ -106,6 +120,7 @@ function JobCard({
   reminderCount,
   resumeCount,
   coverLetterCount,
+  showDocumentIndicators,
   onEdit,
   onDelete,
 }) {
@@ -314,7 +329,7 @@ function JobCard({
           View
         </button>
 
-        {resumeCount > 0 && (
+        {showDocumentIndicators && resumeCount > 0 && (
           <span
             title={`${resumeCount} resume attached`}
             style={{
@@ -337,7 +352,7 @@ function JobCard({
           </span>
         )}
 
-        {coverLetterCount > 0 && (
+        {showDocumentIndicators && coverLetterCount > 0 && (
           <span
             title={`${coverLetterCount} cover letter attached`}
             style={{
@@ -377,6 +392,9 @@ function Dashboard() {
   const [remindersByJob, setRemindersByJob] = useState({});
   const [resumesByJob, setResumesByJob] = useState({});
   const [coverLettersByJob, setCoverLettersByJob] = useState({});
+  const [showDocumentIndicators, setShowDocumentIndicators] = useState(
+    getShowDocumentIndicatorsPreference
+  );
   // S2-001: search box text
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -387,6 +405,20 @@ function Dashboard() {
 
   // S2-003: active sort key
   const [sortKey, setSortKey] = useState("lastActivity");
+
+  useEffect(() => {
+    const syncDocumentIndicatorPreference = () => {
+      setShowDocumentIndicators(getShowDocumentIndicatorsPreference());
+    };
+
+    window.addEventListener("storage", syncDocumentIndicatorPreference);
+    window.addEventListener("breeze-preferences-updated", syncDocumentIndicatorPreference);
+
+    return () => {
+      window.removeEventListener("storage", syncDocumentIndicatorPreference);
+      window.removeEventListener("breeze-preferences-updated", syncDocumentIndicatorPreference);
+    };
+  }, []);
 
   // Fetch jobs once on mount
   useEffect(() => {
@@ -812,6 +844,7 @@ function Dashboard() {
             reminderCount={remindersByJob[job.id] ?? 0}
             resumeCount={resumesByJob[job.id] ?? job.resumeCount ?? 0}
             coverLetterCount={coverLettersByJob[job.id] ?? job.coverLetterCount ?? 0}
+            showDocumentIndicators={showDocumentIndicators}
             onEdit={() => handleEditJob(job)}
             onDelete={handleDeleteJob}
           />

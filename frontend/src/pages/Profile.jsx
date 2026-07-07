@@ -2,6 +2,7 @@ import { calculateProfileCompletion } from "../utils/profileCompletion";
 import { useState, useEffect, useRef } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Progress } from "@/components/ui/progress";
+import { fetchProfilePhoto, PROFILE_PHOTO_UPDATED_EVENT } from "../utils/profilePhoto";
 import {
   PencilLine,
   Building2,
@@ -9,6 +10,7 @@ import {
   CalendarDays,
   CheckCircle2,
   GraduationCap,
+  UserCircle,
 } from "lucide-react";
 // dnd-kit imports — these power the drag-and-drop reordering
 // DndContext: the "room" everything draggable lives inside
@@ -361,11 +363,30 @@ function Profile() {
   const { user } = useUser();
   const BASE = import.meta.env.VITE_API_BASE_URL;
   const [profile, setProfile] = useState(initialProfile);
+  const [profilePhoto, setProfilePhoto] = useState("");
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState({});
   const [shaking, setShaking] = useState({});
   const [showBanner, setShowBanner] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+
+  useEffect(() => {
+    const syncProfilePhoto = async () => {
+      try {
+        const photoUrl = await fetchProfilePhoto(BASE, getToken);
+        setProfilePhoto(photoUrl);
+      } catch (err) {
+        console.error("Failed to load profile photo:", err);
+      }
+    };
+
+    syncProfilePhoto();
+    window.addEventListener(PROFILE_PHOTO_UPDATED_EVENT, syncProfilePhoto);
+
+    return () => {
+      window.removeEventListener(PROFILE_PHOTO_UPDATED_EVENT, syncProfilePhoto);
+    };
+  }, [BASE, getToken]);
 
   // ── Skills state ─────────────────────────────────────────────────────────
   const [skills, setSkills] = useState([]);
@@ -1331,6 +1352,7 @@ function Profile() {
     educationSaved,
     preferencesCompleted,
   });
+  const displayedProfilePhoto = profilePhoto || user?.imageUrl || "";
 
   return (
     <>
@@ -1376,6 +1398,57 @@ function Profile() {
           >
             Keep your profile up to date to get the best results!
           </p>
+
+          {/* PROFILE PICTURE */}
+          <div style={{ ...cardStyle, borderLeft: "4px solid var(--section-border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div
+                style={{
+                  width: "76px",
+                  height: "76px",
+                  borderRadius: "50%",
+                  border: "2px solid var(--color-border-default, #e5e7eb)",
+                  backgroundColor: "var(--bg, #F8FAFC)",
+                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--color-heading, #003C78)",
+                  flexShrink: 0,
+                }}
+              >
+                {displayedProfilePhoto ? (
+                  <img
+                    src={displayedProfilePhoto}
+                    alt="Profile"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <UserCircle size={42} />
+                )}
+              </div>
+              <div>
+                <h2
+                  style={{
+                    color: "var(--color-heading, #003C78)",
+                    fontSize: "16px",
+                    margin: "0 0 4px",
+                  }}
+                >
+                  Profile Picture
+                </h2>
+                <p
+                  style={{
+                    color: "var(--color-subtext, #6b7280)",
+                    fontSize: "13px",
+                    margin: 0,
+                  }}
+                >
+                  Manage your profile picture from Settings.
+                </p>
+              </div>
+            </div>
+          </div>
 
           {/* VALIDATION BANNER */}
           {showBanner && (
