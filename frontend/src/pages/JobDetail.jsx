@@ -988,7 +988,9 @@ function TimelineSection({ jobId, getToken, refreshKey }) {
           }}
         >
           {showAll ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          {showAll ? "Show less activity" : `Show ${hiddenCount} older item${hiddenCount === 1 ? "" : "s"}`}
+          {showAll
+            ? "Show less activity"
+            : `Show ${hiddenCount} older item${hiddenCount === 1 ? "" : "s"}`}
         </button>
       )}
     </div>
