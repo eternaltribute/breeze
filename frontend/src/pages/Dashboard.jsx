@@ -393,7 +393,7 @@ function Dashboard() {
   const [resumesByJob, setResumesByJob] = useState({});
   const [coverLettersByJob, setCoverLettersByJob] = useState({});
   const [showDocumentIndicators, setShowDocumentIndicators] = useState(
-    getShowDocumentIndicatorsPreference,
+    getShowDocumentIndicatorsPreference
   );
   // S2-001: search box text
   const [searchQuery, setSearchQuery] = useState("");

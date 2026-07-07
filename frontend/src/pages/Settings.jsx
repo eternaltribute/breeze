@@ -2,11 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Camera, FileText, Save, Trash2 } from "lucide-react";
 import { calculateProfileCompletion } from "../utils/profileCompletion";
-import {
-  deleteProfilePhoto,
-  fetchProfilePhoto,
-  uploadProfilePhoto,
-} from "../utils/profilePhoto";
+import { deleteProfilePhoto, fetchProfilePhoto, uploadProfilePhoto } from "../utils/profilePhoto";
 
 const SETTINGS_STORAGE_KEY = "breeze:user-preferences";
 
@@ -405,7 +401,7 @@ function Settings() {
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
-                user?.firstName?.[0] ?? "U"
+                (user?.firstName?.[0] ?? "U")
               )}
             </div>
 
