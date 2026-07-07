@@ -225,6 +225,11 @@ def format_timeline_item(event: JobEvent) -> TimelineItem:
     elif event.event_type == JobEventType.OUTCOME:
         title = "Outcome recorded"
         detail = event.notes
+    elif event.event_type == JobEventType.DOCUMENT:
+        note = event.notes or "Document connected"
+        title, _, detail_text = note.partition("|")
+        title = title.strip() or "Document connected"
+        detail = detail_text.strip() or None
     else:
         title = event.event_type.value.replace("_", " ").capitalize()
         detail = event.notes

@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import CoverLetter, Education, Experience, Job, Skill, UserSkill
+from app.models import CoverLetter, Education, Experience, Job, JobEvent, JobEventType, Skill, UserSkill
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -225,6 +225,15 @@ async def save_cover_letter(
         existing.file_name = file_name
         existing.file_url = file_url
         existing.updated_at = datetime.utcnow()
+        db.add(
+            JobEvent(
+                job_id=payload.job_id,
+                owner_id=user_id,
+                event_type=JobEventType.DOCUMENT,
+                notes=f"Cover letter updated|Saved {file_name}",
+                created_at=datetime.utcnow(),
+            )
+        )
         db.commit()
         db.refresh(existing)
         return {"document_id": existing.id, "file_url": file_url}
@@ -237,6 +246,15 @@ async def save_cover_letter(
         file_url=file_url,
     )
     db.add(record)
+    db.add(
+        JobEvent(
+            job_id=payload.job_id,
+            owner_id=user_id,
+            event_type=JobEventType.DOCUMENT,
+            notes=f"Cover letter connected|Saved {file_name}",
+            created_at=datetime.utcnow(),
+        )
+    )
     db.commit()
     db.refresh(record)
     return {"document_id": record.id, "file_url": file_url}

@@ -21,6 +21,7 @@ class JobEventType(str, Enum):
     INTERVIEW = "interview"
     FOLLOW_UP = "follow_up"
     OUTCOME = "outcome"
+    DOCUMENT = "document"
 
 
 class JobEvent(SQLModel, table=True):
