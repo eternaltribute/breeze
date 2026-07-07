@@ -193,13 +193,23 @@ def transition_stage(
         if new_stage != JobStage.INTERVIEW:
             raise HTTPException(
                 status_code=400,
-                detail="Interview round can only be updated while job is in Interview stage",
+                detail=(
+                    "Interview round can only be updated "
+                    "while job is in Interview stage"
+                ),
             )
         if payload.interview_round < 1 or payload.interview_round > 5:
-            raise HTTPException(status_code=400, detail="Interview round must be between 1 and 5")
+            raise HTTPException(
+                status_code=400, detail="Interview round must be between 1 and 5"
+            )
         if not payload.notes or not payload.notes.strip():
-            raise HTTPException(status_code=400, detail="Interview round notes are required")
-        if job.interview_round is not None and payload.interview_round <= job.interview_round:
+            raise HTTPException(
+                status_code=400, detail="Interview round notes are required"
+            )
+        if (
+            job.interview_round is not None
+            and payload.interview_round <= job.interview_round
+        ):
             raise HTTPException(
                 status_code=400,
                 detail="Interview rounds can only move forward",
@@ -244,7 +254,18 @@ def transition_stage(
         db.add(event)
 
     if payload.interview_round is not None:
-        round_label = f"Interview - {payload.interview_round}{'st' if payload.interview_round == 1 else 'nd' if payload.interview_round == 2 else 'rd' if payload.interview_round == 3 else 'th'} Round"
+        suffix = (
+            "st"
+            if payload.interview_round == 1
+            else (
+                "nd"
+                if payload.interview_round == 2
+                else "rd" if payload.interview_round == 3 else "th"
+            )
+        )
+
+        round_label = f"Interview - {payload.interview_round}{suffix} Round"
+
         db.add(
             JobEvent(
                 job_id=job_id,
@@ -255,6 +276,7 @@ def transition_stage(
                 created_at=datetime.utcnow(),
             )
         )
+
     db.commit()
     db.refresh(job)
     return job

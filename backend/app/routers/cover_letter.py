@@ -11,7 +11,16 @@ from sqlmodel import Session, select
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import CoverLetter, Education, Experience, Job, JobEvent, JobEventType, Skill, UserSkill
+from app.models import (
+    CoverLetter,
+    Education,
+    Experience,
+    Job,
+    JobEvent,
+    JobEventType,
+    Skill,
+    UserSkill,
+)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
