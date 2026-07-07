@@ -1,6 +1,68 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
+import { Camera, FileText, Save, Trash2 } from "lucide-react";
 import { calculateProfileCompletion } from "../utils/profileCompletion";
+import {
+  deleteProfilePhoto,
+  fetchProfilePhoto,
+  uploadProfilePhoto,
+} from "../utils/profilePhoto";
+
+const SETTINGS_STORAGE_KEY = "breeze:user-preferences";
+
+const defaultPreferences = {
+  documents: {
+    showJobCardIndicators: true,
+  },
+};
+
+const loadStoredPreferences = () => {
+  try {
+    const stored = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!stored) return defaultPreferences;
+
+    const parsed = JSON.parse(stored);
+    return {
+      documents: {
+        ...defaultPreferences.documents,
+        ...(parsed.documents ?? {}),
+      },
+    };
+  } catch (err) {
+    console.error("Failed to load settings preferences:", err);
+    return defaultPreferences;
+  }
+};
+
+function PreferenceToggle({
+  enabled,
+  title,
+  detail,
+  onToggle,
+  labelStyle,
+  valueStyle,
+  rowStyle,
+  toggleStyle,
+  toggleKnobStyle,
+}) {
+  return (
+    <div style={rowStyle}>
+      <div>
+        <p style={{ ...labelStyle, marginBottom: "2px" }}>{title}</p>
+        <p style={{ ...valueStyle, marginBottom: 0 }}>{detail}</p>
+      </div>
+      <button
+        type="button"
+        aria-pressed={enabled}
+        aria-label={title}
+        onClick={onToggle}
+        style={toggleStyle(enabled)}
+      >
+        <span style={toggleKnobStyle(enabled)} />
+      </button>
+    </div>
+  );
+}
 
 function Settings() {
   const { user } = useUser();
@@ -8,7 +70,13 @@ function Settings() {
 
   const [completion, setCompletion] = useState(0);
   const [missingSections, setMissingSections] = useState([]);
+  const [preferences, setPreferences] = useState(loadStoredPreferences);
+  const [savedMessage, setSavedMessage] = useState("");
+  const [profilePhoto, setProfilePhoto] = useState("");
+  const [profilePhotoError, setProfilePhotoError] = useState("");
+  const savedMessageTimeout = useRef(null);
   const BASE = import.meta.env.VITE_API_BASE_URL;
+
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
@@ -96,6 +164,27 @@ function Settings() {
     fetchProfileData();
   }, [BASE, getToken]);
 
+  useEffect(() => {
+    const loadProfilePhoto = async () => {
+      try {
+        const photoUrl = await fetchProfilePhoto(BASE, getToken);
+        setProfilePhoto(photoUrl);
+      } catch (err) {
+        console.error("Failed to load profile photo:", err);
+      }
+    };
+
+    loadProfilePhoto();
+  }, [BASE, getToken]);
+
+  useEffect(() => {
+    return () => {
+      if (savedMessageTimeout.current) {
+        window.clearTimeout(savedMessageTimeout.current);
+      }
+    };
+  }, []);
+
   const cardStyle = {
     backgroundColor: "var(--color-card-bg, white)",
     borderRadius: "12px",
@@ -116,6 +205,131 @@ function Settings() {
     fontSize: "14px",
     marginBottom: "12px",
   };
+
+  const sectionHeaderStyle = {
+    color: "var(--color-heading, #003C78)",
+    fontSize: "16px",
+    marginBottom: "16px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+  };
+
+  const rowStyle = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+    padding: "12px 0",
+    borderTop: "1px solid var(--color-border-default, #e5e7eb)",
+  };
+
+  const toggleStyle = (enabled) => ({
+    width: "44px",
+    height: "24px",
+    borderRadius: "999px",
+    border: "none",
+    backgroundColor: enabled ? "var(--color-accent, #046A97)" : "#d1d5db",
+    cursor: "pointer",
+    padding: "3px",
+    position: "relative",
+    flexShrink: 0,
+  });
+
+  const toggleKnobStyle = (enabled) => ({
+    width: "18px",
+    height: "18px",
+    borderRadius: "50%",
+    backgroundColor: "white",
+    position: "absolute",
+    top: "3px",
+    left: enabled ? "23px" : "3px",
+    transition: "left 0.2s",
+  });
+
+  const showSavedConfirmation = () => {
+    setSavedMessage("Preferences saved");
+
+    if (savedMessageTimeout.current) {
+      window.clearTimeout(savedMessageTimeout.current);
+    }
+
+    savedMessageTimeout.current = window.setTimeout(() => setSavedMessage(""), 1800);
+  };
+
+  const persistPreferences = (nextPreferences) => {
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(nextPreferences));
+    window.dispatchEvent(new Event("breeze-preferences-updated"));
+    showSavedConfirmation();
+  };
+
+  const handleToggle = (section, key) => {
+    setPreferences((current) => {
+      const nextPreferences = {
+        ...current,
+        [section]: {
+          ...current[section],
+          [key]: !current[section][key],
+        },
+      };
+
+      persistPreferences(nextPreferences);
+      return nextPreferences;
+    });
+  };
+
+  const toggleProps = (section, name) => {
+    return {
+      enabled: preferences[section][name],
+      onToggle: () => handleToggle(section, name),
+      labelStyle,
+      valueStyle,
+      rowStyle,
+      toggleStyle,
+      toggleKnobStyle,
+    };
+  };
+
+  const handleProfilePhotoUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setProfilePhotoError("Please upload an image file.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setProfilePhotoError("Please choose an image under 2 MB.");
+      return;
+    }
+
+    try {
+      const photoUrl = await uploadProfilePhoto(BASE, getToken, file);
+      setProfilePhoto(photoUrl);
+      setProfilePhotoError("");
+      showSavedConfirmation();
+    } catch (err) {
+      console.error("Profile photo upload failed:", err);
+      setProfilePhotoError(err.message || "Could not upload that image. Please try again.");
+    }
+  };
+
+  const handleRemoveProfilePhoto = async () => {
+    try {
+      await deleteProfilePhoto(BASE, getToken);
+      setProfilePhoto("");
+      setProfilePhotoError("");
+      showSavedConfirmation();
+    } catch (err) {
+      console.error("Profile photo remove failed:", err);
+      setProfilePhotoError(err.message || "Could not remove the profile photo. Please try again.");
+    }
+  };
+
+  const displayedProfilePhoto = profilePhoto || user?.imageUrl || "";
 
   return (
     <div
@@ -150,6 +364,111 @@ function Settings() {
         >
           Manage your account preferences and application settings.
         </p>
+
+        {/* PROFILE PICTURE */}
+        <div style={{ ...cardStyle, borderLeft: "4px solid var(--section-border)" }}>
+          <h2
+            style={{
+              color: "var(--color-heading, #003C78)",
+              fontSize: "16px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <Camera size={18} />
+            Profile Picture
+          </h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+            <div
+              style={{
+                width: "88px",
+                height: "88px",
+                borderRadius: "50%",
+                border: "2px solid var(--color-border-default, #e5e7eb)",
+                backgroundColor: "var(--bg, #F8FAFC)",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--color-heading, #003C78)",
+                fontSize: "28px",
+                fontWeight: 800,
+                flexShrink: 0,
+              }}
+            >
+              {displayedProfilePhoto ? (
+                <img
+                  src={displayedProfilePhoto}
+                  alt="Profile"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                user?.firstName?.[0] ?? "U"
+              )}
+            </div>
+
+            <div style={{ flex: "1 1 220px" }}>
+              <p style={{ ...valueStyle, marginBottom: "12px" }}>
+                Upload a profile picture to show on Settings and Profile on this browser.
+              </p>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    backgroundColor: "var(--color-accent, #046A97)",
+                    color: "white",
+                    borderRadius: "8px",
+                    padding: "9px 12px",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Camera size={15} />
+                  Upload Photo
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleProfilePhotoUpload}
+                    style={{ display: "none" }}
+                  />
+                </label>
+
+                {profilePhoto && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveProfilePhoto}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      border: "1px solid var(--color-border-default, #e5e7eb)",
+                      borderRadius: "8px",
+                      backgroundColor: "white",
+                      color: "#DC2626",
+                      padding: "9px 12px",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Trash2 size={15} />
+                    Remove
+                  </button>
+                )}
+              </div>
+              {profilePhotoError && (
+                <p style={{ color: "#DC2626", fontSize: "12px", marginTop: "8px" }}>
+                  {profilePhotoError}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* ACCOUNT INFORMATION — real data from Clerk */}
         <div style={{ ...cardStyle, borderLeft: "4px solid var(--section-border)" }}>
@@ -224,6 +543,36 @@ function Settings() {
                 : "Profile completion is still loading"}
           </p>
         </div>
+
+        {/* DOCUMENT PREFERENCES */}
+        <div style={{ ...cardStyle, borderLeft: "4px solid var(--section-border)" }}>
+          <h2 style={sectionHeaderStyle}>
+            <FileText size={18} />
+            Document Preferences
+          </h2>
+          <PreferenceToggle
+            {...toggleProps("documents", "showJobCardIndicators")}
+            title="Show document indicators on job cards"
+            detail="Display resume and cover letter counts next to the View button."
+          />
+        </div>
+
+        {savedMessage && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              color: "var(--color-accent, #046A97)",
+              fontSize: "13px",
+              fontWeight: 700,
+              marginBottom: "16px",
+            }}
+          >
+            <Save size={16} />
+            {savedMessage}
+          </div>
+        )}
 
         {/* SECURITY — Clerk managed, see S1-013 */}
         <div style={{ ...cardStyle, borderLeft: "4px solid var(--section-border)" }}>
