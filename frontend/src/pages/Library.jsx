@@ -13,13 +13,18 @@
 //
 //   EXAMPLE OF TABLE IN DATABASE:
 // {
-//  id: "...",
-//  title: "...",
-//  type: "resume" | "cover_letter",
-//  status: "active" | "archived",
-//  tags: [],
-//  updated_at: "2026-07-08T12:00:00Z"
-//  }
+//  id: "document-id",
+//  title: "My Resume",
+//  type: "resume", // or "cover_letter"
+//  status: "active", // or "archived"
+//  updated_at: "2026-07-08T12:00:00Z",
+//  tags: ["frontend"],
+//  version_label: "v1",
+//  version_number: 1,
+//  owner_id: "user-id",
+//  file_name: "resume.pdf",
+//  file_url: "..."
+// }
 //
 // Rules: S3-BR-001 (resume/cover letter only), S3-BR-002 (ownership —
 // enforced server-side once real API lands), S3-BR-009 (archive/restore
@@ -33,6 +38,11 @@ import { exportDocument, exportFormatLabels } from "../utils/documentExport";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
 const USE_MOCK_DATA = true; // flip to false once GET /documents is real
+
+// S3-007 backend contract notes:
+// - PATCH /documents/:documentId should rename only; it must not create a new version.
+// - POST /documents/:documentId/duplicate should create a new document copy and
+//   return version label/number, timestamp, and owner metadata for S3-BR-008.
 
 const tabStyle = (active) => ({
   padding: "8px 20px",
@@ -78,9 +88,17 @@ function normalizeDocument(doc) {
     type: doc.type ?? doc.document_type,
     status: doc.status ?? "active",
     tags: normalizeTags(doc.tags),
+    version_label: doc.version_label ?? doc.versionLabel ?? null,
+    version_number: doc.version_number ?? doc.versionNumber ?? null,
+    owner_id: doc.owner_id ?? doc.ownerId ?? doc.user_id ?? doc.userId ?? null,
     updated_at: doc.updated_at ?? doc.updatedAt ?? doc.created_at ?? doc.createdAt ?? "",
     created_at: doc.created_at ?? doc.createdAt ?? "",
   };
+}
+
+function buildDuplicateTitle(title) {
+  const cleanTitle = title?.trim() || "Untitled document";
+  return cleanTitle.endsWith("(Copy)") ? cleanTitle : `${cleanTitle} (Copy)`;
 }
 
 function Library() {
@@ -95,6 +113,11 @@ function Library() {
   const [sortKey, setSortKey] = useState("updated_desc");
   const [confirmTarget, setConfirmTarget] = useState(null); // doc pending archive confirm
   const [exportMessage, setExportMessage] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [renameTitle, setRenameTitle] = useState("");
+  const [renameError, setRenameError] = useState("");
+  const [renameSaving, setRenameSaving] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -188,6 +211,109 @@ function Library() {
       setExportMessage(
         `${exportFormatLabels[format]} export is ready in the UI, but needs the backend export endpoint for this document.`
       );
+    }
+  }
+
+  async function handleDuplicateDocument(doc) {
+    setActionMessage("");
+
+    try {
+      if (USE_MOCK_DATA) {
+        const now = new Date().toISOString();
+        const copy = normalizeDocument({
+          ...doc,
+          id: `mock-copy-${crypto.randomUUID?.() ?? Date.now()}`,
+          title: buildDuplicateTitle(doc.title),
+          status: "active",
+          job_id: null,
+          created_at: now,
+          updated_at: now,
+          version_label: "v1",
+          version_number: 1,
+        });
+        setDocuments((prev) => [copy, ...prev]);
+        setStatusFilter("active");
+        setSortKey("updated_desc");
+        setActionMessage(`Duplicated "${doc.title}".`);
+        return;
+      }
+
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/documents/${doc.id}/duplicate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Duplicate failed");
+
+      setDocuments((prev) => [normalizeDocument(data), ...prev]);
+      setStatusFilter("active");
+      setSortKey("updated_desc");
+      setActionMessage(`Duplicated "${doc.title}".`);
+    } catch (err) {
+      console.error("Document duplicate failed:", err);
+      setActionMessage("Duplicate is ready in the UI, but needs the backend duplicate endpoint.");
+    }
+  }
+
+  function handleRenameClick(doc) {
+    setActionMessage("");
+    setRenameError("");
+    setRenameTarget(doc);
+    setRenameTitle(doc.title ?? "");
+  }
+
+  async function handleRenameSubmit() {
+    const nextTitle = renameTitle.trim();
+    if (!nextTitle) {
+      setRenameError("Document name is required.");
+      return;
+    }
+
+    if (nextTitle === renameTarget.title) {
+      setRenameTarget(null);
+      return;
+    }
+
+    setRenameSaving(true);
+    setRenameError("");
+
+    try {
+      if (USE_MOCK_DATA) {
+        const now = new Date().toISOString();
+        setDocuments((prev) =>
+          prev.map((doc) =>
+            doc.id === renameTarget.id ? { ...doc, title: nextTitle, updated_at: now } : doc
+          )
+        );
+        setRenameTarget(null);
+        setActionMessage(`Renamed document to "${nextTitle}".`);
+        return;
+      }
+
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/documents/${renameTarget.id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: nextTitle }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Rename failed");
+
+      const renamedDocument = normalizeDocument(data);
+      setDocuments((prev) =>
+        prev.map((doc) => (doc.id === renameTarget.id ? { ...doc, ...renamedDocument } : doc))
+      );
+      setRenameTarget(null);
+      setActionMessage(`Renamed document to "${renamedDocument.title ?? nextTitle}".`);
+    } catch (err) {
+      console.error("Document rename failed:", err);
+      setRenameError("Rename is ready in the UI, but needs the backend rename endpoint.");
+    } finally {
+      setRenameSaving(false);
     }
   }
 
@@ -317,6 +443,23 @@ function Library() {
         </div>
       )}
 
+      {actionMessage && (
+        <div
+          style={{
+            border: "1px solid #BBF7D0",
+            backgroundColor: "#F0FDF4",
+            color: "#166534",
+            borderRadius: "8px",
+            padding: "10px 12px",
+            fontSize: "13px",
+            fontWeight: 700,
+            marginBottom: "16px",
+          }}
+        >
+          {actionMessage}
+        </div>
+      )}
+
       {status === "ready" && visibleDocuments.length === 0 && (
         <p style={{ color: "var(--color-subtext)" }}>
           {isFiltered
@@ -333,8 +476,95 @@ function Library() {
             onArchiveClick={setConfirmTarget}
             onRestoreClick={handleRestoreClick}
             onExport={handleExportDocument}
+            onDuplicate={handleDuplicateDocument}
+            onRename={handleRenameClick}
           />
         ))}
+
+      {renameTarget && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            zIndex: 20,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--bg-card)",
+              borderRadius: "12px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "420px",
+              boxShadow: "var(--shadow)",
+            }}
+          >
+            <h3 style={{ marginTop: 0, color: "var(--color-heading, #003C78)" }}>
+              Rename document
+            </h3>
+            <p style={{ color: "var(--color-subtext)", fontSize: "13px" }}>
+              Update the document name without creating a new version.
+            </p>
+            <input
+              value={renameTitle}
+              onChange={(e) => setRenameTitle(e.target.value)}
+              aria-label="Document name"
+              style={{
+                ...controlStyle,
+                width: "100%",
+                boxSizing: "border-box",
+                marginTop: "8px",
+              }}
+              autoFocus
+            />
+            {renameError && (
+              <p style={{ color: "#DC2626", fontSize: "13px", fontWeight: 700 }}>{renameError}</p>
+            )}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+                marginTop: "20px",
+              }}
+            >
+              <button
+                onClick={() => setRenameTarget(null)}
+                disabled={renameSaving}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--color-border-default)",
+                  background: "none",
+                  cursor: renameSaving ? "not-allowed" : "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRenameSubmit}
+                disabled={renameSaving}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background: "#003C78",
+                  color: "white",
+                  cursor: renameSaving ? "not-allowed" : "pointer",
+                  opacity: renameSaving ? 0.7 : 1,
+                }}
+              >
+                {renameSaving ? "Saving..." : "Save name"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmTarget && (
         <div
