@@ -13,11 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { describe, it, expect } from "vitest";
-import {
-  validateFile,
-  validateDocumentType,
-  MAX_FILE_SIZE_BYTES,
-} from "../lib/documentValidation";
+import { validateFile, validateDocumentType, MAX_FILE_SIZE_BYTES } from "../lib/documentValidation";
 
 // Small helper to build a fake File object for testing, since we don't have
 // real files in a test environment. jsdom (configured in vite.config.js)
