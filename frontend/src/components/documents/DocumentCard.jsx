@@ -7,7 +7,18 @@
 // Props are plain data in — this component doesn't fetch or know about
 // mock vs. real API. That decision lives in Library.jsx.
 
-import { FileText, Mail, Archive, RotateCcw, Download } from "lucide-react";
+import { useState } from "react";
+import {
+  FileText,
+  Mail,
+  Archive,
+  RotateCcw,
+  Download,
+  Copy,
+  Pencil,
+  MoreHorizontal,
+  ChevronDown,
+} from "lucide-react";
 import { EXPORT_FORMATS, exportFormatLabels } from "../../utils/documentExport";
 
 const cardStyle = {
@@ -44,9 +55,33 @@ const getStatusChipStyle = (isArchived) => ({
   fontWeight: 700,
 });
 
-export default function DocumentCard({ document, onArchiveClick, onRestoreClick, onExport }) {
+export default function DocumentCard({
+  document,
+  onArchiveClick,
+  onRestoreClick,
+  onExport,
+  onDuplicate,
+  onRename,
+}) {
   const isArchived = document.status === "archived";
   const Icon = document.type === "resume" ? FileText : Mail;
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+
+  const handleExport = (format) => {
+    setIsExportOpen(false);
+    onExport(document, format);
+  };
+
+  const handleRename = () => {
+    setIsMoreOpen(false);
+    onRename(document);
+  };
+
+  const handleDuplicate = () => {
+    setIsMoreOpen(false);
+    onDuplicate(document);
+  };
 
   return (
     <div style={cardStyle}>
@@ -60,6 +95,11 @@ export default function DocumentCard({ document, onArchiveClick, onRestoreClick,
             {typeLabel[document.type]} · Updated{" "}
             {new Date(document.updated_at).toLocaleDateString()}
           </div>
+          {(document.version_label || document.version_number) && (
+            <div style={{ fontSize: "12px", color: "#6B7280", marginTop: "4px" }}>
+              Version {document.version_label ?? `v${document.version_number}`}
+            </div>
+          )}
           {document.tags?.length > 0 && (
             <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "8px" }}>
               {document.tags.map((tag) => (
@@ -83,7 +123,14 @@ export default function DocumentCard({ document, onArchiveClick, onRestoreClick,
       </div>
 
       <div
-        style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px" }}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: "12px",
+          marginLeft: "auto",
+          flex: "0 0 auto",
+        }}
       >
         <span style={getStatusChipStyle(isArchived)}>
           {statusLabel[document.status] ?? document.status}
@@ -98,10 +145,15 @@ export default function DocumentCard({ document, onArchiveClick, onRestoreClick,
             flexWrap: "wrap",
           }}
         >
-          {EXPORT_FORMATS.map((format) => (
+          <div style={{ position: "relative" }}>
             <button
-              key={format}
-              onClick={() => onExport(document, format)}
+              type="button"
+              onClick={() => {
+                setIsExportOpen((open) => !open);
+                setIsMoreOpen(false);
+              }}
+              aria-label={`Export ${document.title}`}
+              aria-expanded={isExportOpen}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -116,9 +168,138 @@ export default function DocumentCard({ document, onArchiveClick, onRestoreClick,
                 fontWeight: 700,
               }}
             >
-              <Download size={15} /> {exportFormatLabels[format]}
+              <Download size={15} /> Export <ChevronDown size={14} />
             </button>
-          ))}
+
+            {isExportOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "calc(100% + 6px)",
+                  minWidth: "140px",
+                  backgroundColor: "var(--bg-card)",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: "8px",
+                  boxShadow: "var(--shadow)",
+                  padding: "6px",
+                  zIndex: 10,
+                }}
+              >
+                {EXPORT_FORMATS.map((format) => (
+                  <button
+                    key={format}
+                    type="button"
+                    onClick={() => handleExport(format)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      background: "none",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "8px",
+                      cursor: "pointer",
+                      color: "var(--color-heading, #003C78)",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      textAlign: "left",
+                    }}
+                  >
+                    <Download size={15} /> {exportFormatLabels[format]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMoreOpen((open) => !open);
+                setIsExportOpen(false);
+              }}
+              aria-label={`More actions for ${document.title}`}
+              aria-expanded={isMoreOpen}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "none",
+                border: "1px solid var(--color-border-default)",
+                borderRadius: "8px",
+                padding: "8px 10px",
+                cursor: "pointer",
+                color: "#046A97",
+                fontSize: "13px",
+                fontWeight: 700,
+              }}
+            >
+              <MoreHorizontal size={16} /> More
+            </button>
+
+            {isMoreOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "calc(100% + 6px)",
+                  minWidth: "150px",
+                  backgroundColor: "var(--bg-card)",
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: "8px",
+                  boxShadow: "var(--shadow)",
+                  padding: "6px",
+                  zIndex: 10,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleRename}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    background: "none",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "8px",
+                    cursor: "pointer",
+                    color: "var(--color-heading, #003C78)",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    textAlign: "left",
+                  }}
+                >
+                  <Pencil size={15} /> Rename
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDuplicate}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    background: "none",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "8px",
+                    cursor: "pointer",
+                    color: "var(--color-heading, #003C78)",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    textAlign: "left",
+                  }}
+                >
+                  <Copy size={15} /> Duplicate
+                </button>
+              </div>
+            )}
+          </div>
 
           {isArchived ? (
             <button
