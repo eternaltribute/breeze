@@ -17,6 +17,7 @@ export const MOCK_DOCUMENTS = [
     file_url: null,
     job_id: null,
     status: "active", // proposed field — active | archived
+    tags: ["frontend", "software"],
     created_at: "2026-06-20T10:00:00Z",
     updated_at: "2026-07-01T14:30:00Z",
   },
@@ -28,6 +29,7 @@ export const MOCK_DOCUMENTS = [
     file_url: null,
     job_id: "job-abc",
     status: "active",
+    tags: ["frontend", "acme"],
     created_at: "2026-06-15T09:00:00Z",
     updated_at: "2026-06-15T09:00:00Z",
   },
@@ -39,6 +41,7 @@ export const MOCK_DOCUMENTS = [
     file_url: null,
     job_id: null,
     status: "archived",
+    tags: ["draft"],
     created_at: "2026-05-01T10:00:00Z",
     updated_at: "2026-05-10T10:00:00Z",
   },

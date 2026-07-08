@@ -1,6 +1,7 @@
 // frontend/src/pages/Library.jsx
 //
-// S3-001 (Document Library List View) + S3-008 (Archive/Restore) built
+// S3-001 (Document Library List View), S3-006 (Filtering/Sorting),
+// and S3-008 (Archive/Restore) built
 // together, per team decision — see Discord thread with Ronald/Sergio.
 //
 // STATUS: Using MOCK_DOCUMENTS from lib/mockDocuments.js until Ronald ships
@@ -10,6 +11,16 @@
 // fetch(`${BASE}/...`)) specifically so swapping in the real call later is
 // a small, low-risk change — not a rewrite.
 //
+//   EXAMPLE OF TABLE IN DATABASE: 
+// {
+//  id: "...",
+//  title: "...",
+//  type: "resume" | "cover_letter",
+//  status: "active" | "archived",
+//  tags: [],
+//  updated_at: "2026-07-08T12:00:00Z"
+//  }
+//
 // Rules: S3-BR-001 (resume/cover letter only), S3-BR-002 (ownership —
 // enforced server-side once real API lands), S3-BR-009 (archive/restore
 // preserves version history — N/A until S3-003 version model exists).
@@ -18,6 +29,7 @@ import { useUser, useAuth } from "@clerk/clerk-react";
 import { useState, useEffect, useMemo } from "react";
 import DocumentCard from "../components/documents/DocumentCard";
 import { MOCK_DOCUMENTS } from "../lib/mockDocuments";
+import { exportDocument, exportFormatLabels } from "../utils/documentExport";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
 const USE_MOCK_DATA = true; // flip to false once GET /documents is real
@@ -32,14 +44,57 @@ const tabStyle = (active) => ({
   fontWeight: 600,
 });
 
+const controlStyle = {
+  padding: "9px 12px",
+  borderRadius: "8px",
+  border: "1px solid var(--color-border-default)",
+  backgroundColor: "var(--bg-card)",
+  color: "var(--color-heading, #003C78)",
+  fontSize: "14px",
+};
+
+function normalizeTags(tags) {
+  if (Array.isArray(tags)) {
+    return tags
+      .map((tag) => (typeof tag === "string" ? tag : tag?.name))
+      .filter(Boolean)
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+
+  if (typeof tags === "string") {
+    return tags
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function normalizeDocument(doc) {
+  return {
+    ...doc,
+    type: doc.type ?? doc.document_type,
+    status: doc.status ?? "active",
+    tags: normalizeTags(doc.tags),
+    updated_at: doc.updated_at ?? doc.updatedAt ?? doc.created_at ?? doc.createdAt ?? "",
+    created_at: doc.created_at ?? doc.createdAt ?? "",
+  };
+}
+
 function Library() {
   const { getToken } = useAuth();
   const { isLoaded } = useUser();
 
   const [documents, setDocuments] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error
-  const [activeTab, setActiveTab] = useState("active"); // active | archived
+  const [statusFilter, setStatusFilter] = useState("active"); // all | active | archived
+  const [typeFilter, setTypeFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState("");
+  const [sortKey, setSortKey] = useState("updated_desc");
   const [confirmTarget, setConfirmTarget] = useState(null); // doc pending archive confirm
+  const [exportMessage, setExportMessage] = useState("");
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -50,7 +105,7 @@ function Library() {
         if (USE_MOCK_DATA) {
           // Simulates network latency so loading state is visible/testable
           await new Promise((resolve) => setTimeout(resolve, 300));
-          setDocuments(MOCK_DOCUMENTS);
+          setDocuments(MOCK_DOCUMENTS.map(normalizeDocument));
           setStatus("ready");
           return;
         }
@@ -62,7 +117,7 @@ function Library() {
         });
         if (!res.ok) throw new Error("Failed to load documents");
         const data = await res.json();
-        setDocuments(data);
+        setDocuments(data.map(normalizeDocument));
         setStatus("ready");
       } catch (err) {
         console.error("Failed to load library documents:", err);
@@ -73,10 +128,44 @@ function Library() {
     loadDocuments();
   }, [isLoaded, getToken]);
 
-  const visibleDocuments = useMemo(
-    () => documents.filter((doc) => doc.status === activeTab),
-    [documents, activeTab]
-  );
+  const availableTags = useMemo(() => {
+    return Array.from(new Set(documents.flatMap((doc) => doc.tags ?? []))).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [documents]);
+
+  const visibleDocuments = useMemo(() => {
+    let result = documents;
+
+    if (statusFilter !== "all") {
+      result = result.filter((doc) => doc.status === statusFilter);
+    }
+
+    if (typeFilter) {
+      result = result.filter((doc) => doc.type === typeFilter);
+    }
+
+    if (tagFilter) {
+      result = result.filter((doc) => (doc.tags ?? []).includes(tagFilter));
+    }
+
+    return [...result].sort((a, b) => {
+      const aUpdated = a.updated_at ?? "";
+      const bUpdated = b.updated_at ?? "";
+      if (sortKey === "updated_asc") return aUpdated.localeCompare(bUpdated);
+      return bUpdated.localeCompare(aUpdated);
+    });
+  }, [documents, statusFilter, typeFilter, tagFilter, sortKey]);
+
+  const isFiltered =
+    statusFilter !== "active" || typeFilter || tagFilter || sortKey !== "updated_desc";
+
+  const handleResetFilters = () => {
+    setStatusFilter("active");
+    setTypeFilter("");
+    setTagFilter("");
+    setSortKey("updated_desc");
+  };
 
   // Optimistic local update — real persistence happens once the endpoint
   // exists. This just flips status client-side so the UI is demoable now.
@@ -87,6 +176,19 @@ function Library() {
 
   function handleRestoreClick(doc) {
     setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, status: "active" } : d)));
+  }
+
+  async function handleExportDocument(doc, format) {
+    setExportMessage("");
+
+    try {
+      await exportDocument({ BASE, getToken, document: doc, format });
+    } catch (err) {
+      console.error("Document export failed:", err);
+      setExportMessage(
+        `${exportFormatLabels[format]} export is ready in the UI, but needs the backend export endpoint for this document.`
+      );
+    }
   }
 
   return (
@@ -113,13 +215,81 @@ function Library() {
         Library
       </h1>
 
-      <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
-        <button style={tabStyle(activeTab === "active")} onClick={() => setActiveTab("active")}>
+      <div style={{ display: "flex", gap: "12px", marginBottom: "18px", flexWrap: "wrap" }}>
+        <button style={tabStyle(statusFilter === "all")} onClick={() => setStatusFilter("all")}>
+          All
+        </button>
+        <button
+          style={tabStyle(statusFilter === "active")}
+          onClick={() => setStatusFilter("active")}
+        >
           Active
         </button>
-        <button style={tabStyle(activeTab === "archived")} onClick={() => setActiveTab("archived")}>
+        <button
+          style={tabStyle(statusFilter === "archived")}
+          onClick={() => setStatusFilter("archived")}
+        >
           Archived
         </button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "12px",
+          marginBottom: "24px",
+        }}
+      >
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          style={controlStyle}
+          aria-label="Filter documents by type"
+        >
+          <option value="">All Types</option>
+          <option value="resume">Resume</option>
+          <option value="cover_letter">Cover Letter</option>
+        </select>
+
+        <select
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          style={controlStyle}
+          aria-label="Filter documents by tag"
+        >
+          <option value="">All Tags</option>
+          {availableTags.map((tag) => (
+            <option key={tag} value={tag}>
+              {tag}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value)}
+          style={controlStyle}
+          aria-label="Sort documents by updated date"
+        >
+          <option value="updated_desc">Updated Date (newest first)</option>
+          <option value="updated_asc">Updated Date (oldest first)</option>
+        </select>
+
+        {isFiltered && (
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            style={{
+              ...controlStyle,
+              backgroundColor: "transparent",
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            Reset filters
+          </button>
+        )}
       </div>
 
       {status === "loading" && <p style={{ color: "var(--color-subtext)" }}>Loading documents…</p>}
@@ -130,11 +300,28 @@ function Library() {
         </p>
       )}
 
+      {exportMessage && (
+        <div
+          style={{
+            border: "1px solid #BFDBFE",
+            backgroundColor: "#EFF6FF",
+            color: "#003C78",
+            borderRadius: "8px",
+            padding: "10px 12px",
+            fontSize: "13px",
+            fontWeight: 700,
+            marginBottom: "16px",
+          }}
+        >
+          {exportMessage}
+        </div>
+      )}
+
       {status === "ready" && visibleDocuments.length === 0 && (
         <p style={{ color: "var(--color-subtext)" }}>
-          {activeTab === "active"
-            ? "No documents yet. Upload a resume or cover letter to get started."
-            : "No archived documents."}
+          {isFiltered
+            ? "No documents match those filters."
+            : "No documents yet. Upload a resume or cover letter to get started."}
         </p>
       )}
 
@@ -145,6 +332,7 @@ function Library() {
             document={doc}
             onArchiveClick={setConfirmTarget}
             onRestoreClick={handleRestoreClick}
+            onExport={handleExportDocument}
           />
         ))}
 
