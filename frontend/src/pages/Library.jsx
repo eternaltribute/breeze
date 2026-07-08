@@ -11,7 +11,7 @@
 // fetch(`${BASE}/...`)) specifically so swapping in the real call later is
 // a small, low-risk change — not a rewrite.
 //
-//   EXAMPLE OF TABLE IN DATABASE: 
+//   EXAMPLE OF TABLE IN DATABASE:
 // {
 //  id: "...",
 //  title: "...",

@@ -82,7 +82,9 @@ export default function DocumentCard({ document, onArchiveClick, onRestoreClick,
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px" }}>
+      <div
+        style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "12px" }}
+      >
         <span style={getStatusChipStyle(isArchived)}>
           {statusLabel[document.status] ?? document.status}
         </span>
