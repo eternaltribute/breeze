@@ -27,7 +27,8 @@ async def http_exception_handler(
     )
     return JSONResponse(
         status_code=exc.status_code,
-        content={"error": exc.detail, "request_id": request_id},
+        # S3-018: keep the detail key so response shape matches FastAPI's
+        content={"detail": exc.detail, "request_id": request_id},
         headers=getattr(exc, "headers", None),
     )
 
