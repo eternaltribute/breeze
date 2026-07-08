@@ -11,6 +11,7 @@ from sqlmodel import Session, select, text
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.logging_config import logger  # S3-018
 from app.models import Job, JobEvent, JobEventType, Resume
 
 router = APIRouter(prefix="/resume", tags=["resume"])
@@ -156,6 +157,18 @@ async def parse_pdf(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF parsing failed: {str(e)}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        # S3-018: Log the real error server-side; don't leak internal
+        # details to the client.
+        logger.error("PDF parsing failed: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Could not process this PDF. "
+            "Please try again or paste the text directly.",
+        )
 
 
 class GenerateForJobRequest(BaseModel):
