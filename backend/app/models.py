@@ -95,7 +95,7 @@ class User(SQLModel, table=True):
     location_type: Optional[str] = Field(default=None)
     desired_location: Optional[str] = Field(default=None)
     employment_type: Optional[EmploymentType] = Field(
-        default=None,sa_column=Column("employment_type",SAString,nullable=True)
+        default=None, sa_column=Column("employment_type", SAString, nullable=True)
     )
     desired_salary: Optional[int] = Field(default=None)
 
@@ -166,7 +166,7 @@ class Document(SQLModel, table=True):
     title: str
     doc_type: DocType = Field(sa_column=Column("doc_type", SAString, nullable=False))
     status: DocStatus = Field(
-        default=DocStatus.DRAFT,sa_column=Column("status", SAString,nullable=False)
+        default=DocStatus.DRAFT, sa_column=Column("status", SAString, nullable=False)
     )
     tags: Optional[str] = Field(default=None)  # comma-separated
     file_name: Optional[str] = Field(default=None)
@@ -176,6 +176,7 @@ class Document(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     version_label: Optional[str] = Field(default=None)
     version_number: Optional[int] = Field(default=None)
+
 
 class DocumentVersion(SQLModel, table=True):
     __tablename__ = "document_versions"

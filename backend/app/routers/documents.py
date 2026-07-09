@@ -34,6 +34,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 # ── Request models ────────────────────────────────────────────────────────────
 
+
 class SaveCoverLetterRequest(BaseModel):
     job_id: str
     cover_letter_text: str
@@ -49,17 +50,22 @@ class ImproveCoverLetterRequest(BaseModel):
     cover_letter_text: str
     instruction: str
 
+
 class GenerateForJobRequest(BaseModel):
     job_id: str
+
 
 class ImproveResumeRequest(BaseModel):
     resume_text: str
     instruction: str
 
+
 class CreateVersionRequest(BaseModel):
     version_label: Optional[str] = None
 
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def generate_pdf(text: str) -> bytes:
     pdf = FPDF()
@@ -68,6 +74,7 @@ def generate_pdf(text: str) -> bytes:
     pdf.set_font("Helvetica", size=12)
     pdf.multi_cell(0, 7, text)
     return bytes(pdf.output())
+
 
 @router.post("/{document_id}/versions")
 def create_document_version(
@@ -141,7 +148,10 @@ def get_document_versions(
         for v in versions
     ]
 
-async def upload_to_storage(file_bytes: bytes, path: str, content_type:str) -> Optional[str]: # noqa: E501
+
+async def upload_to_storage(
+    file_bytes: bytes, path: str, content_type: str
+) -> Optional[str]:  # noqa: E501
     async with httpx.AsyncClient() as client:
         upload_res = await client.post(
             f"{SUPABASE_URL}/storage/v1/object/{BUCKET}/{path}",
@@ -153,7 +163,9 @@ async def upload_to_storage(file_bytes: bytes, path: str, content_type:str) -> O
             content=file_bytes,
         )
         if upload_res.status_code not in (200, 201):
-            raise HTTPException(status_code=500,detail=f"Upload failed:{upload_res.text}") # noqa: E501
+            raise HTTPException(
+                status_code=500, detail=f"Upload failed:{upload_res.text}"
+            )  # noqa: E501
 
         sign_res = await client.post(
             f"{SUPABASE_URL}/storage/v1/object/sign/{BUCKET}/{path}",
@@ -169,6 +181,7 @@ async def upload_to_storage(file_bytes: bytes, path: str, content_type:str) -> O
 
 
 # ── Resume endpoints ──────────────────────────────────────────────────────────
+
 
 @router.get("/resume/job/{job_id}")
 def get_resume_for_job(
@@ -195,6 +208,7 @@ def get_resume_for_job(
         "file_url": record.file_url,
     }
 
+
 @router.post("/resume/save")
 async def save_resume(
     file: UploadFile = File(...),
@@ -220,13 +234,15 @@ async def save_resume(
     )
     db.add(record)
     if job_id:
-        db.add(JobEvent(
-            job_id=job_id,
-            owner_id=user_id,
-            event_type=JobEventType.DOCUMENT,
-            notes=f"Resume connected|Saved {file.filename}",
-            created_at=datetime.utcnow(),
-        ))
+        db.add(
+            JobEvent(
+                job_id=job_id,
+                owner_id=user_id,
+                event_type=JobEventType.DOCUMENT,
+                notes=f"Resume connected|Saved {file.filename}",
+                created_at=datetime.utcnow(),
+            )
+        )
     db.commit()
     db.refresh(record)
 
@@ -256,6 +272,7 @@ def get_latest_resume(
         "resume_text": record.document_text,
     }
 
+
 @router.post("/resume/parse-pdf")
 async def parse_pdf(
     file: UploadFile = File(...),
@@ -268,10 +285,14 @@ async def parse_pdf(
         import io
 
         import pypdf
+
         reader = pypdf.PdfReader(io.BytesIO(file_bytes))
         text_content = "".join(page.extract_text() or "" for page in reader.pages)
         if not text_content.strip():
-            raise HTTPException(status_code=422,detail="Could not extract text from PDF. Try pasting text directly.")# noqa: E501
+            raise HTTPException(
+                status_code=422,
+                detail="Could not extract text from PDF. Try pasting text directly.",
+            )  # noqa: E501
         return {"text": text_content.strip()}
     except HTTPException:
         raise
@@ -286,7 +307,9 @@ async def generate_resume_for_job(
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
-    job = db.exec(select(Job).where(Job.id==payload.job_id,Job.owner_id == user_id)).first() # noqa: E501
+    job = db.exec(
+        select(Job).where(Job.id == payload.job_id, Job.owner_id == user_id)
+    ).first()  # noqa: E501
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -314,16 +337,18 @@ async def generate_resume_for_job(
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1000,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Generate a professional resume tailored for this job posting. "
-                f"Use the candidate profile to personalize it.\n\n"
-                f"CANDIDATE PROFILE:\n{profile_context}\n\n"
-                f"JOB DETAILS:\n{job_context}\n\n"
-                f"Return clean plain text resume only."
-            ),
-        }],
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Generate a professional resume tailored for this job posting. "
+                    f"Use the candidate profile to personalize it.\n\n"
+                    f"CANDIDATE PROFILE:\n{profile_context}\n\n"
+                    f"JOB DETAILS:\n{job_context}\n\n"
+                    f"Return clean plain text resume only."
+                ),
+            }
+        ],
     )
     return {"resume_text": message.content[0].text}
 
@@ -353,8 +378,8 @@ async def improve_resume(
     return {"improved_text": message.content[0].text}
 
 
-
 # ── Cover letter endpoints ────────────────────────────────────────────────────
+
 
 @router.post("/cover-letter/generate")
 async def generate_cover_letter(
@@ -364,7 +389,9 @@ async def generate_cover_letter(
 ):
     user_id = current_user.get("sub")
 
-    job = db.exec(select(Job).where(Job.id==payload.job_id,Job.owner_id==user_id)).first() # noqa: E501
+    job = db.exec(
+        select(Job).where(Job.id == payload.job_id, Job.owner_id == user_id)
+    ).first()  # noqa: E501
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -377,18 +404,32 @@ async def generate_cover_letter(
         select(Education).where(Education.user_id == user_id).order_by(Education.order)
     ).all()
     experiences = db.exec(
-        select(Experience).where(Experience.user_id==user_id).order_by(Experience.order)
+        select(Experience)
+        .where(Experience.user_id == user_id)
+        .order_by(Experience.order)
     ).all()
 
     skills_text = ", ".join([s.name for s in skills]) if skills else "Not provided"
-    education_text = "\n".join([
-        f"- {e.degree} in {e.field_of_study} at {e.school} ({e.start_date} – {e.end_date})"  # noqa: E501
-        for e in education
-    ]) if education else "Not provided"
-    experience_text = "\n".join([
-        f"- {e.title} at {e.company} ({e.start_date} – {e.end_date}): {e.description}"  # noqa: E501
-        for e in experiences
-    ]) if experiences else "Not provided"
+    education_text = (
+        "\n".join(
+            [
+                f"- {e.degree} in {e.field_of_study} at {e.school} ({e.start_date} – {e.end_date})"  # noqa: E501
+                for e in education
+            ]
+        )
+        if education
+        else "Not provided"
+    )
+    experience_text = (
+        "\n".join(
+            [
+                f"- {e.title} at {e.company} ({e.start_date} – {e.end_date}): {e.description}"  # noqa: E501
+                for e in experiences
+            ]
+        )
+        if experiences
+        else "Not provided"
+    )
 
     profile = payload.profile
     prompt = (
@@ -430,7 +471,9 @@ async def improve_cover_letter(
 ):
     user_id = current_user.get("sub")
 
-    job = db.exec(select(Job).where(Job.id==payload.job_id,Job.owner_id==user_id)).first() # noqa: E501
+    job = db.exec(
+        select(Job).where(Job.id == payload.job_id, Job.owner_id == user_id)
+    ).first()  # noqa: E501
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
@@ -484,13 +527,15 @@ async def save_cover_letter(
         existing.file_name = file_name
         existing.file_url = file_url
         existing.updated_at = datetime.utcnow()
-        db.add(JobEvent(
-            job_id=payload.job_id,
-            owner_id=user_id,
-            event_type=JobEventType.DOCUMENT,
-            notes=f"Cover letter updated|Saved {file_name}",
-            created_at=datetime.utcnow(),
-        ))
+        db.add(
+            JobEvent(
+                job_id=payload.job_id,
+                owner_id=user_id,
+                event_type=JobEventType.DOCUMENT,
+                notes=f"Cover letter updated|Saved {file_name}",
+                created_at=datetime.utcnow(),
+            )
+        )
         db.commit()
         db.refresh(existing)
         return {"document_id": existing.id, "file_url": file_url}
@@ -505,13 +550,15 @@ async def save_cover_letter(
         document_text=payload.cover_letter_text,
     )
     db.add(record)
-    db.add(JobEvent(
-        job_id=payload.job_id,
-        owner_id=user_id,
-        event_type=JobEventType.DOCUMENT,
-        notes=f"Cover letter connected|Saved {file_name}",
-        created_at=datetime.utcnow(),
-    ))
+    db.add(
+        JobEvent(
+            job_id=payload.job_id,
+            owner_id=user_id,
+            event_type=JobEventType.DOCUMENT,
+            notes=f"Cover letter connected|Saved {file_name}",
+            created_at=datetime.utcnow(),
+        )
+    )
     db.commit()
     db.refresh(record)
     return {"document_id": record.id, "file_url": file_url}
@@ -543,6 +590,7 @@ def get_cover_letter(
 
 
 # ── General document endpoints ────────────────────────────────────────────────
+
 
 @router.get("")
 def get_documents(
