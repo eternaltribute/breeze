@@ -7,14 +7,13 @@ from app.database import get_db, init_db
 from app.routers import (
     ai,
     auth,
-    cover_letter,
+    documents,
     education,
     events,
     experiences,
     jobs,
     preferences,
     protected,
-    resume,
     skills,
 )
 
@@ -41,8 +40,7 @@ app.include_router(ai.router)  # registers AI router with FastAPI S2-021
 app.include_router(experiences.router)
 app.include_router(education.router)
 app.include_router(preferences.router)
-app.include_router(resume.router)
-app.include_router(cover_letter.router)
+app.include_router(documents.router)
 
 
 @app.on_event("startup")

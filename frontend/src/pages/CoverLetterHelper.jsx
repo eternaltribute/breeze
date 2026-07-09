@@ -424,7 +424,7 @@ function CoverLetterHelper() {
 
       const token = await getToken({ skipCache: true });
 
-      const res = await fetch(`${BASE}/cover-letter/job/${jobId}`, {
+      const res = await fetch(`${BASE}/documents/cover-letter/job/${jobId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -482,7 +482,7 @@ function CoverLetterHelper() {
           const formData = new FormData();
           formData.append("file", file);
 
-          const res = await fetch(`${BASE}/resume/parse-pdf`, {
+          const res = await fetch(`${BASE}/documents/resume/parse-pdf`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
             body: formData,
@@ -542,7 +542,7 @@ function CoverLetterHelper() {
 
       const token = await getToken({ skipCache: true });
 
-      const res = await fetch(`${BASE}/cover-letter/generate`, {
+      const res = await fetch(`${BASE}/documents/cover-letter/generate`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -585,7 +585,7 @@ function CoverLetterHelper() {
 
       const token = await getToken({ skipCache: true });
 
-      const res = await fetch(`${BASE}/cover-letter/improve`, {
+      const res = await fetch(`${BASE}/documents/cover-letter/improve`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -626,7 +626,7 @@ function CoverLetterHelper() {
 
       const token = await getToken({ skipCache: true });
 
-      const res = await fetch(`${BASE}/cover-letter/save`, {
+      const res = await fetch(`${BASE}/documents/cover-letter/save`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
