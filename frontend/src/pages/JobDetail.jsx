@@ -46,6 +46,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { ChevronDown, ChevronUp, Search, Sparkles } from "lucide-react";
+import { EXPORT_FORMATS, exportDocument, exportFormatLabels } from "../utils/documentExport";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -1319,6 +1320,54 @@ function InterviewProgressSection({
   );
 }
 
+function DocumentExportActions({ document, getToken, label }) {
+  const [message, setMessage] = useState("");
+
+  const handleExport = async (format) => {
+    setMessage("");
+
+    try {
+      await exportDocument({ BASE, getToken, document, format });
+    } catch (err) {
+      console.error(`${label} export failed:`, err);
+      setMessage(
+        `${exportFormatLabels[format]} export is ready in the UI, but needs the backend export endpoint for this document.`
+      );
+    }
+  };
+
+  return (
+    <div style={{ marginTop: "14px" }}>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        {EXPORT_FORMATS.map((format) => (
+          <button
+            key={format}
+            type="button"
+            onClick={() => handleExport(format)}
+            style={{
+              border: "1px solid var(--color-border-default, #e5e7eb)",
+              borderRadius: "8px",
+              backgroundColor: "transparent",
+              color: "#046A97",
+              padding: "8px 10px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Export {exportFormatLabels[format]}
+          </button>
+        ))}
+      </div>
+      {message && (
+        <p style={{ color: "#003C78", fontSize: "12px", fontWeight: 700, margin: "8px 0 0" }}>
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // Shows whether a resume has been saved for this job.
 function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
   const [loading, setLoading] = useState(true);
@@ -1357,6 +1406,15 @@ function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
   }, [jobId, getToken]);
 
   const hasResume = Boolean(resume?.resume_text?.trim() || resume?.file_url);
+  const resumeDocument = resume
+    ? {
+        id: resume.document_id,
+        title: resume.file_name || "Saved resume",
+        type: "resume",
+        file_name: resume.file_name,
+        file_url: resume.file_url,
+      }
+    : null;
   const preview = resume?.resume_text?.trim()
     ? resume.resume_text.trim().replace(/\s+/g, " ").slice(0, 120)
     : resume?.file_name || "";
@@ -1403,6 +1461,7 @@ function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
               {resume?.resume_text?.length > 120 ? "..." : ""}
             </p>
           )}
+          <DocumentExportActions document={resumeDocument} getToken={getToken} label="Resume" />
         </>
       ) : (
         <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
@@ -1469,6 +1528,15 @@ function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
   }, [jobId, getToken]);
 
   const hasDraft = Boolean(coverLetter?.cover_letter_text?.trim());
+  const coverLetterDocument = coverLetter
+    ? {
+        id: coverLetter.document_id,
+        title: coverLetter.file_name || "Saved cover letter",
+        type: "cover_letter",
+        file_name: coverLetter.file_name,
+        file_url: coverLetter.file_url,
+      }
+    : null;
   const preview = hasDraft
     ? coverLetter.cover_letter_text.trim().replace(/\s+/g, " ").slice(0, 120)
     : "";
@@ -1513,6 +1581,11 @@ function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
             {preview}
             {coverLetter.cover_letter_text.length > 120 ? "..." : ""}
           </p>
+          <DocumentExportActions
+            document={coverLetterDocument}
+            getToken={getToken}
+            label="Cover letter"
+          />
         </>
       ) : (
         <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>

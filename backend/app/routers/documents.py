@@ -337,16 +337,21 @@ async def improve_resume(
     message = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1000,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Please improve the following resume based on this instruction: "
-                f"{payload.instruction}\n\nRESUME:\n{payload.resume_text}\n\n"
-                f"Return the improved resume in plain text only."
-            ),
-        }],
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Please improve the following resume based on this instruction: "
+                    f"{payload.instruction}\n\n"
+                    f"RESUME:\n{payload.resume_text}\n\n"
+                    f"Return the improved resume in plain text only."
+                ),
+            }
+        ],
     )
+
     return {"improved_text": message.content[0].text}
+
 
 
 # ── Cover letter endpoints ────────────────────────────────────────────────────
