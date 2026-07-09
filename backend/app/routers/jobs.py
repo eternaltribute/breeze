@@ -40,6 +40,10 @@ class JobReminderCount(BaseModel):
     active_count: int
 
 
+class CompanyResearchNotesUpdate(BaseModel):
+    company_research_notes: str
+
+
 @router.get("/reminders", response_model=List[JobReminderCount])
 def get_job_reminder_counts(
     current_user: dict = Depends(get_current_user),
@@ -143,6 +147,51 @@ def delete_job(
     db.delete(job)
     db.commit()
     return Response(status_code=204)
+
+
+# S3-012: Persist Company Research Notes to Job Record
+# Rules: S3-BR-002 (ownership), S3-BR-003 (audit-friendly timestamps)
+@router.get("/{job_id}/research-notes")
+def get_research_notes(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return {
+        "job_id": job.id,
+        "company_research_notes": job.company_research_notes,
+        "updated_at": job.updated_at,
+    }
+
+
+@router.put("/{job_id}/research-notes")
+def save_research_notes(
+    job_id: str,
+    payload: CompanyResearchNotesUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job.company_research_notes = payload.company_research_notes
+    job.updated_at = datetime.utcnow()
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    return {
+        "job_id": job.id,
+        "company_research_notes": job.company_research_notes,
+        "updated_at": job.updated_at,
+    }
 
 
 # S2-008: Pipeline Stage Transition Controls
