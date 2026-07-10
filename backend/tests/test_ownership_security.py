@@ -209,37 +209,41 @@ def test_follow_up_delete_blocked_for_other_user(client, test_job):
 
 
 def test_resume_blocked_for_other_user(client, test_job, db):
-    from app.models import Resume
+    from app.models import DocType, Document
 
     db.add(
-        Resume(
+        Document(
             user_id=OWNER_ID,
             job_id=test_job["id"],
+            title="resume.pdf",
+            doc_type=DocType.RESUME,
             file_name="resume.pdf",
-            resume_text="Owner's resume",
+            document_text="Owner's resume",
         )
     )
     db.commit()
 
     with as_attacker():
-        response = client.get(f"/resume/job/{test_job['id']}")
+        response = client.get(f"/documents/resume/job/{test_job['id']}")
     assert response.status_code == 404
 
 
 def test_cover_letter_blocked_for_other_user(client, test_job, db):
-    from app.models import CoverLetter
+    from app.models import DocType, Document
 
     db.add(
-        CoverLetter(
+        Document(
             user_id=OWNER_ID,
             job_id=test_job["id"],
-            cover_letter_text="Owner's cover letter",
+            title="cover_letter.pdf",
+            doc_type=DocType.COVER_LETTER,
+            document_text="Owner's cover letter",
         )
     )
     db.commit()
 
     with as_attacker():
-        response = client.get(f"/cover-letter/job/{test_job['id']}")
+        response = client.get(f"/documents/cover-letter/job/{test_job['id']}")
     assert response.status_code == 404
 
 

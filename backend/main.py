@@ -14,14 +14,13 @@ from app.middleware import RequestContextMiddleware  # S3-018
 from app.routers import (
     ai,
     auth,
-    cover_letter,
+    documents,
     education,
     events,
     experiences,
     jobs,
     preferences,
     protected,
-    resume,
     skills,
 )
 
@@ -50,8 +49,7 @@ app.include_router(ai.router)  # registers AI router with FastAPI S2-021
 app.include_router(experiences.router)
 app.include_router(education.router)
 app.include_router(preferences.router)
-app.include_router(resume.router)
-app.include_router(cover_letter.router)
+app.include_router(documents.router)
 # S3-018: centralized exception handling
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)

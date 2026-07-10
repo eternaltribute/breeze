@@ -1381,7 +1381,7 @@ function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
 
       try {
         const token = await getToken({ skipCache: true });
-        const res = await fetch(`${BASE}/resume/job/${jobId}`, {
+        const res = await fetch(`${BASE}/documents/resume/job/${jobId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -1503,7 +1503,7 @@ function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
 
       try {
         const token = await getToken({ skipCache: true });
-        const res = await fetch(`${BASE}/cover-letter/job/${jobId}`, {
+        const res = await fetch(`${BASE}/documents/cover-letter/job/${jobId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

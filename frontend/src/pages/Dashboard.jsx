@@ -465,7 +465,7 @@ function Dashboard() {
               if (job.resumeCount > 0) return [job.id, job.resumeCount];
 
               try {
-                const resumeRes = await fetch(`${BASE}/resume/job/${job.id}`, {
+                const resumeRes = await fetch(`${BASE}/documents/resume/job/${job.id}`, {
                   headers: { Authorization: `Bearer ${token}` },
                 });
 
@@ -486,7 +486,7 @@ function Dashboard() {
               if (job.coverLetterCount > 0) return [job.id, job.coverLetterCount];
 
               try {
-                const coverLetterRes = await fetch(`${BASE}/cover-letter/job/${job.id}`, {
+                const coverLetterRes = await fetch(`${BASE}/documents/cover-letter/job/${job.id}`, {
                   headers: { Authorization: `Bearer ${token}` },
                 });
 

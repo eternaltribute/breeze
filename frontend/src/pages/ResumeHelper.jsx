@@ -597,7 +597,7 @@ function ResumeHelper() {
           const formData = new FormData();
           formData.append("file", file);
 
-          const res = await fetch(`${BASE}/resume/parse-pdf`, {
+          const res = await fetch(`${BASE}/documents/resume/parse-pdf`, {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
             body: formData,
@@ -719,7 +719,7 @@ function ResumeHelper() {
     setGeneratingForJob(true);
     try {
       const token = await getToken({ skipCache: true });
-      const res = await fetch(`${BASE}/resume/generate-for-job`, {
+      const res = await fetch(`${BASE}/documents/resume/generate-for-job`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -750,7 +750,7 @@ function ResumeHelper() {
     setImproving(true);
     try {
       const token = await getToken({ skipCache: true });
-      const res = await fetch(`${BASE}/resume/improve`, {
+      const res = await fetch(`${BASE}/documents/resume/improve`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -794,7 +794,7 @@ function ResumeHelper() {
       formData.append("resume_text", resumeText);
       if (selectedJobId) formData.append("job_id", selectedJobId);
 
-      const res = await fetch(`${BASE}/resume/save`, {
+      const res = await fetch(`${BASE}/documents/resume/save`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

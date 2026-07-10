@@ -4,6 +4,8 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
+from sqlalchemy import Column
+from sqlalchemy import String as SAString
 from sqlmodel import Field, SQLModel
 
 
@@ -34,20 +36,14 @@ class JobEvent(SQLModel, table=True):
     event_type: JobEventType = Field(nullable=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    # Stage change fields (S2-008/S2-009)
     from_stage: Optional[JobStage] = Field(default=None)
     to_stage: Optional[JobStage] = Field(default=None)
     was_override: bool = Field(default=False)
 
-    # Interview fields (S2-011)
     interview_round: Optional[str] = Field(default=None)
     interview_datetime: Optional[datetime] = Field(default=None)
-
-    # Follow-up fields (S2-012)
     follow_up_due_date: Optional[datetime] = Field(default=None)
     follow_up_completed: Optional[bool] = Field(default=None)
-
-    # Shared across event types
     notes: Optional[str] = Field(default=None)
 
 
@@ -55,17 +51,14 @@ class Job(SQLModel, table=True):
     __tablename__ = "jobs"
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-    owner_id: str = Field(nullable=False, index=True)  # Clerk user_id — S1-BR-006
+    owner_id: str = Field(nullable=False, index=True)
 
-    # Required fields
     company: str = Field(nullable=False)
     title: str = Field(nullable=False)
     job_posting_body: str = Field(nullable=False)
 
-    # Stage
     stage: JobStage = Field(default=JobStage.INTERESTED)
 
-    # Optional fields
     location: Optional[str] = Field(default=None)
     job_url: Optional[str] = Field(default=None)
     salary_range: Optional[str] = Field(default=None)
@@ -103,7 +96,9 @@ class User(SQLModel, table=True):
     desired_role: Optional[str] = Field(default=None)
     location_type: Optional[str] = Field(default=None)
     desired_location: Optional[str] = Field(default=None)
-    employment_type: Optional[EmploymentType] = Field(default=None)
+    employment_type: Optional[EmploymentType] = Field(
+        default=None, sa_column=Column("employment_type", SAString, nullable=True)
+    )
     desired_salary: Optional[int] = Field(default=None)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -154,25 +149,44 @@ class Education(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class Resume(SQLModel, table=True):
-    __tablename__ = "resumes"
+class DocType(str, Enum):
+    RESUME = "resume"
+    COVER_LETTER = "cover_letter"
+
+
+class DocStatus(str, Enum):
+    DRAFT = "draft"
+    FINAL = "final"
+    ARCHIVED = "archived"
+
+
+class Document(SQLModel, table=True):
+    __tablename__ = "documents"
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
     job_id: Optional[str] = Field(default=None, foreign_key="jobs.id")
+    title: str
+    doc_type: DocType = Field(sa_column=Column("doc_type", SAString, nullable=False))
+    status: DocStatus = Field(
+        default=DocStatus.DRAFT, sa_column=Column("status", SAString, nullable=False)
+    )
+    tags: Optional[str] = Field(default=None)  # comma-separated
     file_name: Optional[str] = Field(default=None)
     file_url: Optional[str] = Field(default=None)
-    resume_text: Optional[str] = Field(default=None)
+    document_text: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    version_label: Optional[str] = Field(default=None)
+    version_number: Optional[int] = Field(default=None)
 
 
-class CoverLetter(SQLModel, table=True):
-    __tablename__ = "cover_letters"
+class DocumentVersion(SQLModel, table=True):
+    __tablename__ = "document_versions"
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    document_id: str = Field(foreign_key="documents.id", nullable=False, index=True)
     user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
-    job_id: str = Field(foreign_key="jobs.id", nullable=False, index=True)
-    cover_letter_text: str
-    file_name: Optional[str] = Field(default=None)
+    version_number: int = Field(nullable=False)
+    version_label: Optional[str] = Field(default=None)
+    document_text: Optional[str] = Field(default=None)
     file_url: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
