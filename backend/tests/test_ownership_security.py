@@ -278,6 +278,15 @@ def test_ai_rewrite_blocked_for_other_user(client, test_job):
     assert response.status_code == 404
 
 
+def test_company_research_blocked_for_other_user(client, test_job):
+    with as_attacker():
+        response = client.post(
+            f"/jobs/{test_job['id']}/ai/company-research",
+            json={"user_context": "Should not be allowed"},
+        )
+    assert response.status_code == 404
+
+
 def test_research_notes_blocked_for_other_user(client, test_job):
     client.put(
         f"/jobs/{test_job['id']}/research-notes",
