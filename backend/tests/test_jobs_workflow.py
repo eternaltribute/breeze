@@ -655,6 +655,7 @@ def test_ai_rewrite_missing_draft(client, test_job):
     )
     assert response.status_code == 422
 
+
 # --- S3-011: Company Research Generation Tests ---
 # Rules: S3-BR-002 (ownership)
 
@@ -675,6 +676,69 @@ def test_company_research_invalid_job(client):
     response = client.post(
         "/jobs/non-existent-id/ai/company-research",
         json={"user_context": "What's their engineering culture like?"},
+    )
+    assert response.status_code == 404
+
+
+# --- S3-012: Company Research Notes Tests ---
+# Rules: S3-BR-002 (ownership), S3-BR-003 (audit-friendly timestamps)
+
+
+def test_get_research_notes_no_notes_yet(client, test_job):
+    """Happy path: a new job has no research notes yet (null, not an error)."""
+    response = client.get(f"/jobs/{test_job['id']}/research-notes")
+    assert response.status_code == 200
+    assert response.json()["company_research_notes"] is None
+
+
+def test_save_and_get_research_notes(client, test_job):
+    """Happy path: saved notes are persisted and retrievable."""
+    save_response = client.put(
+        f"/jobs/{test_job['id']}/research-notes",
+        json={"company_research_notes": "Series B, ~200 employees, remote-friendly"},
+    )
+    assert save_response.status_code == 200
+    assert (
+        save_response.json()["company_research_notes"]
+        == "Series B, ~200 employees, remote-friendly"
+    )
+
+    get_response = client.get(f"/jobs/{test_job['id']}/research-notes")
+    assert get_response.status_code == 200
+    assert (
+        get_response.json()["company_research_notes"]
+        == "Series B, ~200 employees, remote-friendly"
+    )
+
+
+def test_save_research_notes_overwrites_existing(client, test_job):
+    """Saving again should overwrite, not append to, existing notes."""
+    client.put(
+        f"/jobs/{test_job['id']}/research-notes",
+        json={"company_research_notes": "First draft of notes"},
+    )
+    response = client.put(
+        f"/jobs/{test_job['id']}/research-notes",
+        json={"company_research_notes": "Edited notes"},
+    )
+    assert response.status_code == 200
+    assert response.json()["company_research_notes"] == "Edited notes"
+
+    get_response = client.get(f"/jobs/{test_job['id']}/research-notes")
+    assert get_response.json()["company_research_notes"] == "Edited notes"
+
+
+def test_get_research_notes_invalid_job(client):
+    """GET research notes for a non-existent job should return 404."""
+    response = client.get("/jobs/non-existent-id/research-notes")
+    assert response.status_code == 404
+
+
+def test_save_research_notes_invalid_job(client):
+    """PUT research notes for a non-existent job should return 404."""
+    response = client.put(
+        "/jobs/non-existent-id/research-notes",
+        json={"company_research_notes": "Should not save"},
     )
     assert response.status_code == 404
 
@@ -704,7 +768,30 @@ def test_company_research_returns_research(client, test_job, monkeypatch):
 
 def test_company_research_missing_user_context(client, test_job):
     """Company research request without user_context should return 422."""
-    response = client.post(
-        f"/jobs/{test_job['id']}/ai/company-research", json={}
-    )
+    response = client.post(f"/jobs/{test_job['id']}/ai/company-research", json={})
     assert response.status_code == 422
+
+
+def test_save_research_notes_missing_field(client, test_job):
+    """PUT without the required field should return 422."""
+    response = client.put(f"/jobs/{test_job['id']}/research-notes", json={})
+    assert response.status_code == 422
+
+
+def test_get_research_notes_no_token():
+    """Unauthenticated GET research notes should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.get("/jobs/fake-id/research-notes")
+    assert response.status_code == 401
+
+
+def test_save_research_notes_no_token():
+    """Unauthenticated PUT research notes should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.put(
+            "/jobs/fake-id/research-notes",
+            json={"company_research_notes": "Should not save"},
+        )
+    assert response.status_code == 401

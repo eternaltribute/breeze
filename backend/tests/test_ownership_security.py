@@ -272,3 +272,31 @@ def test_ai_rewrite_blocked_for_other_user(client, test_job):
             f"/jobs/{test_job['id']}/ai/rewrite", json={"draft": "Some draft content"}
         )
     assert response.status_code == 404
+
+
+def test_company_research_blocked_for_other_user(client, test_job):
+    with as_attacker():
+        response = client.post(
+            f"/jobs/{test_job['id']}/ai/company-research",
+            json={"user_context": "Should not be allowed"},
+        )
+    assert response.status_code == 404
+
+
+def test_research_notes_blocked_for_other_user(client, test_job):
+    client.put(
+        f"/jobs/{test_job['id']}/research-notes",
+        json={"company_research_notes": "Owner's private research"},
+    )
+    with as_attacker():
+        get_response = client.get(f"/jobs/{test_job['id']}/research-notes")
+        put_response = client.put(
+            f"/jobs/{test_job['id']}/research-notes",
+            json={"company_research_notes": "Hijacked notes"},
+        )
+    assert get_response.status_code == 404
+    assert put_response.status_code == 404
+
+    # Regression: owner's original notes are untouched
+    response = client.get(f"/jobs/{test_job['id']}/research-notes")
+    assert response.json()["company_research_notes"] == "Owner's private research"

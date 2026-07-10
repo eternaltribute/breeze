@@ -19,6 +19,7 @@ class ResumeDraftResponse(BaseModel):
     draft: str
     job_id: str
 
+
 # S3-011: Company Research Input and Prompt UX (backend half)
 # Generates AI-assisted company research using job context + a
 # user-provided question/focus area. Does not persist anything —
@@ -31,6 +32,7 @@ class CompanyResearchRequest(BaseModel):
 class CompanyResearchResponse(BaseModel):
     research: str
     job_id: str
+
 
 @router.post("/{job_id}/ai/resume", response_model=ResumeDraftResponse)
 def generate_resume_draft(
@@ -187,6 +189,7 @@ def rewrite_draft(
     improved_draft = message.content[0].text
 
     return RewriteResponse(draft=improved_draft, job_id=job_id)
+
 
 @router.post("/{job_id}/ai/company-research", response_model=CompanyResearchResponse)
 def generate_company_research(
