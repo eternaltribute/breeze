@@ -19,6 +19,18 @@ class ResumeDraftResponse(BaseModel):
     draft: str
     job_id: str
 
+# S3-011: Company Research Input and Prompt UX (backend half)
+# Generates AI-assisted company research using job context + a
+# user-provided question/focus area. Does not persist anything —
+# S3-012's PUT /jobs/{job_id}/research-notes handles saving.
+# Rules: S3-BR-002 (ownership)
+class CompanyResearchRequest(BaseModel):
+    user_context: str
+
+
+class CompanyResearchResponse(BaseModel):
+    research: str
+    job_id: str
 
 @router.post("/{job_id}/ai/resume", response_model=ResumeDraftResponse)
 def generate_resume_draft(
@@ -175,3 +187,54 @@ def rewrite_draft(
     improved_draft = message.content[0].text
 
     return RewriteResponse(draft=improved_draft, job_id=job_id)
+
+@router.post("/{job_id}/ai/company-research", response_model=CompanyResearchResponse)
+def generate_company_research(
+    job_id: str,
+    payload: CompanyResearchRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generate AI-assisted company research using job context and the
+    user's specific question/focus (S3-BR-002 ownership enforced)."""
+    user_id = current_user.get("sub")
+
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job_context = f"""
+Company: {job.company}
+Job Title: {job.title}
+Job Posting:
+{job.job_posting_body}
+""".strip()
+
+    import os
+
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1000,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"Research the following company for a job applicant "
+                    f"preparing to apply or interview. Use the job details "
+                    f"and the candidate's specific focus to guide the "
+                    f"research.\n\n"
+                    f"JOB DETAILS:\n{job_context}\n\n"
+                    f"CANDIDATE'S FOCUS:\n{payload.user_context}\n\n"
+                    f"Provide a clear, well-organized summary covering "
+                    f"relevant company information tailored to what the "
+                    f"candidate asked about. Keep it concise and factual; "
+                    f"note if you are uncertain about specific details."
+                ),
+            }
+        ],
+    )
+
+    research = message.content[0].text
+
+    return CompanyResearchResponse(research=research, job_id=job_id)

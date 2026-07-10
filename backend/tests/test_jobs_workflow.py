@@ -654,3 +654,57 @@ def test_ai_rewrite_missing_draft(client, test_job):
         json={"instructions": "make it better"},
     )
     assert response.status_code == 422
+
+# --- S3-011: Company Research Generation Tests ---
+# Rules: S3-BR-002 (ownership)
+
+
+def test_company_research_no_token():
+    """Unauthenticated company research request should return 401."""
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.post(
+            "/jobs/fake-id/ai/company-research",
+            json={"user_context": "What's their engineering culture like?"},
+        )
+    assert response.status_code == 401
+
+
+def test_company_research_invalid_job(client):
+    """Company research request for non-existent job should return 404."""
+    response = client.post(
+        "/jobs/non-existent-id/ai/company-research",
+        json={"user_context": "What's their engineering culture like?"},
+    )
+    assert response.status_code == 404
+
+
+def test_company_research_returns_research(client, test_job, monkeypatch):
+    """Happy path: company research returns research text and job_id."""
+    from unittest.mock import MagicMock
+
+    import anthropic
+
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="This is mock company research")]
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_message
+    monkeypatch.setattr(anthropic, "Anthropic", lambda **kwargs: mock_client)
+
+    response = client.post(
+        f"/jobs/{test_job['id']}/ai/company-research",
+        json={"user_context": "What's their engineering culture like?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "research" in data
+    assert data["job_id"] == test_job["id"]
+    assert len(data["research"]) > 0
+
+
+def test_company_research_missing_user_context(client, test_job):
+    """Company research request without user_context should return 422."""
+    response = client.post(
+        f"/jobs/{test_job['id']}/ai/company-research", json={}
+    )
+    assert response.status_code == 422
