@@ -209,7 +209,7 @@ def test_follow_up_delete_blocked_for_other_user(client, test_job):
 
 
 def test_resume_blocked_for_other_user(client, test_job, db):
-    from app.models import Document, DocType
+    from app.models import DocType, Document
 
     db.add(
         Document(
@@ -227,8 +227,9 @@ def test_resume_blocked_for_other_user(client, test_job, db):
         response = client.get(f"/documents/resume/job/{test_job['id']}")
     assert response.status_code == 404
 
+
 def test_cover_letter_blocked_for_other_user(client, test_job, db):
-    from app.models import Document, DocType
+    from app.models import DocType, Document
 
     db.add(
         Document(
@@ -244,6 +245,7 @@ def test_cover_letter_blocked_for_other_user(client, test_job, db):
     with as_attacker():
         response = client.get(f"/documents/cover-letter/job/{test_job['id']}")
     assert response.status_code == 404
+
 
 # --- Outcomes / AI endpoints ---
 
