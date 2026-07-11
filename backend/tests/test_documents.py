@@ -220,3 +220,75 @@ def test_rename_no_token():
             "/documents/fake-id/rename", json={"title": "New Title"}
         )
     assert response.status_code == 401
+
+
+# --- S3-004: Resume Upload Validation ---
+
+
+def test_upload_resume_rejects_unsupported_type(client, monkeypatch):
+    """Edge case: non-pdf/docx/txt files should be rejected with a clear message."""
+    response = client.post(
+        "/documents/resume/save",
+        files={
+            "file": ("resume.exe", b"fake binary content", "application/x-msdownload")
+        },
+        data={"resume_text": "Some resume text"},
+    )
+    assert response.status_code == 400
+    assert "Unsupported file type" in response.json()["detail"]
+
+
+def test_upload_resume_rejects_oversized_file(client, monkeypatch):
+    """Edge case: files over 10MB should be rejected."""
+    oversized_content = b"x" * (10 * 1024 * 1024 + 1)
+    response = client.post(
+        "/documents/resume/save",
+        files={"file": ("resume.pdf", oversized_content, "application/pdf")},
+        data={"resume_text": "Some resume text"},
+    )
+    assert response.status_code == 400
+    assert "too large" in response.json()["detail"]
+
+
+def test_upload_resume_rejects_empty_file(client, monkeypatch):
+    response = client.post(
+        "/documents/resume/save",
+        files={"file": ("resume.pdf", b"", "application/pdf")},
+        data={"resume_text": "Some resume text"},
+    )
+    assert response.status_code == 400
+    assert "empty" in response.json()["detail"]
+
+
+def test_upload_resume_accepts_pdf(client, monkeypatch):
+    """Happy path: a valid PDF should pass validation (storage call mocked)."""
+    from app.routers import documents
+
+    async def mock_upload_to_storage(file_bytes, path, content_type):
+        return "https://fake-storage-url.com/resume.pdf"
+
+    monkeypatch.setattr(documents, "upload_to_storage", mock_upload_to_storage)
+
+    response = client.post(
+        "/documents/resume/save",
+        files={"file": ("resume.pdf", b"%PDF-1.4 fake pdf content", "application/pdf")},
+        data={"resume_text": "Some resume text"},
+    )
+    assert response.status_code == 200
+    assert response.json()["file_url"] == "https://fake-storage-url.com/resume.pdf"
+
+
+def test_upload_resume_accepts_txt(client, monkeypatch):
+    from app.routers import documents
+
+    async def mock_upload_to_storage(file_bytes, path, content_type):
+        return "https://fake-storage-url.com/resume.txt"
+
+    monkeypatch.setattr(documents, "upload_to_storage", mock_upload_to_storage)
+
+    response = client.post(
+        "/documents/resume/save",
+        files={"file": ("resume.txt", b"Plain text resume content", "text/plain")},
+        data={"resume_text": "Some resume text"},
+    )
+    assert response.status_code == 200
