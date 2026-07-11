@@ -343,3 +343,27 @@ def test_research_notes_blocked_for_other_user(client, test_job):
     # Regression: owner's original notes are untouched
     response = client.get(f"/jobs/{test_job['id']}/research-notes")
     assert response.json()["company_research_notes"] == "Owner's private research"
+
+
+def test_rename_document_blocked_for_other_user(client, db):
+    from app.models import DocType, Document
+
+    document = Document(
+        user_id=OWNER_ID,
+        title="Owner's Original Title",
+        doc_type=DocType.RESUME,
+        document_text="Private content",
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    with as_attacker():
+        response = client.patch(
+            f"/documents/{document.id}/rename", json={"title": "Hijacked Title"}
+        )
+    assert response.status_code == 404
+
+    # Regression: owner's title unchanged
+    updated = db.get(Document, document.id)
+    assert updated.title == "Owner's Original Title"
