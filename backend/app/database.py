@@ -1,6 +1,7 @@
 import os
 
 from dotenv import load_dotenv
+from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.logging_config import logger  # S3-018
@@ -20,6 +21,8 @@ def get_db():
     with Session(engine) as session:
         try:
             yield session
+        except HTTPException:
+            raise
         except Exception:
             # S3-018 belt and suspenders rollback. Routers commit explicitly
             # so there's normally nothing uncommited but this cover any future route
