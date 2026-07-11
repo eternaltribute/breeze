@@ -30,6 +30,15 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 BUCKET = "documents"
 
+# S3-004: Implement Document Upload Workflow
+# Rules: S3-BR-004 (supported formats), S3-BR-005 (reject unsupported formats)
+ALLOWED_RESUME_TYPES = {
+    "application/pdf": ".pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "text/plain": ".txt",
+}
+MAX_RESUME_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
+
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
@@ -122,6 +131,22 @@ def parse_document_status(status: Optional[str]) -> DocStatus:
 def clean_document_tags(tags: Optional[str]) -> Optional[str]:
     clean_tags = ",".join(tag.strip() for tag in (tags or "").split(",") if tag.strip())
     return clean_tags or None
+
+
+def validate_resume_file(file: UploadFile, file_bytes: bytes) -> None:
+    """Rules: S3-BR-004, S3-BR-005"""
+    if file.content_type not in ALLOWED_RESUME_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=("Unsupported file type. Please upload a PDF, DOCX, or TXT file."),
+        )
+    if len(file_bytes) > MAX_RESUME_FILE_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="File is too large. Maximum size is 10 MB.",
+        )
+    if len(file_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
 
 @router.post("/{document_id}/versions")
@@ -295,6 +320,7 @@ async def save_resume(
     )
 
     file_bytes = await file.read()
+    validate_resume_file(file, file_bytes)
     path = f"{user_id}/resume/{int(time.time())}_{file.filename}"
 
     file_url = await upload_to_storage(file_bytes, path, file.content_type)
