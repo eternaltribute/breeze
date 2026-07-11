@@ -172,3 +172,51 @@ def test_archive_preserves_document_content(client, db, test_document):
     still_there = db.get(Document, test_document.id)
     assert still_there is not None
     assert still_there.document_text == "Some resume content"
+
+
+# --- Rename ---
+
+
+def test_rename_document_success(client, test_document):
+    """Happy path: renaming updates title without creating a new version."""
+    response = client.patch(
+        f"/documents/{test_document.id}/rename", json={"title": "Updated Resume Title"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "Updated Resume Title"
+    # Regression: rename must not bump the version
+    assert data["version_number"] == 1
+    assert data["version_label"] == "v1"
+
+
+def test_rename_document_strips_whitespace(client, test_document):
+    response = client.patch(
+        f"/documents/{test_document.id}/rename", json={"title": "  Padded Title  "}
+    )
+    assert response.status_code == 200
+    assert response.json()["title"] == "Padded Title"
+
+
+def test_rename_document_empty_title(client, test_document):
+    """Edge case: empty/whitespace-only title should be rejected."""
+    response = client.patch(
+        f"/documents/{test_document.id}/rename", json={"title": "   "}
+    )
+    assert response.status_code == 400
+
+
+def test_rename_invalid_document(client):
+    response = client.patch(
+        "/documents/non-existent-id/rename", json={"title": "New Title"}
+    )
+    assert response.status_code == 404
+
+
+def test_rename_no_token():
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.patch(
+            "/documents/fake-id/rename", json={"title": "New Title"}
+        )
+    assert response.status_code == 401

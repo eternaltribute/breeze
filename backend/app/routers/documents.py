@@ -72,6 +72,10 @@ class RestoreDocumentRequest(BaseModel):
     restore_to: Optional[str] = "draft"  # "draft" or "final"
 
 
+class RenameDocumentRequest(BaseModel):
+    title: str
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -806,6 +810,33 @@ def duplicate_document(
     db.commit()
     db.refresh(duplicate)
     return duplicate
+
+
+@router.patch("/{document_id}/rename")
+def rename_document(
+    document_id: str,
+    payload: RenameDocumentRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Rename a document. Metadata-only change; does not create a new
+    version since the document's content is unchanged.
+    Rules: S3-BR-007, S3-BR-008"""
+    user_id = current_user.get("sub")
+    document = db.get(Document, document_id)
+    if not document or document.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    clean_title = payload.title.strip()
+    if not clean_title:
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+
+    document.title = clean_title
+    document.updated_at = datetime.utcnow()
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return document
 
 
 @router.post("/{document_id}/archive")
