@@ -1506,48 +1506,440 @@ function DocumentExportActions({ document, getToken, label }) {
   );
 }
 
-// Shows whether a resume has been saved for this job.
-function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
-  const [loading, setLoading] = useState(true);
-  const [resume, setResume] = useState(null);
-  const [error, setError] = useState(null);
+function normalizeLibraryDocument(doc) {
+  const rawType = doc.type ?? doc.document_type ?? doc.doc_type;
+  return {
+    id: doc.id ?? doc.document_id,
+    title: doc.title ?? doc.file_name ?? "Untitled document",
+    type: rawType === "cover-letter" ? "cover_letter" : rawType,
+    status: doc.status ?? "active",
+    tags: Array.isArray(doc.tags) ? doc.tags : [],
+    updatedAt: doc.updated_at ?? doc.updatedAt ?? doc.created_at ?? doc.createdAt,
+  };
+}
+
+function documentName(document, fallback) {
+  return document?.title || document?.file_name || fallback;
+}
+
+function sectionButtonStyle({ primary = false, danger = false } = {}) {
+  return {
+    padding: "10px 14px",
+    borderRadius: "8px",
+    border: danger ? "1px solid #FCA5A5" : primary ? "none" : "1px solid #003C78",
+    backgroundColor: primary ? "#003C78" : "transparent",
+    color: danger ? "#B91C1C" : primary ? "#fff" : "#003C78",
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer",
+  };
+}
+
+function DocumentLinkModal({
+  open,
+  jobId,
+  type,
+  label,
+  currentDocument,
+  getToken,
+  onClose,
+  onLinked,
+}) {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmDocument, setConfirmDocument] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const fetchResume = async () => {
+    if (!open) return;
+
+    const fetchDocuments = async () => {
       setLoading(true);
-      setError(null);
+      setError("");
+      setConfirmDocument(null);
 
       try {
         const token = await getToken({ skipCache: true });
-        const res = await fetch(`${BASE}/documents/resume/job/${jobId}`, {
+        const res = await fetch(`${BASE}/documents`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+        const data = await res.json().catch(() => []);
+        if (!res.ok) throw new Error(data?.detail || "Failed to load library documents");
 
-        if (res.status === 404) {
-          setResume(null);
-          return;
-        }
-
-        const data = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(data?.detail || "Failed to load resume");
-
-        setResume(data);
+        const normalized = (Array.isArray(data) ? data : [])
+          .map(normalizeLibraryDocument)
+          .filter((doc) => doc.id && doc.type === type && doc.id !== currentDocument?.id);
+        setDocuments(normalized);
       } catch (err) {
-        console.error("Failed to load resume status:", err);
-        setError("Could not check resume status.");
+        console.error(`Failed to load ${label} documents:`, err);
+        setError("Could not load Library documents right now.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchResume();
-  }, [jobId, getToken]);
+    fetchDocuments();
+  }, [currentDocument?.id, getToken, label, open, type]);
+
+  if (!open) return null;
+
+  const linkDocument = async (document) => {
+    setSaving(true);
+    setError("");
+
+    try {
+      const token = await getToken({ skipCache: true });
+      // S3-009 backend contract for Ronald/backend teammate:
+      // PATCH /documents/:documentId/link-to-job should verify ownership of the job and document,
+      // set document.job_id to job_id, and enforce one resume plus one cover letter max per job.
+      // When replace_existing is true, unlink the existing same-type document from this job first.
+      // Linking should not create a new version; it only changes the job association.
+      const res = await fetch(`${BASE}/documents/${document.id}/link-to-job`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          job_id: jobId,
+          document_type: type,
+          replace_existing: Boolean(currentDocument?.id),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Failed to link document");
+
+      await onLinked(`${label} linked from Library.`);
+      onClose();
+    } catch (err) {
+      console.error(`Failed to link ${label}:`, err);
+      setError(
+        `Linking is ready in the frontend, but the backend still needs the ${label.toLowerCase()} link endpoint.`
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSelect = (document) => {
+    if (currentDocument?.id) {
+      setConfirmDocument(document);
+      return;
+    }
+    linkDocument(document);
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Link ${label} from Library`}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 50,
+        backgroundColor: "rgba(15, 23, 42, 0.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px",
+      }}
+    >
+      <div
+        style={{
+          width: "min(680px, 100%)",
+          maxHeight: "85vh",
+          overflowY: "auto",
+          backgroundColor: "#fff",
+          borderRadius: "12px",
+          border: "1px solid var(--color-border-default, #e5e7eb)",
+          boxShadow: "0 24px 60px rgba(15, 23, 42, 0.22)",
+          padding: "24px",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
+          <div>
+            <h3 style={{ color: "#003C78", fontSize: "20px", margin: 0 }}>
+              Link {label} from Library
+            </h3>
+            <p style={{ color: "#6b7280", fontSize: "13px", margin: "6px 0 0" }}>
+              Choose one saved {label.toLowerCase()} to connect to this job.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} style={sectionButtonStyle()}>
+            Close
+          </button>
+        </div>
+
+        {currentDocument?.id && (
+          <div
+            style={{
+              border: "1px solid #FED7AA",
+              backgroundColor: "#FFF7ED",
+              color: "#9A3412",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "13px",
+              fontWeight: 700,
+              marginTop: "16px",
+            }}
+          >
+            This job already has 1 {label.toLowerCase()}. Linking another one will ask you to
+            confirm replacement first.
+          </div>
+        )}
+
+        {error && (
+          <p style={{ color: "#B91C1C", fontSize: "13px", fontWeight: 700, marginTop: "14px" }}>
+            {error}
+          </p>
+        )}
+
+        {confirmDocument ? (
+          <div
+            style={{
+              border: "1px solid #BFDBFE",
+              backgroundColor: "#EFF6FF",
+              borderRadius: "10px",
+              padding: "16px",
+              marginTop: "16px",
+            }}
+          >
+            <h4 style={{ color: "#003C78", fontSize: "16px", margin: 0 }}>Replace {label}?</h4>
+            <p style={{ color: "#1E3A8A", fontSize: "13px", lineHeight: 1.5, margin: "8px 0 0" }}>
+              This job already has {documentName(currentDocument, `a saved ${label.toLowerCase()}`)}
+              . Replace it with {documentName(confirmDocument, `this ${label.toLowerCase()}`)}? The
+              old document will stay in Library, but it will no longer be linked to this job.
+            </p>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "14px" }}>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => linkDocument(confirmDocument)}
+                style={sectionButtonStyle({ primary: true })}
+              >
+                {saving ? "Replacing..." : `Replace ${label}`}
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => setConfirmDocument(null)}
+                style={sectionButtonStyle()}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : loading ? (
+          <p style={{ color: "#6b7280", fontSize: "13px", marginTop: "16px" }}>
+            Loading documents...
+          </p>
+        ) : documents.length === 0 ? (
+          <p style={{ color: "#6b7280", fontSize: "13px", marginTop: "16px" }}>
+            No saved {label.toLowerCase()} documents are available to link yet.
+          </p>
+        ) : (
+          <div style={{ display: "grid", gap: "10px", marginTop: "16px" }}>
+            {documents.map((document) => (
+              <div
+                key={document.id}
+                style={{
+                  border: "1px solid var(--color-border-default, #e5e7eb)",
+                  borderRadius: "10px",
+                  padding: "14px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "14px",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <p style={{ color: "#003C78", fontSize: "14px", fontWeight: 800, margin: 0 }}>
+                    {document.title}
+                  </p>
+                  <p style={{ color: "#6b7280", fontSize: "12px", margin: "5px 0 0" }}>
+                    {document.status}{" "}
+                    {document.updatedAt
+                      ? `- Updated ${formatLocalDateTime(document.updatedAt)}`
+                      : ""}
+                  </p>
+                  {document.tags.length > 0 && (
+                    <p
+                      style={{
+                        color: "#046A97",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        margin: "5px 0 0",
+                      }}
+                    >
+                      {document.tags.join(", ")}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => handleSelect(document)}
+                  style={sectionButtonStyle({ primary: true })}
+                >
+                  Link
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DocumentViewModal({ open, title, content, fileUrl, label, onClose }) {
+  if (!open) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`View ${label}`}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 50,
+        backgroundColor: "rgba(15, 23, 42, 0.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px",
+      }}
+    >
+      <div
+        style={{
+          width: "min(760px, 100%)",
+          maxHeight: "85vh",
+          overflowY: "auto",
+          backgroundColor: "#fff",
+          borderRadius: "12px",
+          border: "1px solid var(--color-border-default, #e5e7eb)",
+          boxShadow: "0 24px 60px rgba(15, 23, 42, 0.22)",
+          padding: "24px",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
+          <div>
+            <h3 style={{ color: "#003C78", fontSize: "20px", margin: 0 }}>{title}</h3>
+            <p style={{ color: "#6b7280", fontSize: "13px", margin: "6px 0 0" }}>
+              Linked {label.toLowerCase()} for this job
+            </p>
+          </div>
+          <button type="button" onClick={onClose} style={sectionButtonStyle()}>
+            Close
+          </button>
+        </div>
+
+        {content?.trim() ? (
+          <pre
+            style={{
+              marginTop: "16px",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              lineHeight: 1.6,
+              color: "#111827",
+              backgroundColor: "#F8FAFC",
+              border: "1px solid var(--color-border-default, #e5e7eb)",
+              borderRadius: "10px",
+              padding: "16px",
+              fontFamily: "inherit",
+              fontSize: "13px",
+            }}
+          >
+            {content.trim()}
+          </pre>
+        ) : fileUrl ? (
+          <div
+            style={{
+              border: "1px solid #BFDBFE",
+              backgroundColor: "#EFF6FF",
+              borderRadius: "10px",
+              padding: "16px",
+              marginTop: "16px",
+            }}
+          >
+            <p style={{ color: "#1E3A8A", fontSize: "13px", lineHeight: 1.5, margin: 0 }}>
+              This linked document was uploaded as a file. Open it to view the full document.
+            </p>
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                ...sectionButtonStyle({ primary: true }),
+                display: "inline-block",
+                textDecoration: "none",
+                marginTop: "12px",
+              }}
+            >
+              Open uploaded file
+            </a>
+          </div>
+        ) : (
+          <p style={{ color: "#6b7280", fontSize: "13px", marginTop: "16px" }}>
+            Full document content is not available yet.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+// Shows whether a resume has been saved for this job.
+function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
+  const [loading, setLoading] = useState(true);
+  const [resume, setResume] = useState(null);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState("");
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
+
+  const fetchResume = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/documents/resume/job/${jobId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 404) {
+        setResume(null);
+        return;
+      }
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Failed to load resume");
+
+      setResume(data);
+    } catch (err) {
+      console.error("Failed to load resume status:", err);
+      setError("Could not check resume status.");
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken, jobId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      fetchResume();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchResume]);
 
   const hasResume = Boolean(resume?.resume_text?.trim() || resume?.file_url);
   const resumeDocument = resume
     ? {
         id: resume.document_id,
-        title: resume.file_name || "Saved resume",
+        title: resume.title || resume.file_name || "Saved resume",
         type: "resume",
         file_name: resume.file_name,
         file_url: resume.file_url,
@@ -1556,6 +1948,44 @@ function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
   const preview = resume?.resume_text?.trim()
     ? resume.resume_text.trim().replace(/\s+/g, " ").slice(0, 120)
     : resume?.file_name || "";
+
+  const handleLinked = async (successMessage) => {
+    setMessage(successMessage);
+    await fetchResume();
+  };
+
+  const handleUnlink = async () => {
+    if (!resumeDocument?.id) return;
+    setUnlinking(true);
+    setMessage("");
+
+    try {
+      const token = await getToken({ skipCache: true });
+      // S3-009 backend contract for Ronald/backend teammate:
+      // PATCH /documents/:documentId/unlink-from-job should verify ownership and set job_id to null
+      // only when the document is currently linked to this job. It should not delete the document.
+      const res = await fetch(`${BASE}/documents/${resumeDocument.id}/unlink-from-job`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: jobId, document_type: "resume" }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Failed to unlink resume");
+
+      setResume(null);
+      setMessage("Resume unlinked from this job. It will still stay in Library.");
+    } catch (err) {
+      console.error("Failed to unlink resume:", err);
+      setMessage(
+        "Unlink is ready in the frontend, but the backend still needs the resume unlink endpoint."
+      );
+    } finally {
+      setUnlinking(false);
+    }
+  };
 
   return (
     <div style={panelStyle}>
@@ -1591,7 +2021,7 @@ function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
               marginBottom: "12px",
             }}
           >
-            Saved resume found
+            1 resume linked to this job
           </div>
           {preview && (
             <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
@@ -1603,27 +2033,61 @@ function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
         </>
       ) : (
         <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
-          No resume has been saved to this job yet.
+          No resume has been linked to this job yet.
         </p>
       )}
 
-      <button
-        onClick={onOpenHelper}
-        style={{
-          marginTop: "14px",
-          width: "100%",
-          padding: "10px 14px",
-          borderRadius: "8px",
-          border: "1px solid var(--color-border-default, #e5e7eb)",
-          backgroundColor: "transparent",
-          color: "var(--color-heading, #003C78)",
-          fontSize: "14px",
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
-      >
-        Open Resume Helper
-      </button>
+      {message && (
+        <p style={{ color: "#003C78", fontSize: "13px", fontWeight: 700, margin: "12px 0 0" }}>
+          {message}
+        </p>
+      )}
+
+      <div style={{ display: "grid", gap: "10px", marginTop: "14px" }}>
+        {hasResume && (
+          <button type="button" onClick={() => setViewModalOpen(true)} style={sectionButtonStyle()}>
+            View Resume
+          </button>
+        )}
+        <button
+          onClick={() => setLinkModalOpen(true)}
+          style={sectionButtonStyle({ primary: !hasResume })}
+        >
+          {hasResume ? "Replace from Library" : "Link from Library"}
+        </button>
+        {hasResume && (
+          <button
+            type="button"
+            onClick={handleUnlink}
+            disabled={unlinking}
+            style={sectionButtonStyle({ danger: true })}
+          >
+            {unlinking ? "Unlinking..." : "Unlink Resume"}
+          </button>
+        )}
+        <button onClick={onOpenHelper} style={sectionButtonStyle()}>
+          Open Resume Helper
+        </button>
+      </div>
+
+      <DocumentLinkModal
+        open={linkModalOpen}
+        jobId={jobId}
+        type="resume"
+        label="Resume"
+        currentDocument={resumeDocument}
+        getToken={getToken}
+        onClose={() => setLinkModalOpen(false)}
+        onLinked={handleLinked}
+      />
+      <DocumentViewModal
+        open={viewModalOpen}
+        title={documentName(resumeDocument, "Saved resume")}
+        content={resume?.resume_text}
+        fileUrl={resume?.file_url}
+        label="Resume"
+        onClose={() => setViewModalOpen(false)}
+      />
     </div>
   );
 }
@@ -1633,51 +2097,96 @@ function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
   const [loading, setLoading] = useState(true);
   const [coverLetter, setCoverLetter] = useState(null);
   const [error, setError] = useState(null);
+  const [message, setMessage] = useState("");
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
+
+  const fetchCoverLetter = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/documents/cover-letter/job/${jobId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 404) {
+        setCoverLetter(null);
+        return;
+      }
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Failed to load cover letter");
+
+      setCoverLetter(data);
+    } catch (err) {
+      console.error("Failed to load cover letter status:", err);
+      setError("Could not check cover letter status.");
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken, jobId]);
 
   useEffect(() => {
-    const fetchCoverLetter = async () => {
-      setLoading(true);
-      setError(null);
+    const timer = window.setTimeout(() => {
+      fetchCoverLetter();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchCoverLetter]);
 
-      try {
-        const token = await getToken({ skipCache: true });
-        const res = await fetch(`${BASE}/documents/cover-letter/job/${jobId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (res.status === 404) {
-          setCoverLetter(null);
-          return;
-        }
-
-        const data = await res.json().catch(() => null);
-        if (!res.ok) throw new Error(data?.detail || "Failed to load cover letter");
-
-        setCoverLetter(data);
-      } catch (err) {
-        console.error("Failed to load cover letter status:", err);
-        setError("Could not check cover letter status.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCoverLetter();
-  }, [jobId, getToken]);
-
-  const hasDraft = Boolean(coverLetter?.cover_letter_text?.trim());
+  const hasDraft = Boolean(coverLetter?.cover_letter_text?.trim() || coverLetter?.file_url);
   const coverLetterDocument = coverLetter
     ? {
         id: coverLetter.document_id,
-        title: coverLetter.file_name || "Saved cover letter",
+        title: coverLetter.title || coverLetter.file_name || "Saved cover letter",
         type: "cover_letter",
         file_name: coverLetter.file_name,
         file_url: coverLetter.file_url,
       }
     : null;
-  const preview = hasDraft
+  const preview = coverLetter?.cover_letter_text?.trim()
     ? coverLetter.cover_letter_text.trim().replace(/\s+/g, " ").slice(0, 120)
-    : "";
+    : coverLetter?.file_name || "";
+
+  const handleLinked = async (successMessage) => {
+    setMessage(successMessage);
+    await fetchCoverLetter();
+  };
+
+  const handleUnlink = async () => {
+    if (!coverLetterDocument?.id) return;
+    setUnlinking(true);
+    setMessage("");
+
+    try {
+      const token = await getToken({ skipCache: true });
+      // S3-009 backend contract for Ronald/backend teammate:
+      // PATCH /documents/:documentId/unlink-from-job should verify ownership and set job_id to null
+      // only when the document is currently linked to this job. It should not delete the document.
+      const res = await fetch(`${BASE}/documents/${coverLetterDocument.id}/unlink-from-job`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: jobId, document_type: "cover_letter" }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Failed to unlink cover letter");
+
+      setCoverLetter(null);
+      setMessage("Cover letter unlinked from this job. It will still stay in Library.");
+    } catch (err) {
+      console.error("Failed to unlink cover letter:", err);
+      setMessage(
+        "Unlink is ready in the frontend, but the backend still needs the cover letter unlink endpoint."
+      );
+    } finally {
+      setUnlinking(false);
+    }
+  };
 
   return (
     <div style={panelStyle}>
@@ -1713,12 +2222,14 @@ function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
               marginBottom: "12px",
             }}
           >
-            Saved draft found
+            1 cover letter linked to this job
           </div>
-          <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
-            {preview}
-            {coverLetter.cover_letter_text.length > 120 ? "..." : ""}
-          </p>
+          {preview && (
+            <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
+              {preview}
+              {coverLetter?.cover_letter_text?.length > 120 ? "..." : ""}
+            </p>
+          )}
           <DocumentExportActions
             document={coverLetterDocument}
             getToken={getToken}
@@ -1727,31 +2238,64 @@ function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
         </>
       ) : (
         <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
-          No cover letter draft has been saved to this job yet.
+          No cover letter draft has been linked to this job yet.
         </p>
       )}
 
-      <button
-        onClick={onOpenHelper}
-        style={{
-          marginTop: "14px",
-          width: "100%",
-          padding: "10px 14px",
-          borderRadius: "8px",
-          border: "1px solid var(--color-border-default, #e5e7eb)",
-          backgroundColor: "transparent",
-          color: "var(--color-heading, #003C78)",
-          fontSize: "14px",
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
-      >
-        Open Cover Letter Helper
-      </button>
+      {message && (
+        <p style={{ color: "#003C78", fontSize: "13px", fontWeight: 700, margin: "12px 0 0" }}>
+          {message}
+        </p>
+      )}
+
+      <div style={{ display: "grid", gap: "10px", marginTop: "14px" }}>
+        {hasDraft && (
+          <button type="button" onClick={() => setViewModalOpen(true)} style={sectionButtonStyle()}>
+            View Cover Letter
+          </button>
+        )}
+        <button
+          onClick={() => setLinkModalOpen(true)}
+          style={sectionButtonStyle({ primary: !hasDraft })}
+        >
+          {hasDraft ? "Replace from Library" : "Link from Library"}
+        </button>
+        {hasDraft && (
+          <button
+            type="button"
+            onClick={handleUnlink}
+            disabled={unlinking}
+            style={sectionButtonStyle({ danger: true })}
+          >
+            {unlinking ? "Unlinking..." : "Unlink Cover Letter"}
+          </button>
+        )}
+        <button onClick={onOpenHelper} style={sectionButtonStyle()}>
+          Open Cover Letter Helper
+        </button>
+      </div>
+
+      <DocumentLinkModal
+        open={linkModalOpen}
+        jobId={jobId}
+        type="cover_letter"
+        label="Cover Letter"
+        currentDocument={coverLetterDocument}
+        getToken={getToken}
+        onClose={() => setLinkModalOpen(false)}
+        onLinked={handleLinked}
+      />
+      <DocumentViewModal
+        open={viewModalOpen}
+        title={documentName(coverLetterDocument, "Saved cover letter")}
+        content={coverLetter?.cover_letter_text}
+        fileUrl={coverLetter?.file_url}
+        label="Cover Letter"
+        onClose={() => setViewModalOpen(false)}
+      />
     </div>
   );
 }
-
 function JobDetail() {
   const { id } = useParams(); // job id from the URL /jobs/:id
   const { getToken } = useAuth();
