@@ -17,12 +17,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useAuth } from "@clerk/clerk-react";
-import { Brain, ChevronDown, FileText, Save, Sparkles, Upload, Wand2, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  Brain,
+  CheckCircle2,
+  ChevronDown,
+  FileText,
+  Save,
+  Sparkles,
+  Upload,
+  Wand2,
+  X,
+} from "lucide-react";
 import mammoth from "mammoth";
+import { addMockDocument, isDuplicateTitle } from "../lib/mockLibraryStore";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
 const SUPPORTED_DRAFT_FORMATS = ".pdf, .docx, .txt";
 const SUPPORTED_DRAFT_EXTENSIONS = [".pdf", ".docx", ".txt"];
+
+// TODO (Ronald): flip this to false once POST /documents/cover-letter/save
+// is live and confirmed working end-to-end. While true, Save writes to the
+// shared mock library (see lib/mockLibraryStore.js) instead of calling the
+// real backend, so the whole Resume/Cover Letter -> Library flow can be
+// demoed and tested without the backend being ready.
+const USE_MOCK_SAVE = true;
 
 function normalizeLibraryStatus(status) {
   return status === "archived" ? "archived" : "active";
@@ -638,10 +657,37 @@ function CoverLetterHelper() {
   const handleSave = async () => {
     if (!draft.trim()) return;
 
+    const documentTitle = saveTitle.trim() || "Cover Letter";
+
+    // ── Fail-safe: block saving a document with the same name as an
+    // existing cover letter (S3-BR-007/008-adjacent — this is a UX
+    // safeguard, not a substitute for a real backend uniqueness rule).
+    if (isDuplicateTitle(documentTitle, "cover_letter")) {
+      setError(
+        `A cover letter named "${documentTitle}" already exists. Rename this draft or edit the existing one instead.`
+      );
+      return;
+    }
+
     try {
       setError("");
       setSaving(true);
       setSaveSuccess(false);
+
+      if (USE_MOCK_SAVE) {
+        // Simulates a brief save delay so the "Saving..." state is visible
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        addMockDocument({
+          type: "cover_letter",
+          title: documentTitle,
+          documentText: draft,
+          jobId: selectedJob?.id ?? null,
+          tags: saveTags,
+        });
+        setSaveSuccess(true);
+        setPreviousDraft("");
+        return;
+      }
 
       const token = await getToken({ skipCache: true });
 
@@ -654,7 +700,7 @@ function CoverLetterHelper() {
         body: JSON.stringify({
           job_id: selectedJob?.id ?? null,
           cover_letter_text: draft,
-          title: saveTitle.trim() || "Cover Letter",
+          title: documentTitle,
           status: saveStatus,
           tags: saveTags,
         }),
@@ -1092,8 +1138,24 @@ function CoverLetterHelper() {
               </button>
 
               {saveSuccess && (
-                <span style={{ color: "#22c55e", fontWeight: 700, fontSize: "14px" }}>
-                  Saved successfully
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    color: "#22c55e",
+                    fontWeight: 700,
+                    fontSize: "14px",
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  Saved to Library
+                  <Link
+                    to="/library"
+                    style={{ color: "#046A97", textDecoration: "underline", marginLeft: "4px" }}
+                  >
+                    View in Library
+                  </Link>
                 </span>
               )}
             </div>

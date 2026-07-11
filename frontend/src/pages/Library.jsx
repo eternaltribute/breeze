@@ -33,7 +33,7 @@
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { useState, useEffect, useMemo } from "react";
 import DocumentCard from "../components/documents/DocumentCard";
-import { MOCK_DOCUMENTS } from "../lib/mockDocuments";
+import { getMockLibraryDocuments } from "../lib/mockLibraryStore";
 import { exportDocument, exportFormatLabels } from "../utils/documentExport";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
@@ -183,7 +183,10 @@ function Library() {
         if (USE_MOCK_DATA) {
           // Simulates network latency so loading state is visible/testable
           await new Promise((resolve) => setTimeout(resolve, 300));
-          setDocuments(MOCK_DOCUMENTS.map(normalizeDocument));
+          // Reads from the SHARED shelf (mockLibraryStore) instead of the
+          // static mockDocuments.js file directly, so documents saved from
+          // Resume Helper / Cover Letter Helper show up here too.
+          setDocuments(getMockLibraryDocuments().map(normalizeDocument));
           setStatus("ready");
           return;
         }

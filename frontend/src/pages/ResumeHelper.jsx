@@ -56,6 +56,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useAuth } from "@clerk/clerk-react";
+import { Link } from "react-router-dom";
 import {
   Upload,
   Download,
@@ -66,11 +67,20 @@ import {
   X,
   ChevronDown,
   Wand2,
+  CheckCircle2,
 } from "lucide-react";
 import mammoth from "mammoth";
+import { addMockDocument, isDuplicateTitle } from "../lib/mockLibraryStore";
 
 // ── API base URL — same pattern used across all pages (Analytics, Dashboard, etc.) ──
 const BASE = import.meta.env.VITE_API_BASE_URL;
+
+// TODO (Ronald): flip this to false once POST /documents/resume/save is
+// live and confirmed working end-to-end. While true, Save writes to the
+// shared mock library (see lib/mockLibraryStore.js) instead of calling the
+// real backend, so the whole Resume Helper -> Library flow can be demoed
+// and tested without the backend being ready.
+const USE_MOCK_SAVE = true;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ScoreRing — circular SVG progress indicator showing the overall resume score
@@ -798,9 +808,41 @@ function ResumeHelper() {
     if (!resumeText.trim()) return;
     const documentTitle =
       saveTitle.trim() || fileName.replace(/\.(pdf|docx|txt)$/i, "") || "Resume";
+
+    // ── Fail-safe: block saving a document with the same name as an
+    // existing resume (UX safeguard — real uniqueness enforcement still
+    // needs to happen server-side once Ronald's endpoint exists).
+    if (isDuplicateTitle(documentTitle, "resume")) {
+      setSaveError(
+        `A resume named "${documentTitle}" already exists. Rename this draft or edit the existing one instead.`
+      );
+      return;
+    }
+
     setSaving(true);
     setSaveError("");
     try {
+      // ── MOCK SAVE PATH — active while USE_MOCK_SAVE = true ────────────────
+      // Writes straight to the shared mock library (lib/mockLibraryStore.js)
+      // instead of calling the real backend below, so Save works today even
+      // though Ronald's endpoint isn't live yet. See the TODO near the
+      // USE_MOCK_SAVE declaration at the top of this file.
+      if (USE_MOCK_SAVE) {
+        // Simulates a brief save delay so the "Saving..." state is visible
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        addMockDocument({
+          type: "resume",
+          title: documentTitle,
+          documentText: resumeText,
+          jobId: selectedJobId || null,
+          tags: saveTags,
+        });
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+        return;
+      }
+      // ── End mock save path ─────────────────────────────────────────────────
+
       const token = await getToken({ skipCache: true });
 
       const formData = new FormData();
@@ -1311,8 +1353,24 @@ function ResumeHelper() {
 
               {/* Brief success message after save */}
               {saveSuccess && (
-                <span style={{ fontSize: "13px", color: "#22c55e", fontWeight: 600 }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "13px",
+                    color: "#22c55e",
+                    fontWeight: 700,
+                  }}
+                >
+                  <CheckCircle2 size={16} />
                   Saved to Library
+                  <Link
+                    to="/library"
+                    style={{ color: "#046A97", textDecoration: "underline", marginLeft: "4px" }}
+                  >
+                    View in Library
+                  </Link>
                 </span>
               )}
 
