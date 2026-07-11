@@ -23,6 +23,28 @@ export const MOCK_DOCUMENTS = [
     owner_id: "mock-user",
     created_at: "2026-06-20T10:00:00Z",
     updated_at: "2026-07-01T14:30:00Z",
+    versions: [
+      {
+        version_id: "mock-1-v2",
+        version_number: 2,
+        version_label: "v2",
+        document_text:
+          "Software Engineer Resume v2\n\nSummary\nFrontend-focused software engineering student with experience building React applications, API-ready user flows, and accessible dashboard interfaces.\n\nProjects\n- Breeze: Built document library filtering, export-ready controls, and job detail document indicators.\n- Portfolio Tracker: Created reusable cards, status filters, and responsive layouts.\n\nSkills\nReact, JavaScript, CSS, API integration, accessibility review.",
+        file_url: null,
+        owner_id: "mock-user",
+        created_at: "2026-07-01T14:30:00Z",
+      },
+      {
+        version_id: "mock-1-v1",
+        version_number: 1,
+        version_label: "v1",
+        document_text:
+          "Software Engineer Resume v1\n\nSummary\nComputer science student interested in frontend development and software engineering.\n\nProjects\n- Breeze: Helped build job tracking and document helper pages.\n\nSkills\nReact, JavaScript, HTML, CSS.",
+        file_url: null,
+        owner_id: "mock-user",
+        created_at: "2026-06-20T10:00:00Z",
+      },
+    ],
   },
   {
     id: "mock-2",
@@ -38,6 +60,18 @@ export const MOCK_DOCUMENTS = [
     owner_id: "mock-user",
     created_at: "2026-06-15T09:00:00Z",
     updated_at: "2026-06-15T09:00:00Z",
+    versions: [
+      {
+        version_id: "mock-2-v1",
+        version_number: 1,
+        version_label: "v1",
+        document_text:
+          "Dear Hiring Team,\n\nI am excited to apply for the Frontend Developer role at Acme Corp. My recent work on Breeze gave me hands-on experience creating document workflows, job tracking views, and user-friendly React interfaces.\n\nI would bring strong attention to usability, clean component structure, and a willingness to learn quickly.\n\nSincerely,\nBreeze User",
+        file_url: null,
+        owner_id: "mock-user",
+        created_at: "2026-06-15T09:00:00Z",
+      },
+    ],
   },
   {
     id: "mock-3",
@@ -53,5 +87,17 @@ export const MOCK_DOCUMENTS = [
     owner_id: "mock-user",
     created_at: "2026-05-01T10:00:00Z",
     updated_at: "2026-05-10T10:00:00Z",
+    versions: [
+      {
+        version_id: "mock-3-v1",
+        version_number: 1,
+        version_label: "v1",
+        document_text:
+          "Old Resume Draft\n\nSummary\nEarly resume draft saved before the current software engineering resume updates.\n\nExperience\n- Class projects and early frontend practice.\n\nSkills\nHTML, CSS, JavaScript.",
+        file_url: null,
+        owner_id: "mock-user",
+        created_at: "2026-05-10T10:00:00Z",
+      },
+    ],
   },
 ];

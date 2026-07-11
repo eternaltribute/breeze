@@ -1009,22 +1009,48 @@ const RESEARCH_TOPICS = [
   "Recent news",
 ];
 
-// S3-011: Company research prompt UX in job detail.
-// Backend-ready contract for the future AI endpoint:
-// POST /jobs/:jobId/company-research
-// Body: {
-//   company, title, location, job_posting_body,
-//   topics: string[],
-//   user_context: string
-// }
-// Expected response: { research_text: string, updated_at?: string }
-// S3-012 can persist and render research_text as editable job notes.
-function CompanyResearchSection({ jobId, company, title, location, jobPostingBody }) {
+// S3-011/S3-012: Company research prompt UX + persisted editable notes.
+// AI output is generated only after an explicit user action, then placed in an
+// editable notes field. The user controls when those notes are saved to the job.
+function CompanyResearchSection({ jobId, company, title, location, jobPostingBody, getToken }) {
   const [selectedTopics, setSelectedTopics] = useState(["Company overview", "Interview prep"]);
   const [context, setContext] = useState("");
+  const [researchNotes, setResearchNotes] = useState("");
+  const [notesUpdatedAt, setNotesUpdatedAt] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [loadingNotes, setLoadingNotes] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+
+  useEffect(() => {
+    const loadResearchNotes = async () => {
+      setLoadingNotes(true);
+      setError("");
+
+      try {
+        const token = await getToken({ skipCache: true });
+        const res = await fetch(`${BASE}/jobs/${jobId}/research-notes`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) throw new Error(data?.detail || "Could not load company research notes.");
+
+        setResearchNotes(data?.company_research_notes ?? "");
+        setNotesUpdatedAt(data?.updated_at ?? "");
+        setNotesOpen(false);
+      } catch (err) {
+        console.error("Failed to load company research notes:", err);
+        setError("Could not load saved company research notes.");
+      } finally {
+        setLoadingNotes(false);
+      }
+    };
+
+    loadResearchNotes();
+  }, [jobId, getToken]);
 
   const toggleTopic = (topic) => {
     setSelectedTopics((current) =>
@@ -1032,7 +1058,7 @@ function CompanyResearchSection({ jobId, company, title, location, jobPostingBod
     );
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setError("");
     setStatusMessage("");
 
@@ -1043,37 +1069,68 @@ function CompanyResearchSection({ jobId, company, title, location, jobPostingBod
 
     setGenerating(true);
 
-    const payload = {
-      job_id: jobId,
-      company,
-      title,
-      location,
-      job_posting_body: jobPostingBody,
-      topics: selectedTopics,
-      user_context: context.trim(),
-    };
+    try {
+      const token = await getToken({ skipCache: true });
+      const userContext = [
+        context.trim(),
+        selectedTopics.length ? `Research areas: ${selectedTopics.join(", ")}.` : "",
+        company ? `Company: ${company}.` : "",
+        title ? `Role: ${title}.` : "",
+        location ? `Location: ${location}.` : "",
+        jobPostingBody ? `Job context: ${jobPostingBody.slice(0, 1200)}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
 
-    console.info("Company research request prepared for backend:", payload);
+      const res = await fetch(`${BASE}/jobs/${jobId}/ai/company-research`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ user_context: userContext }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Company research failed.");
 
-    // TODO (S3-011 backend): replace this timeout with the real AI request.
-    // Add getToken to this component's props when the backend endpoint is ready.
-    // const token = await getToken({ skipCache: true });
-    // const res = await fetch(`${BASE}/jobs/${jobId}/company-research`, {
-    //   method: "POST",
-    //   headers: {
-    //     Authorization: `Bearer ${token}`,
-    //     "Content-Type": "application/json",
-    //   },
-    //   body: JSON.stringify(payload),
-    // });
-    // const data = await res.json();
-    // Render data.research_text here or hand it to the S3-012 notes section.
-    window.setTimeout(() => {
-      setStatusMessage(
-        "Research request prepared. AI generation will appear here when the backend is connected."
-      );
+      setResearchNotes(data?.research ?? "");
+      setNotesOpen(true);
+      setStatusMessage("Research generated. Review and edit it before saving to this job.");
+    } catch (err) {
+      console.error("Company research generation failed:", err);
+      setError("Could not generate company research. Please try again.");
+    } finally {
       setGenerating(false);
-    }, 350);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    setError("");
+    setStatusMessage("");
+    setSaving(true);
+
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/jobs/${jobId}/research-notes`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ company_research_notes: researchNotes }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Could not save company research notes.");
+
+      setResearchNotes(data?.company_research_notes ?? researchNotes);
+      setNotesUpdatedAt(data?.updated_at ?? new Date().toISOString());
+      setStatusMessage("Company research notes saved to this job.");
+    } catch (err) {
+      console.error("Company research notes save failed:", err);
+      setError("Could not save company research notes. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -1093,7 +1150,7 @@ function CompanyResearchSection({ jobId, company, title, location, jobPostingBod
       </div>
 
       <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", marginTop: 0 }}>
-        Choose research areas and add any context you want AI to consider.
+        Choose research areas, generate notes, then edit and save them to this job.
       </p>
 
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
@@ -1154,8 +1211,89 @@ function CompanyResearchSection({ jobId, company, title, location, jobPostingBod
         }}
       >
         <Sparkles size={16} aria-hidden="true" />
-        {generating ? "Preparing..." : "Prepare Research Request"}
+        {generating ? "Generating..." : "Generate Research Notes"}
       </button>
+
+      <div
+        style={{
+          border: "1px solid var(--color-border-default, #e5e7eb)",
+          borderRadius: "8px",
+          marginTop: "14px",
+          overflow: "hidden",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setNotesOpen((open) => !open)}
+          style={{
+            width: "100%",
+            border: "none",
+            backgroundColor: "#F8FAFC",
+            color: "var(--color-heading, #003C78)",
+            padding: "10px 12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            fontWeight: 700,
+          }}
+          aria-expanded={notesOpen}
+        >
+          <span>Saved Research Notes</span>
+          {notesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+
+        {notesOpen && (
+          <div style={{ padding: "12px" }}>
+            {loadingNotes ? (
+              <p style={{ color: "var(--color-subtext, #6b7280)", fontSize: "13px", margin: 0 }}>
+                Loading saved notes...
+              </p>
+            ) : (
+              <>
+                {notesUpdatedAt && (
+                  <p
+                    style={{
+                      color: "var(--color-subtext, #6b7280)",
+                      fontSize: "12px",
+                      margin: "0 0 8px",
+                    }}
+                  >
+                    Last saved {new Date(notesUpdatedAt).toLocaleString()}
+                  </p>
+                )}
+                <textarea
+                  value={researchNotes}
+                  onChange={(e) => setResearchNotes(e.target.value)}
+                  rows={8}
+                  style={{ ...inputStyle, resize: "vertical", lineHeight: "1.5" }}
+                  placeholder="Generated company research will appear here. You can also write notes manually."
+                  aria-label="Editable company research notes"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveNotes}
+                  disabled={saving}
+                  style={{
+                    marginTop: "10px",
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--color-border-default, #e5e7eb)",
+                    backgroundColor: saving ? "#9CA3AF" : "#046A97",
+                    color: "white",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    cursor: saving ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {saving ? "Saving..." : "Save Research Notes"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {statusMessage && (
         <div
@@ -2262,6 +2400,7 @@ function JobDetail() {
                 title={title}
                 location={location}
                 jobPostingBody={jobPostingBody}
+                getToken={getToken}
               />
               <FollowUpSection
                 jobId={id}

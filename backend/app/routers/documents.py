@@ -13,6 +13,7 @@ from sqlmodel import Session, select, text
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import (
+    DocStatus,
     DocType,
     Document,
     DocumentVersion,
@@ -36,8 +37,11 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 class SaveCoverLetterRequest(BaseModel):
-    job_id: str
+    job_id: Optional[str] = None
     cover_letter_text: str
+    title: Optional[str] = None
+    status: Optional[str] = "active"
+    tags: Optional[str] = None
 
 
 class GenerateCoverLetterRequest(BaseModel):
@@ -74,6 +78,42 @@ def generate_pdf(text: str) -> bytes:
     pdf.set_font("Helvetica", size=12)
     pdf.multi_cell(0, 7, text)
     return bytes(pdf.output())
+
+
+def snapshot_document_version(db: Session, document: Document) -> None:
+    """Save the current document state before replacing it."""
+    current_version = document.version_number or 1
+    db.add(
+        DocumentVersion(
+            document_id=document.id,
+            user_id=document.user_id,
+            version_number=current_version,
+            version_label=document.version_label or f"v{current_version}",
+            document_text=document.document_text,
+            file_url=document.file_url,
+        )
+    )
+    next_version = current_version + 1
+    document.version_number = next_version
+    document.version_label = f"v{next_version}"
+
+
+def parse_document_status(status: Optional[str]) -> DocStatus:
+    status_map = {
+        "active": DocStatus.DRAFT,
+        "draft": DocStatus.DRAFT,
+        "final": DocStatus.FINAL,
+        "archived": DocStatus.ARCHIVED,
+    }
+    document_status = status_map.get((status or "active").lower())
+    if not document_status:
+        raise HTTPException(status_code=400, detail="Invalid document status")
+    return document_status
+
+
+def clean_document_tags(tags: Optional[str]) -> Optional[str]:
+    clean_tags = ",".join(tag.strip() for tag in (tags or "").split(",") if tag.strip())
+    return clean_tags or None
 
 
 @router.post("/{document_id}/versions")
@@ -143,6 +183,7 @@ def get_document_versions(
             "version_label": v.version_label,
             "document_text": v.document_text,
             "file_url": v.file_url,
+            "owner_id": v.user_id,
             "created_at": v.created_at.isoformat(),
         }
         for v in versions
@@ -214,39 +255,119 @@ async def save_resume(
     file: UploadFile = File(...),
     resume_text: str = Form(...),
     job_id: Optional[str] = Form(None),
+    title: Optional[str] = Form(None),
+    status: Optional[str] = Form("active"),
+    tags: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
+    linked_job_id = job_id or None
+
+    if linked_job_id:
+        job = db.exec(
+            select(Job).where(Job.id == linked_job_id, Job.owner_id == user_id)
+        ).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+    status_map = {
+        "active": DocStatus.DRAFT,
+        "draft": DocStatus.DRAFT,
+        "final": DocStatus.FINAL,
+        "archived": DocStatus.ARCHIVED,
+    }
+    document_status = status_map.get((status or "active").lower())
+    if not document_status:
+        raise HTTPException(status_code=400, detail="Invalid document status")
+
+    clean_title = title.strip() if title else ""
+    clean_tags = (
+        ",".join(tag.strip() for tag in (tags or "").split(",") if tag.strip()) or None
+    )
+
     file_bytes = await file.read()
     path = f"{user_id}/resume/{int(time.time())}_{file.filename}"
 
     file_url = await upload_to_storage(file_bytes, path, file.content_type)
 
+    existing = None
+    if linked_job_id:
+        existing = db.exec(
+            select(Document)
+            .where(Document.job_id == linked_job_id)
+            .where(Document.user_id == user_id)
+            .where(Document.doc_type == DocType.RESUME)
+        ).first()
+
+    if existing:
+        snapshot_document_version(db, existing)
+        existing.title = clean_title or file.filename
+        existing.status = document_status
+        existing.tags = clean_tags
+        existing.file_name = file.filename
+        existing.file_url = file_url
+        existing.document_text = resume_text
+        existing.updated_at = datetime.utcnow()
+        db.add(
+            JobEvent(
+                job_id=linked_job_id,
+                owner_id=user_id,
+                event_type=JobEventType.DOCUMENT,
+                notes=f"Resume updated|Saved {existing.title}",
+                created_at=datetime.utcnow(),
+            )
+        )
+        db.commit()
+        db.refresh(existing)
+        return {
+            "document_id": existing.id,
+            "file_url": file_url,
+            "title": existing.title,
+            "status": existing.status,
+            "tags": existing.tags,
+            "job_id": existing.job_id,
+            "version_label": existing.version_label,
+            "version_number": existing.version_number,
+        }
+
     record = Document(
         user_id=user_id,
-        job_id=job_id or None,
-        title=file.filename,
+        job_id=linked_job_id,
+        title=clean_title or file.filename,
         doc_type=DocType.RESUME,
+        status=document_status,
+        tags=clean_tags,
         file_name=file.filename,
         file_url=file_url,
         document_text=resume_text,
+        version_label="v1",
+        version_number=1,
     )
     db.add(record)
-    if job_id:
+    if linked_job_id:
         db.add(
             JobEvent(
-                job_id=job_id,
+                job_id=linked_job_id,
                 owner_id=user_id,
                 event_type=JobEventType.DOCUMENT,
-                notes=f"Resume connected|Saved {file.filename}",
+                notes=f"Resume connected|Saved {record.title}",
                 created_at=datetime.utcnow(),
             )
         )
     db.commit()
     db.refresh(record)
 
-    return {"document_id": record.id, "file_url": file_url}
+    return {
+        "document_id": record.id,
+        "file_url": file_url,
+        "title": record.title,
+        "status": record.status,
+        "tags": record.tags,
+        "job_id": record.job_id,
+        "version_label": record.version_label,
+        "version_number": record.version_number,
+    }
 
 
 @router.get("/resume/latest")
@@ -502,66 +623,105 @@ async def save_cover_letter(
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
+    linked_job_id = payload.job_id or None
 
-    job = db.exec(
-        select(Job).where(Job.id == payload.job_id, Job.owner_id == user_id)
-    ).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    job = None
+    if linked_job_id:
+        job = db.exec(
+            select(Job).where(Job.id == linked_job_id, Job.owner_id == user_id)
+        ).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
 
+    document_status = parse_document_status(payload.status)
+    clean_title = payload.title.strip() if payload.title else ""
+    clean_tags = clean_document_tags(payload.tags)
     pdf_bytes = generate_pdf(payload.cover_letter_text)
-    file_name = f"cover_letter_{job.company}_{job.title}.pdf".replace(" ", "_")
+    default_title = (
+        f"Cover Letter - {job.company} {job.title}" if job else "Cover Letter"
+    )
+    document_title = clean_title or default_title
+    file_name = f"{document_title}.pdf".replace(" ", "_")
     path = f"{user_id}/cover_letter/{int(time.time())}_{file_name}"
 
     file_url = await upload_to_storage(pdf_bytes, path, "application/pdf")
 
-    existing = db.exec(
-        select(Document)
-        .where(Document.job_id == payload.job_id)
-        .where(Document.user_id == user_id)
-        .where(Document.doc_type == DocType.COVER_LETTER)
-    ).first()
+    existing = None
+    if linked_job_id:
+        existing = db.exec(
+            select(Document)
+            .where(Document.job_id == linked_job_id)
+            .where(Document.user_id == user_id)
+            .where(Document.doc_type == DocType.COVER_LETTER)
+        ).first()
 
     if existing:
+        snapshot_document_version(db, existing)
+        existing.title = document_title
+        existing.status = document_status
+        existing.tags = clean_tags
         existing.document_text = payload.cover_letter_text
         existing.file_name = file_name
         existing.file_url = file_url
         existing.updated_at = datetime.utcnow()
         db.add(
             JobEvent(
-                job_id=payload.job_id,
+                job_id=linked_job_id,
                 owner_id=user_id,
                 event_type=JobEventType.DOCUMENT,
-                notes=f"Cover letter updated|Saved {file_name}",
+                notes=f"Cover letter updated|Saved {document_title}",
                 created_at=datetime.utcnow(),
             )
         )
         db.commit()
         db.refresh(existing)
-        return {"document_id": existing.id, "file_url": file_url}
+        return {
+            "document_id": existing.id,
+            "file_url": file_url,
+            "title": existing.title,
+            "status": existing.status,
+            "tags": existing.tags,
+            "job_id": existing.job_id,
+            "version_label": existing.version_label,
+            "version_number": existing.version_number,
+        }
 
     record = Document(
         user_id=user_id,
-        job_id=payload.job_id,
-        title=file_name,
+        job_id=linked_job_id,
+        title=document_title,
         doc_type=DocType.COVER_LETTER,
+        status=document_status,
+        tags=clean_tags,
         file_name=file_name,
         file_url=file_url,
         document_text=payload.cover_letter_text,
+        version_label="v1",
+        version_number=1,
     )
     db.add(record)
-    db.add(
-        JobEvent(
-            job_id=payload.job_id,
-            owner_id=user_id,
-            event_type=JobEventType.DOCUMENT,
-            notes=f"Cover letter connected|Saved {file_name}",
-            created_at=datetime.utcnow(),
+    if linked_job_id:
+        db.add(
+            JobEvent(
+                job_id=linked_job_id,
+                owner_id=user_id,
+                event_type=JobEventType.DOCUMENT,
+                notes=f"Cover letter connected|Saved {document_title}",
+                created_at=datetime.utcnow(),
+            )
         )
-    )
     db.commit()
     db.refresh(record)
-    return {"document_id": record.id, "file_url": file_url}
+    return {
+        "document_id": record.id,
+        "file_url": file_url,
+        "title": record.title,
+        "status": record.status,
+        "tags": record.tags,
+        "job_id": record.job_id,
+        "version_label": record.version_label,
+        "version_number": record.version_number,
+    }
 
 
 @router.get("/cover-letter/job/{job_id}")
@@ -586,6 +746,11 @@ def get_cover_letter(
         "document_id": record.id,
         "cover_letter_text": record.document_text,
         "file_url": record.file_url,
+        "title": record.title,
+        "status": record.status,
+        "tags": record.tags,
+        "version_label": record.version_label,
+        "version_number": record.version_number,
     }
 
 
@@ -604,6 +769,39 @@ def get_documents(
         .order_by(Document.created_at.desc())
     ).all()
     return records
+
+
+@router.post("/{document_id}/duplicate")
+def duplicate_document(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+    source = db.get(Document, document_id)
+    if not source or source.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    copy_title = (
+        source.title if source.title.endswith("(Copy)") else f"{source.title} (Copy)"
+    )
+    duplicate = Document(
+        user_id=user_id,
+        job_id=None,
+        title=copy_title,
+        doc_type=source.doc_type,
+        status=DocStatus.DRAFT,
+        tags=source.tags,
+        file_name=source.file_name,
+        file_url=source.file_url,
+        document_text=source.document_text,
+        version_label="v1",
+        version_number=1,
+    )
+    db.add(duplicate)
+    db.commit()
+    db.refresh(duplicate)
+    return duplicate
 
 
 @router.delete("/{document_id}")

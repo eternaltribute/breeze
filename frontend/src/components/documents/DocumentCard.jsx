@@ -16,6 +16,7 @@ import {
   Download,
   Copy,
   Pencil,
+  History,
   MoreHorizontal,
   ChevronDown,
 } from "lucide-react";
@@ -62,6 +63,7 @@ export default function DocumentCard({
   onExport,
   onDuplicate,
   onRename,
+  onVersionHistory,
 }) {
   const isArchived = document.status === "archived";
   const Icon = document.type === "resume" ? FileText : Mail;
@@ -81,6 +83,11 @@ export default function DocumentCard({
   const handleDuplicate = () => {
     setIsMoreOpen(false);
     onDuplicate(document);
+  };
+
+  const handleVersionHistory = () => {
+    setIsMoreOpen(false);
+    onVersionHistory(document);
   };
 
   return (
@@ -246,7 +253,7 @@ export default function DocumentCard({
                   position: "absolute",
                   right: 0,
                   top: "calc(100% + 6px)",
-                  minWidth: "150px",
+                  minWidth: "180px",
                   backgroundColor: "var(--bg-card)",
                   border: "1px solid var(--color-border-default)",
                   borderRadius: "8px",
@@ -296,6 +303,27 @@ export default function DocumentCard({
                   }}
                 >
                   <Copy size={15} /> Duplicate
+                </button>
+                <button
+                  type="button"
+                  onClick={handleVersionHistory}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    background: "none",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "8px",
+                    cursor: "pointer",
+                    color: "var(--color-heading, #003C78)",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    textAlign: "left",
+                  }}
+                >
+                  <History size={15} /> Version history
                 </button>
               </div>
             )}
