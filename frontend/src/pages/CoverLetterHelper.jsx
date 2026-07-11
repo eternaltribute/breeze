@@ -24,6 +24,10 @@ const BASE = import.meta.env.VITE_API_BASE_URL;
 const SUPPORTED_DRAFT_FORMATS = ".pdf, .docx, .txt";
 const SUPPORTED_DRAFT_EXTENSIONS = [".pdf", ".docx", ".txt"];
 
+function normalizeLibraryStatus(status) {
+  return status === "archived" ? "archived" : "active";
+}
+
 const panelStyle = {
   backgroundColor: "var(--bg-card, white)",
   border: "1px solid var(--color-border-default, #e5e7eb)",
@@ -373,6 +377,9 @@ function CoverLetterHelper() {
   const [improveInstruction, setImproveInstruction] = useState("");
   const [previousDraft, setPreviousDraft] = useState("");
   const [improving, setImproving] = useState(false);
+  const [saveTitle, setSaveTitle] = useState("Cover Letter");
+  const [saveStatus, setSaveStatus] = useState("active");
+  const [saveTags, setSaveTags] = useState("");
   const selectedJob = jobs.find((job) => String(job.id) === String(selectedJobId));
 
   useEffect(() => {
@@ -438,6 +445,9 @@ function CoverLetterHelper() {
 
       setDraft(data?.cover_letter_text ?? "");
       setDraftFileName("Saved cover letter");
+      setSaveTitle(data?.title ?? "Cover Letter");
+      setSaveStatus(normalizeLibraryStatus(data?.status));
+      setSaveTags(data?.tags ?? "");
     } catch (err) {
       console.error("Failed to load saved cover letter:", err);
     }
@@ -452,6 +462,9 @@ function CoverLetterHelper() {
     } else {
       setDraft("");
       setDraftFileName("");
+      setSaveTitle("Cover Letter");
+      setSaveStatus("active");
+      setSaveTags("");
     }
   };
 
@@ -501,6 +514,7 @@ function CoverLetterHelper() {
 
         setDraft(text.trim());
         setDraftFileName(file.name);
+        setSaveTitle(file.name.replace(/\.(pdf|docx|txt)$/i, ""));
         setPreviousDraft("");
         setSaveSuccess(false);
       } catch (err) {
@@ -521,6 +535,9 @@ function CoverLetterHelper() {
     setPreviousDraft("");
     setSaveSuccess(false);
     setUploadError("");
+    setSaveTitle("Cover Letter");
+    setSaveStatus("active");
+    setSaveTags("");
   };
 
   const handleGenerate = async () => {
@@ -562,6 +579,8 @@ function CoverLetterHelper() {
 
       setDraft(data?.cover_letter ?? "");
       setDraftFileName(`${selectedJob.company} ${selectedJob.title} draft`);
+      setSaveTitle(`${selectedJob.company} ${selectedJob.title} Cover Letter`);
+      setSaveTags(`${selectedJob.company}, tailored`);
     } catch (err) {
       console.error(err);
       setError(err.message || "Failed to generate cover letter.");
@@ -617,7 +636,7 @@ function CoverLetterHelper() {
   };
 
   const handleSave = async () => {
-    if (!selectedJob || !draft.trim()) return;
+    if (!draft.trim()) return;
 
     try {
       setError("");
@@ -633,8 +652,11 @@ function CoverLetterHelper() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          job_id: selectedJob.id,
+          job_id: selectedJob?.id ?? null,
           cover_letter_text: draft,
+          title: saveTitle.trim() || "Cover Letter",
+          status: saveStatus,
+          tags: saveTags,
         }),
       });
 
@@ -902,6 +924,110 @@ function CoverLetterHelper() {
 
             <div
               style={{
+                marginTop: "16px",
+                padding: "16px 20px",
+                ...panelStyle,
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: "var(--color-heading, #003C78)",
+                }}
+              >
+                Save details
+              </p>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(220px, 1.4fr) minmax(140px, 0.7fr)",
+                  gap: "12px",
+                  marginBottom: "12px",
+                }}
+              >
+                <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "var(--color-heading, #003C78)",
+                    }}
+                  >
+                    Library title
+                  </span>
+                  <input
+                    type="text"
+                    value={saveTitle}
+                    onChange={(e) => setSaveTitle(e.target.value)}
+                    placeholder="Cover letter title"
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--color-border-default, #e5e7eb)",
+                      color: "var(--color-input-text, #111827)",
+                      backgroundColor: "var(--color-input-bg, white)",
+                    }}
+                  />
+                </label>
+
+                <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "var(--color-heading, #003C78)",
+                    }}
+                  >
+                    Status
+                  </span>
+                  <select
+                    value={saveStatus}
+                    onChange={(e) => setSaveStatus(e.target.value)}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--color-border-default, #e5e7eb)",
+                      color: "var(--color-heading, #003C78)",
+                      backgroundColor: "var(--bg-card, white)",
+                    }}
+                  >
+                    <option value="active">Active</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </label>
+              </div>
+
+              <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "var(--color-heading, #003C78)",
+                  }}
+                >
+                  Tags
+                </span>
+                <input
+                  type="text"
+                  value={saveTags}
+                  onChange={(e) => setSaveTags(e.target.value)}
+                  placeholder="frontend, tailored, internship"
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--color-border-default, #e5e7eb)",
+                    color: "var(--color-input-text, #111827)",
+                    backgroundColor: "var(--color-input-bg, white)",
+                  }}
+                />
+              </label>
+            </div>
+
+            <div
+              style={{
                 display: "flex",
                 gap: "12px",
                 marginTop: "14px",
@@ -925,7 +1051,7 @@ function CoverLetterHelper() {
                     appearance: "none",
                   }}
                 >
-                  <option value="">Link to a job to save</option>
+                  <option value="">Link to a job (optional)</option>
                   {jobs.map((job) => (
                     <option key={job.id} value={job.id}>
                       {job.title} at {job.company}
@@ -947,7 +1073,7 @@ function CoverLetterHelper() {
 
               <button
                 onClick={handleSave}
-                disabled={!draft.trim() || !selectedJobId || saving}
+                disabled={!draft.trim() || saving}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -955,11 +1081,10 @@ function CoverLetterHelper() {
                   padding: "10px 18px",
                   borderRadius: "8px",
                   border: "none",
-                  backgroundColor:
-                    !draft.trim() || !selectedJobId || saving ? "#9ca3af" : "#003C78",
+                  backgroundColor: !draft.trim() || saving ? "#9ca3af" : "#003C78",
                   color: "white",
                   fontWeight: 700,
-                  cursor: !draft.trim() || !selectedJobId || saving ? "not-allowed" : "pointer",
+                  cursor: !draft.trim() || saving ? "not-allowed" : "pointer",
                 }}
               >
                 <Save size={16} />

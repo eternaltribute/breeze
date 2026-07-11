@@ -43,6 +43,10 @@ const USE_MOCK_DATA = true; // flip to false once GET /documents is real
 // - PATCH /documents/:documentId should rename only; it must not create a new version.
 // - POST /documents/:documentId/duplicate should create a new document copy and
 //   return version label/number, timestamp, and owner metadata for S3-BR-008.
+//
+// C08 / version history contract:
+// - GET /documents/:documentId/versions should return version_id, version_number,
+//   version_label, created_at, file_url/document_text, and ownership metadata.
 
 const tabStyle = (active) => ({
   padding: "8px 20px",
@@ -83,10 +87,13 @@ function normalizeTags(tags) {
 }
 
 function normalizeDocument(doc) {
+  const rawStatus = doc.status ?? "active";
+  const normalizedStatus = rawStatus === "archived" ? "archived" : "active";
+
   return {
     ...doc,
     type: doc.type ?? doc.document_type,
-    status: doc.status ?? "active",
+    status: normalizedStatus,
     tags: normalizeTags(doc.tags),
     version_label: doc.version_label ?? doc.versionLabel ?? null,
     version_number: doc.version_number ?? doc.versionNumber ?? null,
@@ -99,6 +106,49 @@ function normalizeDocument(doc) {
 function buildDuplicateTitle(title) {
   const cleanTitle = title?.trim() || "Untitled document";
   return cleanTitle.endsWith("(Copy)") ? cleanTitle : `${cleanTitle} (Copy)`;
+}
+
+function normalizeVersion(version, fallbackDocument) {
+  return {
+    version_id: version.version_id ?? version.id ?? `${fallbackDocument.id}-current`,
+    version_number:
+      version.version_number ?? version.versionNumber ?? fallbackDocument.version_number ?? 1,
+    version_label: version.version_label ?? version.versionLabel ?? fallbackDocument.version_label,
+    document_text: version.document_text ?? version.documentText ?? "",
+    file_url: version.file_url ?? version.fileUrl ?? fallbackDocument.file_url ?? null,
+    owner_id:
+      version.owner_id ??
+      version.ownerId ??
+      version.user_id ??
+      version.userId ??
+      fallbackDocument.owner_id ??
+      null,
+    created_at:
+      version.created_at ??
+      version.createdAt ??
+      fallbackDocument.updated_at ??
+      fallbackDocument.created_at ??
+      "",
+  };
+}
+
+function buildMockVersions(doc) {
+  if (Array.isArray(doc.versions) && doc.versions.length > 0) {
+    return doc.versions.map((version) => normalizeVersion(version, doc));
+  }
+
+  return [
+    normalizeVersion(
+      {
+        version_id: `${doc.id}-current`,
+        version_number: doc.version_number ?? 1,
+        version_label: doc.version_label ?? `v${doc.version_number ?? 1}`,
+        document_text: "Current saved document version.",
+        created_at: doc.updated_at,
+      },
+      doc
+    ),
+  ];
 }
 
 function Library() {
@@ -118,6 +168,11 @@ function Library() {
   const [renameTitle, setRenameTitle] = useState("");
   const [renameError, setRenameError] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
+  const [versionTarget, setVersionTarget] = useState(null);
+  const [versions, setVersions] = useState([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versionsError, setVersionsError] = useState("");
+  const [selectedVersion, setSelectedVersion] = useState(null);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -317,6 +372,43 @@ function Library() {
     }
   }
 
+  async function handleVersionHistoryClick(doc) {
+    setVersionTarget(doc);
+    setSelectedVersion(null);
+    setVersions([]);
+    setVersionsError("");
+    setVersionsLoading(true);
+
+    try {
+      if (USE_MOCK_DATA) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        setVersions(buildMockVersions(doc));
+        return;
+      }
+
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/documents/${doc.id}/versions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Failed to load version history");
+
+      setVersions(
+        (Array.isArray(data) ? data : []).map((version) => normalizeVersion(version, doc))
+      );
+    } catch (err) {
+      console.error("Document version history failed:", err);
+      setVersionsError("Could not load version history for this document.");
+    } finally {
+      setVersionsLoading(false);
+    }
+  }
+
+  function handleCloseVersionHistory() {
+    setVersionTarget(null);
+    setSelectedVersion(null);
+  }
+
   return (
     <div
       style={{
@@ -478,8 +570,265 @@ function Library() {
             onExport={handleExportDocument}
             onDuplicate={handleDuplicateDocument}
             onRename={handleRenameClick}
+            onVersionHistory={handleVersionHistoryClick}
           />
         ))}
+
+      {versionTarget && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            zIndex: 20,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--bg-card)",
+              borderRadius: "12px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "560px",
+              maxHeight: "80vh",
+              overflowY: "auto",
+              boxShadow: "var(--shadow)",
+            }}
+          >
+            <h3 style={{ marginTop: 0, color: "var(--color-heading, #003C78)" }}>
+              Version history
+            </h3>
+            <p style={{ color: "var(--color-subtext)", fontSize: "13px", marginBottom: "18px" }}>
+              {versionTarget.title}
+            </p>
+
+            {versionsLoading && (
+              <p style={{ color: "var(--color-subtext)", fontSize: "14px" }}>
+                Loading version history...
+              </p>
+            )}
+
+            {versionsError && (
+              <p style={{ color: "#DC2626", fontSize: "13px", fontWeight: 700 }}>{versionsError}</p>
+            )}
+
+            {!versionsLoading && !versionsError && versions.length === 0 && (
+              <p style={{ color: "var(--color-subtext)", fontSize: "14px" }}>
+                No previous versions found for this document.
+              </p>
+            )}
+
+            {!versionsLoading &&
+              !versionsError &&
+              versions.map((version) => (
+                <div
+                  key={version.version_id}
+                  style={{
+                    border: "1px solid var(--color-border-default)",
+                    borderRadius: "8px",
+                    padding: "14px",
+                    marginBottom: "10px",
+                    backgroundColor: "#FFFFFF",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, color: "var(--color-heading, #003C78)" }}>
+                        {version.version_label ?? `v${version.version_number}`}
+                      </div>
+                      <div style={{ color: "#6B7280", fontSize: "12px", marginTop: "4px" }}>
+                        Version {version.version_number}
+                        {version.owner_id ? ` - Owner ${version.owner_id}` : ""}
+                      </div>
+                    </div>
+                    <div style={{ color: "#6B7280", fontSize: "12px", textAlign: "right" }}>
+                      {version.created_at
+                        ? new Date(version.created_at).toLocaleString()
+                        : "No timestamp"}
+                    </div>
+                  </div>
+
+                  {version.document_text && (
+                    <p
+                      style={{
+                        color: "var(--color-subtext)",
+                        fontSize: "13px",
+                        lineHeight: 1.5,
+                        marginBottom: "12px",
+                      }}
+                    >
+                      {version.document_text.slice(0, 160)}
+                      {version.document_text.length > 160 ? "..." : ""}
+                    </p>
+                  )}
+
+                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedVersion(version)}
+                      style={{
+                        border: "1px solid var(--color-border-default)",
+                        borderRadius: "8px",
+                        background: "none",
+                        padding: "7px 12px",
+                        color: "#046A97",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      View
+                    </button>
+
+                    {version.file_url && (
+                      <a
+                        href={version.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          border: "1px solid var(--color-border-default)",
+                          borderRadius: "8px",
+                          padding: "7px 12px",
+                          color: "#046A97",
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          textDecoration: "none",
+                        }}
+                      >
+                        Open file
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px" }}>
+              <button
+                onClick={handleCloseVersionHistory}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--color-border-default)",
+                  background: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedVersion && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            zIndex: 30,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--bg-card)",
+              borderRadius: "12px",
+              padding: "24px",
+              width: "100%",
+              maxWidth: "680px",
+              maxHeight: "82vh",
+              overflowY: "auto",
+              boxShadow: "var(--shadow)",
+            }}
+          >
+            <h3 style={{ marginTop: 0, color: "var(--color-heading, #003C78)" }}>
+              {selectedVersion.version_label ?? `v${selectedVersion.version_number}`}
+            </h3>
+            <p style={{ color: "var(--color-subtext)", fontSize: "13px", marginBottom: "18px" }}>
+              Version {selectedVersion.version_number}
+              {selectedVersion.created_at
+                ? ` - ${new Date(selectedVersion.created_at).toLocaleString()}`
+                : ""}
+            </p>
+
+            {selectedVersion.document_text ? (
+              <div
+                style={{
+                  border: "1px solid var(--color-border-default)",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  backgroundColor: "#F8FAFC",
+                  color: "var(--color-heading, #003C78)",
+                  fontSize: "14px",
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {selectedVersion.document_text}
+              </div>
+            ) : (
+              <p style={{ color: "var(--color-subtext)", fontSize: "14px" }}>
+                This version does not include readable text. Open the saved file to view it.
+              </p>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "10px",
+                marginTop: "20px",
+                flexWrap: "wrap",
+              }}
+            >
+              {selectedVersion.file_url && (
+                <a
+                  href={selectedVersion.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--color-border-default)",
+                    color: "#046A97",
+                    fontWeight: 700,
+                    textDecoration: "none",
+                  }}
+                >
+                  Open file
+                </a>
+              )}
+              <button
+                onClick={() => setSelectedVersion(null)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--color-border-default)",
+                  background: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Back to history
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {renameTarget && (
         <div

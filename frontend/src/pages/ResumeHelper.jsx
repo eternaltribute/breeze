@@ -39,6 +39,9 @@
 //                           returns  { improved_text: string }
 //   POST /resume/save     — accepts { resume_text: string, job_id?: string }
 //                           returns  { document_id: string }
+//   POST /documents/resume/save — accepts multipart form data with:
+//                            file, resume_text, job_id?, title?, status?, tags?
+//                            so saved resumes can appear in Library with metadata.
 //   POST /resume/parse-pdf — accepts multipart form with the PDF file
 //                            returns { text: string }
 //   POST /resume/generate-for-job — S2-021 — accepts { job_id: string }
@@ -555,6 +558,10 @@ function ResumeHelper() {
   const [jobs, setJobs] = useState([]); // user's job list for the link dropdown
   const [selectedJobId, setSelectedJobId] = useState(""); // job to link this resume to
   const [saveSuccess, setSaveSuccess] = useState(false); // brief success confirmation
+  const [saveTitle, setSaveTitle] = useState("Resume");
+  const [saveStatus, setSaveStatus] = useState("active");
+  const [saveTags, setSaveTags] = useState("");
+  const [saveError, setSaveError] = useState("");
 
   // ── Fetch user's jobs on mount ─────────────────────────────────────────────
   // Lets the user link this resume to a specific job application (S2-024)
@@ -583,6 +590,7 @@ function ResumeHelper() {
     async (file) => {
       setFileName(file.name);
       setUploadedFile(file);
+      setSaveTitle(file.name.replace(/\.(pdf|docx|txt)$/i, ""));
       setAiScore(null); // reset AI results when a new file comes in
       setMetrics(null);
       setFeedback([]);
@@ -627,7 +635,11 @@ function ResumeHelper() {
     setMetrics(null);
     setFeedback([]);
     setSaveSuccess(false);
+    setSaveError("");
     setImproveInstruction("");
+    setSaveTitle("Resume");
+    setSaveStatus("active");
+    setSaveTags("");
   };
 
   // ── S2-021: Analyze resume ─────────────────────────────────────────────────
@@ -730,6 +742,11 @@ function ResumeHelper() {
       if (!res.ok) throw new Error("Generate failed");
       const data = await res.json();
       setResumeText(data.resume_text);
+      const selectedJob = jobs.find((job) => job.id === selectedJobId);
+      setSaveTitle(
+        selectedJob ? `${selectedJob.company} ${selectedJob.title} Resume` : "Generated Resume"
+      );
+      setSaveTags(selectedJob ? `${selectedJob.company}, tailored` : "tailored");
     } catch (err) {
       console.error("Resume generation for job failed:", err);
     } finally {
@@ -779,7 +796,10 @@ function ResumeHelper() {
   //   Response: { document_id: string }
   const handleSave = async () => {
     if (!resumeText.trim()) return;
+    const documentTitle =
+      saveTitle.trim() || fileName.replace(/\.(pdf|docx|txt)$/i, "") || "Resume";
     setSaving(true);
+    setSaveError("");
     try {
       const token = await getToken({ skipCache: true });
 
@@ -792,6 +812,9 @@ function ResumeHelper() {
         formData.append("file", blob, "resume.txt");
       }
       formData.append("resume_text", resumeText);
+      formData.append("title", documentTitle);
+      formData.append("status", saveStatus);
+      formData.append("tags", saveTags);
       if (selectedJobId) formData.append("job_id", selectedJobId);
 
       const res = await fetch(`${BASE}/documents/resume/save`, {
@@ -832,6 +855,7 @@ function ResumeHelper() {
       // ── End placeholder ───────────────────────────────────────────────────
     } catch (err) {
       console.error("Resume save failed:", err);
+      setSaveError("Could not save this resume. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -1088,6 +1112,114 @@ function ResumeHelper() {
             </div>
 
             {/* ── Action row: job link + download + save ────────────────── */}
+            {/* Library metadata saved with either uploaded or AI-generated resumes. */}
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "16px 20px",
+                borderRadius: "12px",
+                border: "1px solid var(--color-border-default, #e5e7eb)",
+                backgroundColor: "var(--bg-card, #fff)",
+                boxShadow: "var(--shadow)",
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: "var(--color-heading, #003C78)",
+                }}
+              >
+                Save details
+              </p>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(220px, 1.4fr) minmax(140px, 0.7fr)",
+                  gap: "12px",
+                  marginBottom: "12px",
+                }}
+              >
+                <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "var(--color-heading, #003C78)",
+                    }}
+                  >
+                    Library title
+                  </span>
+                  <input
+                    type="text"
+                    value={saveTitle}
+                    onChange={(e) => setSaveTitle(e.target.value)}
+                    placeholder="Resume title"
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--color-border-default, #e5e7eb)",
+                      color: "var(--color-input-text, #111827)",
+                      backgroundColor: "var(--color-input-bg, white)",
+                    }}
+                  />
+                </label>
+
+                <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: "var(--color-heading, #003C78)",
+                    }}
+                  >
+                    Status
+                  </span>
+                  <select
+                    value={saveStatus}
+                    onChange={(e) => setSaveStatus(e.target.value)}
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--color-border-default, #e5e7eb)",
+                      color: "var(--color-heading, #003C78)",
+                      backgroundColor: "var(--bg-card, #fff)",
+                    }}
+                  >
+                    <option value="active">Active</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </label>
+              </div>
+
+              <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    color: "var(--color-heading, #003C78)",
+                  }}
+                >
+                  Tags
+                </span>
+                <input
+                  type="text"
+                  value={saveTags}
+                  onChange={(e) => setSaveTags(e.target.value)}
+                  placeholder="frontend, tailored, internship"
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--color-border-default, #e5e7eb)",
+                    color: "var(--color-input-text, #111827)",
+                    backgroundColor: "var(--color-input-bg, white)",
+                  }}
+                />
+              </label>
+            </div>
+
             <div
               style={{
                 display: "flex",
@@ -1180,7 +1312,13 @@ function ResumeHelper() {
               {/* Brief success message after save */}
               {saveSuccess && (
                 <span style={{ fontSize: "13px", color: "#22c55e", fontWeight: 600 }}>
-                  ✓ Saved successfully
+                  Saved to Library
+                </span>
+              )}
+
+              {saveError && (
+                <span style={{ fontSize: "13px", color: "#DC2626", fontWeight: 700 }}>
+                  {saveError}
                 </span>
               )}
             </div>
