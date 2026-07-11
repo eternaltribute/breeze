@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useUser, useAuth } from "@clerk/clerk-react";
-import { FileText, Mail } from "lucide-react";
+import { FileText, Mail, BookOpen, BarChart2 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -380,6 +380,54 @@ function JobCard({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Dashboard shortcuts strip
+// Same icon choices as Sidebar.jsx (FileText, Mail, BookOpen, BarChart2) so
+// a shortcut card and its matching sidebar link are instantly recognizable
+// as "the same destination" — recognition over recall.
+//
+// This does NOT duplicate any page's functionality — it's just a one-click
+// jump to pages that already exist. Full features (uploading, AI review,
+// filtering, exporting) stay on their own pages; the Dashboard's job stays
+// "where does my job search stand," not "do everything."
+// ─────────────────────────────────────────────────────────────────────────────
+const DASHBOARD_SHORTCUTS = [
+  { label: "Resume Helper", path: "/resume-helper", icon: FileText },
+  { label: "Cover Letter Helper", path: "/cover-letter-helper", icon: Mail },
+  { label: "Library", path: "/library", icon: BookOpen },
+  { label: "Analytics", path: "/analytics", icon: BarChart2 },
+];
+
+function ShortcutCard({ label, icon: Icon, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+        flex: "1 1 0",
+        minWidth: "120px",
+        padding: "18px 12px",
+        borderRadius: "12px",
+        border: "1px solid var(--color-border-default, #e5e7eb)",
+        backgroundColor: "var(--bg-card, #fff)",
+        boxShadow: "var(--shadow)",
+        cursor: "pointer",
+        color: "var(--color-heading, #003C78)",
+        fontSize: "13px",
+        fontWeight: 700,
+        textAlign: "center",
+      }}
+    >
+      <Icon size={20} color="#046A97" />
+      {label}
+    </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Dashboard — main page
 // ─────────────────────────────────────────────────────────────────────────────
 function Dashboard() {
@@ -659,6 +707,28 @@ function Dashboard() {
         >
           + Add Job
         </button>
+      </div>
+
+      {/* Quick access shortcuts — one click to the rest of Breeze from the
+          homepage. The sidebar still has these too; this just makes them
+          visible immediately on first login, without duplicating any of
+          the pages' actual functionality here. */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "12px",
+          marginBottom: "24px",
+        }}
+      >
+        {DASHBOARD_SHORTCUTS.map((shortcut) => (
+          <ShortcutCard
+            key={shortcut.path}
+            label={shortcut.label}
+            icon={shortcut.icon}
+            onClick={() => navigate(shortcut.path)}
+          />
+        ))}
       </div>
 
       {/* Search + Filter + Sort toolbar */}
