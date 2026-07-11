@@ -68,6 +68,10 @@ class CreateVersionRequest(BaseModel):
     version_label: Optional[str] = None
 
 
+class RestoreDocumentRequest(BaseModel):
+    restore_to: Optional[str] = "draft"  # "draft" or "final"
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -802,6 +806,72 @@ def duplicate_document(
     db.commit()
     db.refresh(duplicate)
     return duplicate
+
+
+@router.post("/{document_id}/archive")
+def archive_document(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Archive a document without deleting it or its version history.
+    Rules: S3-BR-009"""
+    user_id = current_user.get("sub")
+    document = db.get(Document, document_id)
+    if not document or document.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if document.status == DocStatus.ARCHIVED:
+        raise HTTPException(status_code=400, detail="Document is already archived")
+
+    document.status = DocStatus.ARCHIVED
+    document.updated_at = datetime.utcnow()
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+@router.post("/{document_id}/restore")
+def restore_document(
+    document_id: str,
+    payload: RestoreDocumentRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Restore an archived document to draft or final status.
+    Rules: S3-BR-009"""
+    user_id = current_user.get("sub")
+    document = db.get(Document, document_id)
+    if not document or document.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if document.status != DocStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=400, detail="Only archived documents can be restored"
+        )
+
+    restore_to = (payload.restore_to or "draft").lower()
+    if restore_to == "archived":
+        raise HTTPException(
+            status_code=400, detail="Cannot restore a document to archived status"
+        )
+
+    status_map = {
+        "draft": DocStatus.DRAFT,
+        "active": DocStatus.DRAFT,
+        "final": DocStatus.FINAL,
+    }
+    new_status = status_map.get(restore_to)
+    if not new_status:
+        raise HTTPException(status_code=400, detail="Invalid restore target status")
+
+    document.status = new_status
+    document.updated_at = datetime.utcnow()
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return document
 
 
 @router.delete("/{document_id}")
