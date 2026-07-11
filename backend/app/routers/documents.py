@@ -93,8 +93,27 @@ def generate_pdf(text: str) -> bytes:
     pdf.add_page()
     pdf.set_margins(25, 25, 25)
     pdf.set_font("Helvetica", size=12)
-    pdf.multi_cell(0, 7, text)
+    pdf.multi_cell(0, 7, sanitize_pdf_text(text))
     return bytes(pdf.output())
+
+
+def sanitize_pdf_text(text: str) -> str:
+    """FPDF's core fonts (helvetica, times, courier) only support Latin-1.
+    AI-generated text often includes Unicode punctuation (em dashes, smart
+    quotes) that crashes PDF generation. Replace common cases with ASCII
+    equivalents rather than crashing the save."""
+    replacements = {
+        "\u2014": "-",  # em dash —
+        "\u2013": "-",  # en dash –
+        "\u2018": "'",  # left single quote '
+        "\u2019": "'",  # right single quote '
+        "\u201c": '"',  # left double quote "
+        "\u201d": '"',  # right double quote "
+        "\u2026": "...",  # ellipsis …
+    }
+    for unicode_char, ascii_equivalent in replacements.items():
+        text = text.replace(unicode_char, ascii_equivalent)
+    return text
 
 
 def snapshot_document_version(db: Session, document: Document) -> None:

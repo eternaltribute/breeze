@@ -37,7 +37,7 @@ import { getMockLibraryDocuments } from "../lib/mockLibraryStore";
 import { exportDocument, exportFormatLabels } from "../utils/documentExport";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
-const USE_MOCK_DATA = true; // flip to false once GET /documents is real
+const USE_MOCK_DATA = false; // flip to false once GET /documents is real
 
 // S3-007 backend contract notes:
 // - PATCH /documents/:documentId should rename only; it must not create a new version.
@@ -250,13 +250,58 @@ function Library() {
 
   // Optimistic local update — real persistence happens once the endpoint
   // exists. This just flips status client-side so the UI is demoable now.
-  function handleArchiveConfirmed(doc) {
-    setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, status: "archived" } : d)));
-    setConfirmTarget(null);
+  async function handleArchiveConfirmed(doc) {
+    setActionMessage("");
+
+    if (USE_MOCK_DATA) {
+      setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, status: "archived" } : d)));
+      setConfirmTarget(null);
+      return;
+    }
+
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/documents/${doc.id}/archive`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Archive failed");
+
+      setDocuments((prev) => prev.map((d) => (d.id === doc.id ? normalizeDocument(data) : d)));
+      setConfirmTarget(null);
+    } catch (err) {
+      console.error("Document archive failed:", err);
+      setActionMessage("Could not archive this document. Please try again.");
+    }
   }
 
-  function handleRestoreClick(doc) {
-    setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, status: "active" } : d)));
+  async function handleRestoreClick(doc) {
+    setActionMessage("");
+
+    if (USE_MOCK_DATA) {
+      setDocuments((prev) => prev.map((d) => (d.id === doc.id ? { ...d, status: "active" } : d)));
+      return;
+    }
+
+    try {
+      const token = await getToken({ skipCache: true });
+      const res = await fetch(`${BASE}/documents/${doc.id}/restore`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ restore_to: "draft" }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.detail || "Restore failed");
+
+      setDocuments((prev) => prev.map((d) => (d.id === doc.id ? normalizeDocument(data) : d)));
+    } catch (err) {
+      console.error("Document restore failed:", err);
+      setActionMessage("Could not restore this document. Please try again.");
+    }
   }
 
   async function handleExportDocument(doc, format) {
@@ -350,7 +395,7 @@ function Library() {
       }
 
       const token = await getToken({ skipCache: true });
-      const res = await fetch(`${BASE}/documents/${renameTarget.id}`, {
+      const res = await fetch(`${BASE}/documents/${renameTarget.id}/rename`, {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,

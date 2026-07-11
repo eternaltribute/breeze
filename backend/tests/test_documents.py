@@ -292,3 +292,17 @@ def test_upload_resume_accepts_txt(client, monkeypatch):
         data={"resume_text": "Some resume text"},
     )
     assert response.status_code == 200
+
+
+def test_sanitize_pdf_text_handles_unicode_punctuation():
+    """Regression: em dashes and smart quotes (common in AI-generated
+    text) must not crash PDF generation."""
+    from app.routers.documents import sanitize_pdf_text
+
+    text = "I thrive\u2014especially with \u2018smart\u2019 quotes\u2026"
+    result = sanitize_pdf_text(text)
+    assert "\u2014" not in result
+    assert "\u2018" not in result
+    assert "\u2019" not in result
+    assert "\u2026" not in result
+    assert "-" in result
