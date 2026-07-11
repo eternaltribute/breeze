@@ -146,6 +146,45 @@ def test_restore_blocked_for_other_user(client, test_job):
     assert response.status_code == 404
 
 
+def test_archive_document_blocked_for_other_user(client, db):
+    from app.models import DocType, Document
+
+    document = Document(
+        user_id=OWNER_ID,
+        title="Owner's Resume",
+        doc_type=DocType.RESUME,
+        document_text="Private content",
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    with as_attacker():
+        response = client.post(f"/documents/{document.id}/archive")
+    assert response.status_code == 404
+
+
+def test_restore_document_blocked_for_other_user(client, db):
+    from app.models import DocStatus, DocType, Document
+
+    document = Document(
+        user_id=OWNER_ID,
+        title="Owner's Resume",
+        doc_type=DocType.RESUME,
+        status=DocStatus.ARCHIVED,
+        document_text="Private content",
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    with as_attacker():
+        response = client.post(
+            f"/documents/{document.id}/restore", json={"restore_to": "draft"}
+        )
+    assert response.status_code == 404
+
+
 # --- Events / interviews / outcomes / follow-ups ---
 
 
