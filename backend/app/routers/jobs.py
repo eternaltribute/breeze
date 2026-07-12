@@ -7,7 +7,7 @@ from sqlmodel import Field, Session, select
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.models import Job, JobEvent, JobEventType, JobStage
+from app.models import DocType, Document, Job, JobEvent, JobEventType, JobStage
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -21,6 +21,15 @@ class JobCreate(BaseModel):
     job_url: Optional[str] = None
     salary_range: Optional[str] = None
     notes: Optional[str] = None
+
+
+# Quick fix: avoids N+1 GET .../resume/job/{id} and .../cover-letter/job/{id}
+# calls per job on the Dashboard, most of which return 404 for jobs with
+# no linked document. Adds has_resume/has_cover_letter directly to the
+# job list response instead.
+class JobWithDocumentFlags(Job):
+    has_resume: bool = False
+    has_cover_letter: bool = False
 
 
 class JobUpdate(BaseModel):
@@ -70,13 +79,38 @@ def get_job_reminder_counts(
     ]
 
 
-@router.get("", response_model=List[Job])
+@router.get("", response_model=List[JobWithDocumentFlags])
 def get_jobs(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     user_id = current_user.get("sub")
-    return db.exec(select(Job).where(Job.owner_id == user_id)).all()
+    jobs = db.exec(select(Job).where(Job.owner_id == user_id)).all()
+
+    job_ids = [job.id for job in jobs]
+    linked_docs = (
+        db.exec(
+            select(Document.job_id, Document.doc_type).where(
+                Document.user_id == user_id, Document.job_id.in_(job_ids)
+            )
+        ).all()
+        if job_ids
+        else []
+    )
+
+    resume_job_ids = {jid for jid, dtype in linked_docs if dtype == DocType.RESUME}
+    cover_letter_job_ids = {
+        jid for jid, dtype in linked_docs if dtype == DocType.COVER_LETTER
+    }
+
+    return [
+        JobWithDocumentFlags(
+            **job.model_dump(),
+            has_resume=job.id in resume_job_ids,
+            has_cover_letter=job.id in cover_letter_job_ids,
+        )
+        for job in jobs
+    ]
 
 
 @router.post("", response_model=Job, status_code=201)
@@ -93,19 +127,30 @@ def create_job(
     return job
 
 
-@router.get("/{job_id}", response_model=Job)
+@router.get("/{job_id}", response_model=JobWithDocumentFlags)
 def get_job(
     job_id: str,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # RULES : same has_resume/has_cover_letter flags as GET /jobs, avoids
+    # JobDetail.jsx needing seperate resume/cover-letter lookups.
     user_id = current_user.get("sub")
     job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
 
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    linked_doc_types = db.exec(
+        select(Document.doc_type).where(
+            Document.user_id == user_id, Document.job_id == job_id
+        )
+    ).all()
 
-    return job
+    return JobWithDocumentFlags(
+        **job.model_dump(),
+        has_resume=DocType.RESUME in linked_doc_types,
+        has_cover_letter=DocType.COVER_LETTER in linked_doc_types,
+    )
 
 
 @router.put("/{job_id}", response_model=Job)
