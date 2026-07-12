@@ -663,10 +663,10 @@ function CoverLetterHelper() {
     // existing cover letter (S3-BR-007/008-adjacent — this is a UX
     // safeguard, not a substitute for a real backend uniqueness rule).
     //if (isDuplicateTitle(documentTitle, "cover_letter")) {
-     // setError(
-       // `A cover letter named "${documentTitle}" already exists. Rename this draft or edit the existing one instead.`
-      //);
-     // return;
+    // setError(
+    // `A cover letter named "${documentTitle}" already exists. Rename this draft or edit the existing one instead.`
+    //);
+    // return;
     //}
 
     try {
