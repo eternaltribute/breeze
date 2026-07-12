@@ -92,7 +92,7 @@ function normalizeDocument(doc) {
 
   return {
     ...doc,
-    type: doc.type ?? doc.document_type,
+    type: doc.type ?? doc.doc_type ?? doc.document_type,
     status: normalizedStatus,
     tags: normalizeTags(doc.tags),
     version_label: doc.version_label ?? doc.versionLabel ?? null,
