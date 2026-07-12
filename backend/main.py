@@ -13,6 +13,7 @@ from app.logging_config import configure_logging, logger  # S3-018
 from app.middleware import RequestContextMiddleware  # S3-018
 from app.routers import (
     ai,
+    analytics,
     auth,
     documents,
     education,
@@ -42,6 +43,8 @@ app.add_middleware(
 # routers
 app.include_router(auth.router)  # registers auth router with FastAPI
 app.include_router(protected.router)  # registers protected router with FastAPI S1-014
+# S3-014
+app.include_router(analytics.router)
 app.include_router(jobs.router)  # registers jobs router with FastAPI S1-015
 app.include_router(skills.router)  # registers skills router with FastAPI
 app.include_router(events.router)  # registers events router with FastAPI S2-009
