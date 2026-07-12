@@ -85,6 +85,18 @@ class RenameDocumentRequest(BaseModel):
     title: str
 
 
+# S3-009: Job-to-Library Linking
+class LinkDocumentRequest(BaseModel):
+    job_id: str
+    document_type: DocType
+    replace_existing: bool = False
+
+
+class UnlinkDocumentRequest(BaseModel):
+    job_id: str
+    document_type: DocType
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -877,6 +889,105 @@ def rename_document(
         raise HTTPException(status_code=400, detail="Title cannot be empty")
 
     document.title = clean_title
+    document.updated_at = datetime.utcnow()
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+@router.patch("/{document_id}/link-to-job")
+def link_document_to_job(
+    document_id: str,
+    payload: LinkDocumentRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Link a library document to a job. Enforces at most one resume and
+    one cover letter linked per job at a time. Does not create a new
+    version, only changes the job association.
+    Rules: S3-BR-002, S3-BR-010, S3-BR-011, S3-BR-012"""
+    user_id = current_user.get("sub")
+
+    document = db.get(Document, document_id)
+    if not document or document.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if document.doc_type != payload.document_type:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Document is a {DocType(document.doc_type).value}, "
+                f"not a {DocType(payload.document_type).value}"
+            ),
+        )
+
+    job = db.exec(
+        select(Job).where(Job.id == payload.job_id, Job.owner_id == user_id)
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # S3-BR-010: at most one resume and one cover letter per job at a time.
+    existing = db.exec(
+        select(Document).where(
+            Document.job_id == payload.job_id,
+            Document.doc_type == payload.document_type,
+            Document.user_id == user_id,
+            Document.id != document_id,
+        )
+    ).first()
+
+    if existing and not payload.replace_existing:
+        # S3-BR-011: replacing a currently linked document requires confirmation.
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    f"This job already has a linked {payload.document_type.value}. "
+                    f"Set replace_existing=true to replace it."
+                ),
+                "requires_confirmation": True,
+                "existing_document_id": existing.id,
+            },
+        )
+
+    if existing and payload.replace_existing:
+        existing.job_id = None
+        existing.updated_at = datetime.utcnow()
+        db.add(existing)
+
+    document.job_id = payload.job_id
+    document.updated_at = datetime.utcnow()
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+@router.patch("/{document_id}/unlink-from-job")
+def unlink_document_from_job(
+    document_id: str,
+    payload: UnlinkDocumentRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Unlink a document from a job without deleting it. Only succeeds
+    if the document is currently linked to the given job.
+    Rules: S3-BR-002, S3-BR-012"""
+    user_id = current_user.get("sub")
+
+    document = db.get(Document, document_id)
+    if not document or document.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if document.job_id != payload.job_id or document.doc_type != payload.document_type:
+        raise HTTPException(
+            status_code=400,
+            detail="Document is not currently linked to this job.",
+        )
+
+    document.job_id = None
     document.updated_at = datetime.utcnow()
     db.add(document)
     db.commit()
