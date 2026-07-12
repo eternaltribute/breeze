@@ -367,3 +367,36 @@ def test_rename_document_blocked_for_other_user(client, db):
     # Regression: owner's title unchanged
     updated = db.get(Document, document.id)
     assert updated.title == "Owner's Original Title"
+
+
+def test_analytics_only_reflects_own_events(client, db, test_job):
+    """Regression: another user's stage-change events must not leak into
+    this user's analytics numbers."""
+    from datetime import datetime, timedelta
+
+    from app.models import Job, JobEvent, JobEventType, JobStage
+
+    other_job = Job(
+        owner_id=ATTACKER_ID,
+        company="Attacker Co",
+        title="Engineer",
+        job_posting_body="Posting",
+    )
+    db.add(other_job)
+    db.commit()
+    db.refresh(other_job)
+
+    db.add(
+        JobEvent(
+            job_id=other_job.id,
+            owner_id=ATTACKER_ID,
+            event_type=JobEventType.STAGE_CHANGE,
+            from_stage=JobStage.INTERESTED,
+            to_stage=JobStage.APPLIED,
+            created_at=datetime.utcnow() - timedelta(days=1),
+        )
+    )
+    db.commit()
+
+    response = client.get("/jobs/analytics")
+    assert response.json()["velocity"] == 0

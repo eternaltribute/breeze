@@ -795,3 +795,36 @@ def test_save_research_notes_no_token():
             json={"company_research_notes": "Should not save"},
         )
     assert response.status_code == 401
+
+
+# --- Job list document flags (N+1 fix) ---
+
+
+def test_get_jobs_includes_document_flags_false_by_default(client, test_job):
+    """Happy path: a job with no linked documents shows both flags false."""
+    response = client.get("/jobs")
+    assert response.status_code == 200
+    job = next(j for j in response.json() if j["id"] == test_job["id"])
+    assert job["has_resume"] is False
+    assert job["has_cover_letter"] is False
+
+
+def test_get_jobs_reflects_linked_resume(client, test_job, db):
+    """Regression: a linked resume should flip has_resume to true."""
+    from app.models import DocType, Document
+
+    db.add(
+        Document(
+            user_id="test_user_123",
+            job_id=test_job["id"],
+            title="resume.pdf",
+            doc_type=DocType.RESUME,
+            document_text="Resume content",
+        )
+    )
+    db.commit()
+
+    response = client.get("/jobs")
+    job = next(j for j in response.json() if j["id"] == test_job["id"])
+    assert job["has_resume"] is True
+    assert job["has_cover_letter"] is False

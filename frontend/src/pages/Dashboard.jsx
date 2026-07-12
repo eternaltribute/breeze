@@ -58,8 +58,10 @@ function fromApi(job) {
     lastActivity: (job.updated_at ?? job.created_at)?.split("T")[0] ?? "",
     deadline: job.deadline ?? "",
     createdAt: job.created_at?.split("T")[0] ?? "",
-    resumeCount: Number(job.resume_count ?? job.resumeCount ?? 0),
-    coverLetterCount: Number(job.cover_letter_count ?? job.coverLetterCount ?? 0),
+    resumeCount: Number(job.resume_count ?? job.resumeCount ?? (job.has_resume ? 1 : 0)),
+    coverLetterCount: Number(
+      job.cover_letter_count ?? job.coverLetterCount ?? (job.has_cover_letter ? 1 : 0)
+    ),
   };
 }
 
@@ -508,50 +510,12 @@ function Dashboard() {
           const mappedJobs = data.map(fromApi);
           setJobs(mappedJobs);
 
-          const resumeResults = await Promise.all(
-            mappedJobs.map(async (job) => {
-              if (job.resumeCount > 0) return [job.id, job.resumeCount];
-
-              try {
-                const resumeRes = await fetch(`${BASE}/documents/resume/job/${job.id}`, {
-                  headers: { Authorization: `Bearer ${token}` },
-                });
-
-                if (resumeRes.status === 404 || !resumeRes.ok) return [job.id, 0];
-
-                const resumeData = await resumeRes.json().catch(() => null);
-                const count = resumeData?.resume_text?.trim() || resumeData?.file_url ? 1 : 0;
-                return [job.id, count];
-              } catch (err) {
-                console.error("Failed to fetch resume count:", err);
-                return [job.id, 0];
-              }
-            })
+          // has_resume/has_cover_letter now come directly from GET /jobs,
+          // no need for a per-job lookup fetch anymore.
+          setResumesByJob(Object.fromEntries(mappedJobs.map((job) => [job.id, job.resumeCount])));
+          setCoverLettersByJob(
+            Object.fromEntries(mappedJobs.map((job) => [job.id, job.coverLetterCount]))
           );
-
-          const coverLetterResults = await Promise.all(
-            mappedJobs.map(async (job) => {
-              if (job.coverLetterCount > 0) return [job.id, job.coverLetterCount];
-
-              try {
-                const coverLetterRes = await fetch(`${BASE}/documents/cover-letter/job/${job.id}`, {
-                  headers: { Authorization: `Bearer ${token}` },
-                });
-
-                if (coverLetterRes.status === 404 || !coverLetterRes.ok) return [job.id, 0];
-
-                const coverLetterData = await coverLetterRes.json().catch(() => null);
-                const count = coverLetterData?.cover_letter_text?.trim() ? 1 : 0;
-                return [job.id, count];
-              } catch (err) {
-                console.error("Failed to fetch cover letter count:", err);
-                return [job.id, 0];
-              }
-            })
-          );
-
-          setResumesByJob(Object.fromEntries(resumeResults));
-          setCoverLettersByJob(Object.fromEntries(coverLetterResults));
         }
       } catch (err) {
         console.error("Failed to fetch jobs:", err);
