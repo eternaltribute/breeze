@@ -30,7 +30,7 @@ import {
   X,
 } from "lucide-react";
 import mammoth from "mammoth";
-import { addMockDocument, isDuplicateTitle } from "../lib/mockLibraryStore";
+import { addMockDocument } from "../lib/mockLibraryStore";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
 const SUPPORTED_DRAFT_FORMATS = ".pdf, .docx, .txt";
@@ -41,7 +41,7 @@ const SUPPORTED_DRAFT_EXTENSIONS = [".pdf", ".docx", ".txt"];
 // shared mock library (see lib/mockLibraryStore.js) instead of calling the
 // real backend, so the whole Resume/Cover Letter -> Library flow can be
 // demoed and tested without the backend being ready.
-const USE_MOCK_SAVE = true;
+const USE_MOCK_SAVE = false;
 
 function normalizeLibraryStatus(status) {
   return status === "archived" ? "archived" : "active";
@@ -662,12 +662,12 @@ function CoverLetterHelper() {
     // ── Fail-safe: block saving a document with the same name as an
     // existing cover letter (S3-BR-007/008-adjacent — this is a UX
     // safeguard, not a substitute for a real backend uniqueness rule).
-    if (isDuplicateTitle(documentTitle, "cover_letter")) {
-      setError(
-        `A cover letter named "${documentTitle}" already exists. Rename this draft or edit the existing one instead.`
-      );
-      return;
-    }
+    //if (isDuplicateTitle(documentTitle, "cover_letter")) {
+     // setError(
+       // `A cover letter named "${documentTitle}" already exists. Rename this draft or edit the existing one instead.`
+      //);
+     // return;
+    //}
 
     try {
       setError("");
