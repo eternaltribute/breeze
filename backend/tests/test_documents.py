@@ -306,3 +306,197 @@ def test_sanitize_pdf_text_handles_unicode_punctuation():
     assert "\u2019" not in result
     assert "\u2026" not in result
     assert "-" in result
+
+
+# --- S3-009: Job-to-Library Linking ---
+
+
+@pytest.fixture(name="second_test_document")
+def second_test_document_fixture(db: Session):
+    """A second draft resume, unlinked, for replace_existing scenarios."""
+    document = Document(
+        user_id=TEST_USER_ID,
+        title="My Other Resume",
+        doc_type=DocType.RESUME,
+        status=DocStatus.DRAFT,
+        document_text="Different resume content",
+        version_label="v1",
+        version_number=1,
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return document
+
+
+@pytest.fixture(name="test_job_for_linking")
+def test_job_for_linking_fixture(client: TestClient):
+    response = client.post(
+        "/jobs",
+        json={
+            "company": "Link Test Co",
+            "title": "Engineer",
+            "job_posting_body": "Test posting",
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def test_link_document_to_job_success(client, test_document, test_job_for_linking):
+    """Happy path: linking a library document to a job with no existing link."""
+    response = client.patch(
+        f"/documents/{test_document.id}/link-to-job",
+        json={
+            "job_id": test_job_for_linking["id"],
+            "document_type": "resume",
+            "replace_existing": False,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["job_id"] == test_job_for_linking["id"]
+
+
+def test_link_requires_confirmation_when_one_already_linked(
+    client, test_document, second_test_document, test_job_for_linking, db
+):
+    """Edge case: linking a second resume to a job that already has one
+    should be rejected with a 409 unless replace_existing is set."""
+    test_document.job_id = test_job_for_linking["id"]
+    db.add(test_document)
+    db.commit()
+
+    response = client.patch(
+        f"/documents/{second_test_document.id}/link-to-job",
+        json={
+            "job_id": test_job_for_linking["id"],
+            "document_type": "resume",
+            "replace_existing": False,
+        },
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["requires_confirmation"] is True
+
+
+def test_link_with_replace_existing_swaps_document(
+    client, test_document, second_test_document, test_job_for_linking, db
+):
+    """Happy path: replace_existing=true unlinks the old document and
+    links the new one."""
+    test_document.job_id = test_job_for_linking["id"]
+    db.add(test_document)
+    db.commit()
+
+    response = client.patch(
+        f"/documents/{second_test_document.id}/link-to-job",
+        json={
+            "job_id": test_job_for_linking["id"],
+            "document_type": "resume",
+            "replace_existing": True,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["job_id"] == test_job_for_linking["id"]
+
+    # Regression: old document is unlinked, not deleted
+    old_doc = db.get(Document, test_document.id)
+    assert old_doc is not None
+    assert old_doc.job_id is None
+
+
+def test_link_wrong_document_type_rejected(client, test_document, test_job_for_linking):
+    """Edge case: document_type in payload must match the document's actual type."""
+    response = client.patch(
+        f"/documents/{test_document.id}/link-to-job",
+        json={
+            "job_id": test_job_for_linking["id"],
+            "document_type": "cover_letter",
+            "replace_existing": False,
+        },
+    )
+    assert response.status_code == 400
+
+
+def test_link_invalid_job(client, test_document):
+    response = client.patch(
+        f"/documents/{test_document.id}/link-to-job",
+        json={
+            "job_id": "non-existent-id",
+            "document_type": "resume",
+            "replace_existing": False,
+        },
+    )
+    assert response.status_code == 404
+
+
+def test_link_invalid_document(client, test_job_for_linking):
+    response = client.patch(
+        "/documents/non-existent-id/link-to-job",
+        json={
+            "job_id": test_job_for_linking["id"],
+            "document_type": "resume",
+            "replace_existing": False,
+        },
+    )
+    assert response.status_code == 404
+
+
+def test_unlink_document_success(client, test_document, test_job_for_linking, db):
+    """Happy path: unlinking removes the job association without deleting."""
+    test_document.job_id = test_job_for_linking["id"]
+    db.add(test_document)
+    db.commit()
+
+    response = client.patch(
+        f"/documents/{test_document.id}/unlink-from-job",
+        json={"job_id": test_job_for_linking["id"], "document_type": "resume"},
+    )
+    assert response.status_code == 200
+    assert response.json()["job_id"] is None
+
+    # Regression: document still exists
+    still_there = db.get(Document, test_document.id)
+    assert still_there is not None
+
+
+def test_unlink_document_not_linked_rejected(
+    client, test_document, test_job_for_linking
+):
+    """Edge case: unlinking a document that isn't linked to this job fails."""
+    response = client.patch(
+        f"/documents/{test_document.id}/unlink-from-job",
+        json={"job_id": test_job_for_linking["id"], "document_type": "resume"},
+    )
+    assert response.status_code == 400
+
+
+def test_unlink_invalid_document(client, test_job_for_linking):
+    response = client.patch(
+        "/documents/non-existent-id/unlink-from-job",
+        json={"job_id": test_job_for_linking["id"], "document_type": "resume"},
+    )
+    assert response.status_code == 404
+
+
+def test_link_no_token():
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.patch(
+            "/documents/fake-id/link-to-job",
+            json={
+                "job_id": "fake-job",
+                "document_type": "resume",
+                "replace_existing": False,
+            },
+        )
+    assert response.status_code == 401
+
+
+def test_unlink_no_token():
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.patch(
+            "/documents/fake-id/unlink-from-job",
+            json={"job_id": "fake-job", "document_type": "resume"},
+        )
+    assert response.status_code == 401

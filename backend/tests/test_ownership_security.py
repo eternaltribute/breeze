@@ -400,3 +400,54 @@ def test_analytics_only_reflects_own_events(client, db, test_job):
 
     response = client.get("/jobs/analytics")
     assert response.json()["velocity"] == 0
+
+
+def test_link_document_blocked_for_other_user(client, db, test_job):
+    from app.models import DocType, Document
+
+    document = Document(
+        user_id=OWNER_ID,
+        title="Owner's Resume",
+        doc_type=DocType.RESUME,
+        document_text="Private content",
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    with as_attacker():
+        response = client.patch(
+            f"/documents/{document.id}/link-to-job",
+            json={
+                "job_id": test_job["id"],
+                "document_type": "resume",
+                "replace_existing": False,
+            },
+        )
+    assert response.status_code == 404
+
+
+def test_unlink_document_blocked_for_other_user(client, db, test_job):
+    from app.models import DocType, Document
+
+    document = Document(
+        user_id=OWNER_ID,
+        title="Owner's Resume",
+        doc_type=DocType.RESUME,
+        job_id=test_job["id"],
+        document_text="Private content",
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    with as_attacker():
+        response = client.patch(
+            f"/documents/{document.id}/unlink-from-job",
+            json={"job_id": test_job["id"], "document_type": "resume"},
+        )
+    assert response.status_code == 404
+
+    # Regression: owner's document is still linked
+    still_linked = db.get(Document, document.id)
+    assert still_linked.job_id == test_job["id"]
