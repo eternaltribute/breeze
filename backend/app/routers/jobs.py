@@ -53,6 +53,14 @@ class CompanyResearchNotesUpdate(BaseModel):
     company_research_notes: str
 
 
+# S3-013: Interview Preparation Notes
+# Rules: S3-BR-003 (audit-friendly timestamps)
+class InterviewPrepNotesUpdate(BaseModel):
+    interview_prep_questions: Optional[str] = None
+    interview_prep_talking_points: Optional[str] = None
+    interview_prep_logistics: Optional[str] = None
+
+
 @router.get("/reminders", response_model=List[JobReminderCount])
 def get_job_reminder_counts(
     current_user: dict = Depends(get_current_user),
@@ -235,6 +243,55 @@ def save_research_notes(
     return {
         "job_id": job.id,
         "company_research_notes": job.company_research_notes,
+        "updated_at": job.updated_at,
+    }
+
+
+@router.get("/{job_id}/interview-prep-notes")
+def get_interview_prep_notes(
+    job_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return {
+        "job_id": job.id,
+        "interview_prep_questions": job.interview_prep_questions,
+        "interview_prep_talking_points": job.interview_prep_talking_points,
+        "interview_prep_logistics": job.interview_prep_logistics,
+        "updated_at": job.updated_at,
+    }
+
+
+@router.put("/{job_id}/interview-prep-notes")
+def save_interview_prep_notes(
+    job_id: str,
+    payload: InterviewPrepNotesUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_id = current_user.get("sub")
+    job = db.exec(select(Job).where(Job.id == job_id, Job.owner_id == user_id)).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job.interview_prep_questions = payload.interview_prep_questions
+    job.interview_prep_talking_points = payload.interview_prep_talking_points
+    job.interview_prep_logistics = payload.interview_prep_logistics
+    job.updated_at = datetime.utcnow()
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    return {
+        "job_id": job.id,
+        "interview_prep_questions": job.interview_prep_questions,
+        "interview_prep_talking_points": job.interview_prep_talking_points,
+        "interview_prep_logistics": job.interview_prep_logistics,
         "updated_at": job.updated_at,
     }
 

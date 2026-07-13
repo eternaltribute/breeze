@@ -828,3 +828,101 @@ def test_get_jobs_reflects_linked_resume(client, test_job, db):
     job = next(j for j in response.json() if j["id"] == test_job["id"])
     assert job["has_resume"] is True
     assert job["has_cover_letter"] is False
+
+
+# --- S3-013: Interview Preparation Notes Tests ---
+# Rules: S3-BR-003 (audit-friendly timestamps)
+
+
+def test_get_interview_prep_notes_no_notes_yet(client, test_job):
+    """Happy path: a new job has no interview prep notes yet (all null)."""
+    response = client.get(f"/jobs/{test_job['id']}/interview-prep-notes")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["interview_prep_questions"] is None
+    assert data["interview_prep_talking_points"] is None
+    assert data["interview_prep_logistics"] is None
+
+
+def test_save_and_get_interview_prep_notes(client, test_job):
+    """Happy path: saved notes are persisted and retrievable."""
+    save_response = client.put(
+        f"/jobs/{test_job['id']}/interview-prep-notes",
+        json={
+            "interview_prep_questions": "What does a typical day look like?",
+            "interview_prep_talking_points": "Mention the React migration project",
+            "interview_prep_logistics": "2pm Tuesday, Zoom link in email",
+        },
+    )
+    assert save_response.status_code == 200
+    data = save_response.json()
+    assert data["interview_prep_questions"] == "What does a typical day look like?"
+    assert (
+        data["interview_prep_talking_points"] == "Mention the React migration project"
+    )
+    assert data["interview_prep_logistics"] == "2pm Tuesday, Zoom link in email"
+
+    get_response = client.get(f"/jobs/{test_job['id']}/interview-prep-notes")
+    assert get_response.status_code == 200
+    assert (
+        get_response.json()["interview_prep_questions"]
+        == "What does a typical day look like?"
+    )
+
+
+def test_save_interview_prep_notes_partial_fields(client, test_job):
+    """Edge case: a user might only fill in one of the three fields;
+    the other two should stay null, not get coerced to empty string."""
+    response = client.put(
+        f"/jobs/{test_job['id']}/interview-prep-notes",
+        json={"interview_prep_logistics": "3pm Friday, in person"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["interview_prep_logistics"] == "3pm Friday, in person"
+    assert data["interview_prep_questions"] is None
+    assert data["interview_prep_talking_points"] is None
+
+
+def test_save_interview_prep_notes_overwrites_existing(client, test_job):
+    """Saving again should overwrite, not merge with, existing notes."""
+    client.put(
+        f"/jobs/{test_job['id']}/interview-prep-notes",
+        json={"interview_prep_questions": "First draft question"},
+    )
+    response = client.put(
+        f"/jobs/{test_job['id']}/interview-prep-notes",
+        json={"interview_prep_questions": "Updated question"},
+    )
+    assert response.status_code == 200
+    assert response.json()["interview_prep_questions"] == "Updated question"
+
+
+def test_get_interview_prep_notes_invalid_job(client):
+    response = client.get("/jobs/non-existent-id/interview-prep-notes")
+    assert response.status_code == 404
+
+
+def test_save_interview_prep_notes_invalid_job(client):
+    response = client.put(
+        "/jobs/non-existent-id/interview-prep-notes",
+        json={"interview_prep_questions": "Should not save"},
+    )
+    assert response.status_code == 404
+
+
+def test_get_interview_prep_notes_no_token():
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.get("/jobs/fake-id/interview-prep-notes")
+    assert response.status_code == 401
+
+
+def test_save_interview_prep_notes_no_token():
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.put(
+            "/jobs/fake-id/interview-prep-notes",
+            json={"interview_prep_questions": "Should not save"},
+        )
+    assert response.status_code == 401
