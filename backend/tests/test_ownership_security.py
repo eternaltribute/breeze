@@ -469,3 +469,22 @@ def test_export_document_blocked_for_other_user(client, db):
     with as_attacker():
         response = client.get(f"/documents/{document.id}/export?format=txt")
     assert response.status_code == 404
+
+
+def test_interview_prep_notes_blocked_for_other_user(client, test_job):
+    client.put(
+        f"/jobs/{test_job['id']}/interview-prep-notes",
+        json={"interview_prep_questions": "Owner's private prep notes"},
+    )
+    with as_attacker():
+        get_response = client.get(f"/jobs/{test_job['id']}/interview-prep-notes")
+        put_response = client.put(
+            f"/jobs/{test_job['id']}/interview-prep-notes",
+            json={"interview_prep_questions": "Hijacked notes"},
+        )
+    assert get_response.status_code == 404
+    assert put_response.status_code == 404
+
+    # Regression: owner's original notes are untouched
+    response = client.get(f"/jobs/{test_job['id']}/interview-prep-notes")
+    assert response.json()["interview_prep_questions"] == "Owner's private prep notes"

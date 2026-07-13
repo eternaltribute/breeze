@@ -64,8 +64,12 @@ class Job(SQLModel, table=True):
     salary_range: Optional[str] = Field(default=None)
     notes: Optional[str] = Field(default=None)
     interview_round: Optional[int] = Field(default=None)
-    # S3-012 Persist Company Research Notes to Job record
+    # S3-012: Persist Company Research Notes to Job Record
     company_research_notes: Optional[str] = Field(default=None)
+    # S3-013: Interview Preparation Notes
+    interview_prep_questions: Optional[str] = Field(default=None)
+    interview_prep_talking_points: Optional[str] = Field(default=None)
+    interview_prep_logistics: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
