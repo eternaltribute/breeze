@@ -6,11 +6,11 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 from sqlmodel.pool import StaticPool
 
 from app.database import get_db
-from app.models import DocStatus, DocType, Document
+from app.models import DocStatus, DocType, Document, JobEvent
 from main import app
 
 TEST_USER_ID = "test_user_123"
@@ -65,6 +65,57 @@ def test_document_fixture(db: Session):
 
 
 # --- Archive ---
+
+
+def test_get_document_by_id_success(client, test_document):
+    """Happy path: users can load their own document for editing."""
+    response = client.get(f"/documents/{test_document.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == test_document.id
+    assert data["title"] == "My Resume"
+    assert data["document_text"] == "Some resume content"
+    assert data["doc_type"] == "resume"
+
+
+def test_get_document_by_id_invalid_document(client):
+    response = client.get("/documents/non-existent-id")
+    assert response.status_code == 404
+
+
+def test_get_document_by_id_blocks_other_user(client, db):
+    other_document = Document(
+        user_id="other_user",
+        title="Other Resume",
+        doc_type=DocType.RESUME,
+        status=DocStatus.DRAFT,
+        document_text="Private content",
+    )
+    db.add(other_document)
+    db.commit()
+    db.refresh(other_document)
+
+    response = client.get(f"/documents/{other_document.id}")
+    assert response.status_code == 404
+
+
+def test_get_document_by_id_no_token():
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.get("/documents/fake-id")
+    assert response.status_code == 401
+
+
+def test_get_resume_for_job_without_link_returns_null(client):
+    response = client.get("/documents/resume/job/job-with-no-resume")
+    assert response.status_code == 200
+    assert response.json() is None
+
+
+def test_get_cover_letter_for_job_without_link_returns_null(client):
+    response = client.get("/documents/cover-letter/job/job-with-no-cover-letter")
+    assert response.status_code == 200
+    assert response.json() is None
 
 
 def test_archive_document_success(client, test_document):
@@ -343,7 +394,92 @@ def test_job_for_linking_fixture(client: TestClient):
     return response.json()
 
 
-def test_link_document_to_job_success(client, test_document, test_job_for_linking):
+def job_event_notes(db: Session, job_id: str) -> list[str]:
+    events = db.exec(
+        select(JobEvent).where(JobEvent.job_id == job_id).order_by(JobEvent.created_at)
+    ).all()
+    return [event.notes for event in events]
+
+
+def test_save_resume_for_job_records_connected_and_updated_events(
+    client, monkeypatch, test_job_for_linking, db
+):
+    from app.routers import documents
+
+    async def mock_upload_to_storage(file_bytes, path, content_type):
+        return "https://fake-storage-url.com/resume.pdf"
+
+    monkeypatch.setattr(documents, "upload_to_storage", mock_upload_to_storage)
+
+    first_response = client.post(
+        "/documents/resume/save",
+        files={"file": ("resume.pdf", b"%PDF-1.4 fake pdf content", "application/pdf")},
+        data={
+            "resume_text": "First resume content",
+            "job_id": test_job_for_linking["id"],
+            "title": "Tailored Resume",
+        },
+    )
+    assert first_response.status_code == 200
+    assert job_event_notes(db, test_job_for_linking["id"])[-1] == (
+        "Resume connected|Saved Tailored Resume"
+    )
+
+    second_response = client.post(
+        "/documents/resume/save",
+        files={"file": ("resume.pdf", b"%PDF-1.4 fake pdf content", "application/pdf")},
+        data={
+            "resume_text": "Updated resume content",
+            "job_id": test_job_for_linking["id"],
+            "title": "Tailored Resume v2",
+        },
+    )
+    assert second_response.status_code == 200
+    assert second_response.json()["version_number"] == 2
+    assert job_event_notes(db, test_job_for_linking["id"])[-1] == (
+        "Resume updated|Saved Tailored Resume v2"
+    )
+
+
+def test_save_cover_letter_for_job_records_connected_and_updated_events(
+    client, monkeypatch, test_job_for_linking, db
+):
+    from app.routers import documents
+
+    async def mock_upload_to_storage(file_bytes, path, content_type):
+        return "https://fake-storage-url.com/cover-letter.pdf"
+
+    monkeypatch.setattr(documents, "upload_to_storage", mock_upload_to_storage)
+
+    first_response = client.post(
+        "/documents/cover-letter/save",
+        json={
+            "job_id": test_job_for_linking["id"],
+            "cover_letter_text": "Dear team, first draft.",
+            "title": "Cover Letter Draft",
+        },
+    )
+    assert first_response.status_code == 200
+    assert job_event_notes(db, test_job_for_linking["id"])[-1] == (
+        "Cover letter connected|Saved Cover Letter Draft"
+    )
+
+    second_response = client.post(
+        "/documents/cover-letter/save",
+        json={
+            "job_id": test_job_for_linking["id"],
+            "cover_letter_text": "Dear team, updated draft.",
+            "title": "Cover Letter Draft v2",
+        },
+    )
+    assert second_response.status_code == 200
+    assert second_response.json()["version_number"] == 2
+    assert job_event_notes(db, test_job_for_linking["id"])[-1] == (
+        "Cover letter updated|Saved Cover Letter Draft v2"
+    )
+
+
+def test_link_document_to_job_success(client, test_document, test_job_for_linking, db):
     """Happy path: linking a library document to a job with no existing link."""
     response = client.patch(
         f"/documents/{test_document.id}/link-to-job",
@@ -355,6 +491,9 @@ def test_link_document_to_job_success(client, test_document, test_job_for_linkin
     )
     assert response.status_code == 200
     assert response.json()["job_id"] == test_job_for_linking["id"]
+    assert job_event_notes(db, test_job_for_linking["id"])[-1] == (
+        "Resume linked|Linked My Resume"
+    )
 
 
 def test_link_requires_confirmation_when_one_already_linked(
@@ -402,6 +541,9 @@ def test_link_with_replace_existing_swaps_document(
     old_doc = db.get(Document, test_document.id)
     assert old_doc is not None
     assert old_doc.job_id is None
+    assert job_event_notes(db, test_job_for_linking["id"])[-1] == (
+        "Resume replaced|Replaced My Resume with My Other Resume"
+    )
 
 
 def test_link_wrong_document_type_rejected(client, test_document, test_job_for_linking):
@@ -457,6 +599,9 @@ def test_unlink_document_success(client, test_document, test_job_for_linking, db
     # Regression: document still exists
     still_there = db.get(Document, test_document.id)
     assert still_there is not None
+    assert job_event_notes(db, test_job_for_linking["id"])[-1] == (
+        "Resume unlinked|Removed My Resume"
+    )
 
 
 def test_unlink_document_not_linked_rejected(

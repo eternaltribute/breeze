@@ -190,6 +190,20 @@ def clean_document_tags(tags: Optional[str]) -> Optional[str]:
     return clean_tags or None
 
 
+def document_type_label(doc_type: DocType) -> str:
+    if doc_type == DocType.COVER_LETTER:
+        return "Cover letter"
+    if doc_type == DocType.RESUME:
+        return "Resume"
+    return str(doc_type).replace("_", " ").title()
+
+
+def document_display_name(document: Document) -> str:
+    return (
+        document.title or document.file_name or document_type_label(document.doc_type)
+    )
+
+
 def validate_resume_file(file: UploadFile, file_bytes: bytes) -> None:
     """Rules: S3-BR-004, S3-BR-005"""
     if file.content_type not in ALLOWED_RESUME_TYPES:
@@ -330,7 +344,7 @@ def get_resume_for_job(
     ).first()
 
     if not record:
-        raise HTTPException(status_code=404, detail="No resume found")
+        return None
 
     return {
         "document_id": record.id,
@@ -884,7 +898,7 @@ def get_cover_letter(
     ).first()
 
     if not record:
-        raise HTTPException(status_code=404, detail="No cover letter found")
+        return None
 
     return {
         "document_id": record.id,
@@ -913,6 +927,21 @@ def get_documents(
         .order_by(Document.created_at.desc())
     ).all()
     return records
+
+
+@router.get("/{document_id}")
+def get_document_by_id(
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return one document for editing/viewing. Ownership is enforced so
+    users cannot load another user's library documents."""
+    user_id = current_user.get("sub")
+    document = db.get(Document, document_id)
+    if not document or document.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return document
 
 
 @router.post("/{document_id}/duplicate")
@@ -1031,6 +1060,8 @@ def link_document_to_job(
             },
         )
 
+    was_already_linked = document.job_id == payload.job_id
+
     if existing and payload.replace_existing:
         existing.job_id = None
         existing.updated_at = datetime.utcnow()
@@ -1039,6 +1070,33 @@ def link_document_to_job(
     document.job_id = payload.job_id
     document.updated_at = datetime.utcnow()
     db.add(document)
+
+    label = document_type_label(document.doc_type)
+    title = document_display_name(document)
+    if existing and payload.replace_existing:
+        db.add(
+            JobEvent(
+                job_id=payload.job_id,
+                owner_id=user_id,
+                event_type=JobEventType.DOCUMENT,
+                notes=(
+                    f"{label} replaced|Replaced "
+                    f"{document_display_name(existing)} with {title}"
+                ),
+                created_at=datetime.utcnow(),
+            )
+        )
+    elif not was_already_linked:
+        db.add(
+            JobEvent(
+                job_id=payload.job_id,
+                owner_id=user_id,
+                event_type=JobEventType.DOCUMENT,
+                notes=f"{label} linked|Linked {title}",
+                created_at=datetime.utcnow(),
+            )
+        )
+
     db.commit()
     db.refresh(document)
     return document
@@ -1066,9 +1124,20 @@ def unlink_document_from_job(
             detail="Document is not currently linked to this job.",
         )
 
+    label = document_type_label(document.doc_type)
+    title = document_display_name(document)
     document.job_id = None
     document.updated_at = datetime.utcnow()
     db.add(document)
+    db.add(
+        JobEvent(
+            job_id=payload.job_id,
+            owner_id=user_id,
+            event_type=JobEventType.DOCUMENT,
+            notes=f"{label} unlinked|Removed {title}",
+            created_at=datetime.utcnow(),
+        )
+    )
     db.commit()
     db.refresh(document)
     return document
