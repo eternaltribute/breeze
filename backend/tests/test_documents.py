@@ -500,3 +500,93 @@ def test_unlink_no_token():
             json={"job_id": "fake-job", "document_type": "resume"},
         )
     assert response.status_code == 401
+
+
+# --- S3-005: Document Export ---
+
+
+def test_export_document_as_txt(client, test_document):
+    """Happy path: exporting as txt returns the raw text with correct headers."""
+    response = client.get(f"/documents/{test_document.id}/export?format=txt")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "attachment" in response.headers["content-disposition"]
+    assert response.content.decode("utf-8") == "Some resume content"
+
+
+def test_export_document_as_pdf(client, test_document):
+    """Happy path: exporting as pdf returns a valid PDF byte stream."""
+    response = client.get(f"/documents/{test_document.id}/export?format=pdf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF")
+
+
+def test_export_document_as_docx(client, test_document):
+    """Happy path: exporting as docx returns a valid docx byte stream."""
+    response = client.get(f"/documents/{test_document.id}/export?format=docx")
+    assert response.status_code == 200
+    assert (
+        response.headers["content-type"]
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    # docx files are zip archives; PK is the zip file magic number
+    assert response.content.startswith(b"PK")
+
+
+def test_export_document_invalid_format(client, test_document):
+    """Edge case: unsupported format should be rejected."""
+    response = client.get(f"/documents/{test_document.id}/export?format=exe")
+    assert response.status_code == 400
+
+
+def test_export_document_invalid_id(client):
+    response = client.get("/documents/non-existent-id/export?format=txt")
+    assert response.status_code == 404
+
+
+def test_export_document_no_content(client, db):
+    """Edge case: a document with no text content should be rejected
+    with a clear message rather than exporting an empty file."""
+    empty_doc = Document(
+        user_id=TEST_USER_ID,
+        title="Empty Draft",
+        doc_type=DocType.RESUME,
+        document_text=None,
+    )
+    db.add(empty_doc)
+    db.commit()
+    db.refresh(empty_doc)
+
+    response = client.get(f"/documents/{empty_doc.id}/export?format=txt")
+    assert response.status_code == 400
+
+
+def test_export_specific_version(client, test_document, db):
+    """Happy path: exporting a specific version_id returns that
+    version's text, not the document's current text."""
+    from app.models import DocumentVersion
+
+    old_version = DocumentVersion(
+        document_id=test_document.id,
+        user_id=TEST_USER_ID,
+        version_number=0,
+        version_label="v0",
+        document_text="Older resume content",
+    )
+    db.add(old_version)
+    db.commit()
+    db.refresh(old_version)
+
+    response = client.get(
+        f"/documents/{test_document.id}/export?format=txt&version_id={old_version.id}"
+    )
+    assert response.status_code == 200
+    assert response.content.decode("utf-8") == "Older resume content"
+
+
+def test_export_no_token():
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.get("/documents/fake-id/export?format=txt")
+    assert response.status_code == 401
