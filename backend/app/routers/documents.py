@@ -1,11 +1,15 @@
 import os
+import re
 import time
 from datetime import datetime
+from io import BytesIO
 from typing import Optional
 
 import anthropic
 import httpx
+from docx import Document as DocxDocument
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import Response
 from fpdf import FPDF
 from pydantic import BaseModel
 from sqlmodel import Session, select, text
@@ -126,6 +130,28 @@ def sanitize_pdf_text(text: str) -> str:
     for unicode_char, ascii_equivalent in replacements.items():
         text = text.replace(unicode_char, ascii_equivalent)
     return text
+
+
+EXPORT_CONTENT_TYPES = {
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "txt": "text/plain",
+}
+
+
+def generate_docx_bytes(text: str) -> bytes:
+    docx_file = DocxDocument()
+    for paragraph in text.split("\n"):
+        docx_file.add_paragraph(paragraph)
+    buffer = BytesIO()
+    docx_file.save(buffer)
+    return buffer.getvalue()
+
+
+def build_export_filename(document: Document, format: str) -> str:
+    raw_name = document.title or document.file_name or "document"
+    safe_name = re.sub(r"[^a-zA-Z0-9-_ ]", "", raw_name).strip().replace(" ", "_")
+    return f"{safe_name or 'document'}.{format}"
 
 
 def snapshot_document_version(db: Session, document: Document) -> None:
@@ -562,6 +588,59 @@ async def improve_resume(
     )
 
     return {"improved_text": message.content[0].text}
+
+
+@router.get("/{document_id}/export")
+def export_document(
+    document_id: str,
+    format: str,
+    version_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Export a document as pdf, docx, or txt. Optionally export a
+    specific past version instead of the current content.
+    Rules: S3-BR-002 (ownership), S3-BR-001 (resume/cover_letter only), S3-BR-006"""
+    if format not in EXPORT_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=400, detail="Unsupported export format. Use pdf, docx, or txt."
+        )
+
+    user_id = current_user.get("sub")
+    document = db.get(Document, document_id)
+    if not document or document.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    text = document.document_text or ""
+    if version_id:
+        version = db.get(DocumentVersion, version_id)
+        if (
+            not version
+            or version.document_id != document_id
+            or version.user_id != user_id
+        ):
+            raise HTTPException(status_code=404, detail="Version not found")
+        text = version.document_text or ""
+
+    if not text.strip():
+        raise HTTPException(
+            status_code=400, detail="This document has no text content to export."
+        )
+
+    if format == "pdf":
+        file_bytes = generate_pdf(text)
+    elif format == "docx":
+        file_bytes = generate_docx_bytes(text)
+    else:
+        file_bytes = text.encode("utf-8")
+
+    filename = build_export_filename(document, format)
+
+    return Response(
+        content=file_bytes,
+        media_type=EXPORT_CONTENT_TYPES[format],
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Cover letter endpoints ────────────────────────────────────────────────────

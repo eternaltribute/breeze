@@ -451,3 +451,21 @@ def test_unlink_document_blocked_for_other_user(client, db, test_job):
     # Regression: owner's document is still linked
     still_linked = db.get(Document, document.id)
     assert still_linked.job_id == test_job["id"]
+
+
+def test_export_document_blocked_for_other_user(client, db):
+    from app.models import DocType, Document
+
+    document = Document(
+        user_id=OWNER_ID,
+        title="Owner's Resume",
+        doc_type=DocType.RESUME,
+        document_text="Private content",
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    with as_attacker():
+        response = client.get(f"/documents/{document.id}/export?format=txt")
+    assert response.status_code == 404
