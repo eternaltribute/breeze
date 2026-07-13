@@ -1614,9 +1614,7 @@ function DocumentLinkModal({
       onClose();
     } catch (err) {
       console.error(`Failed to link ${label}:`, err);
-      setError(
-        `Linking is ready in the frontend, but the backend still needs the ${label.toLowerCase()} link endpoint.`
-      );
+      setError(err.message || `Failed to link ${label.toLowerCase()}.`);
     } finally {
       setSaving(false);
     }
@@ -1979,9 +1977,7 @@ function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
       setMessage("Resume unlinked from this job. It will still stay in Library.");
     } catch (err) {
       console.error("Failed to unlink resume:", err);
-      setMessage(
-        "Unlink is ready in the frontend, but the backend still needs the resume unlink endpoint."
-      );
+      setMessage(err.message || "Failed to unlink resume.");
     } finally {
       setUnlinking(false);
     }
@@ -2180,9 +2176,7 @@ function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
       setMessage("Cover letter unlinked from this job. It will still stay in Library.");
     } catch (err) {
       console.error("Failed to unlink cover letter:", err);
-      setMessage(
-        "Unlink is ready in the frontend, but the backend still needs the cover letter unlink endpoint."
-      );
+      setMessage(err.message || "Failed to unlink cover letter");
     } finally {
       setUnlinking(false);
     }
