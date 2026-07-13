@@ -56,7 +56,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useAuth } from "@clerk/clerk-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Upload,
   Download,
@@ -74,6 +74,10 @@ import { addMockDocument, isDuplicateTitle } from "../lib/mockLibraryStore";
 
 // ── API base URL — same pattern used across all pages (Analytics, Dashboard, etc.) ──
 const BASE = import.meta.env.VITE_API_BASE_URL;
+
+function normalizeLibraryStatus(status) {
+  return status === "archived" ? "archived" : "active";
+}
 
 // TODO (Ronald): flip this to false once POST /documents/resume/save is
 // live and confirmed working end-to-end. While true, Save writes to the
@@ -553,6 +557,9 @@ function ResumeHelper() {
   const [uploadedFile, setUploadedFile] = useState(null);
 
   const { getToken } = useAuth(); // Clerk auth — same hook used in Analytics.jsx
+  const [searchParams] = useSearchParams();
+  const editJobId = searchParams.get("jobId") || "";
+  const editDocumentId = searchParams.get("documentId") || "";
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [resumeText, setResumeText] = useState(""); // editable resume content
@@ -590,6 +597,51 @@ function ResumeHelper() {
     };
     fetchJobs();
   }, [getToken]);
+  const loadResumeForEditing = useCallback(
+    async ({ jobId, documentId }) => {
+      if (!jobId) return;
+      setSelectedJobId(jobId);
+
+      try {
+        const token = await getToken({ skipCache: true });
+        const endpoint = documentId
+          ? `${BASE}/documents/${documentId}`
+          : `${BASE}/documents/resume/job/${jobId}`;
+        const res = await fetch(endpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error(data?.detail || "Failed to load saved resume");
+        if (!data) return;
+
+        setResumeText(data?.resume_text ?? data?.document_text ?? "");
+        setFileName(data?.file_name || "Saved resume");
+        setSaveTitle(data?.title || data?.file_name || "Resume");
+        setSaveStatus(normalizeLibraryStatus(data?.status));
+        setSaveTags(data?.tags ?? "");
+        setUploadedFile(null);
+        setAiScore(null);
+        setMetrics(null);
+        setFeedback([]);
+        setSaveSuccess(false);
+        setSaveError("");
+      } catch (err) {
+        console.error("Failed to load saved resume for editing:", err);
+        setSaveError("Could not load this resume for editing.");
+      }
+    },
+    [getToken]
+  );
+
+  useEffect(() => {
+    if (!editJobId) return;
+
+    const timer = window.setTimeout(() => {
+      loadResumeForEditing({ jobId: editJobId, documentId: editDocumentId });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [editDocumentId, editJobId, loadResumeForEditing]);
 
   // ── Handle file upload ─────────────────────────────────────────────────────
   // When a file is dropped, read it and extract the text so we can display it

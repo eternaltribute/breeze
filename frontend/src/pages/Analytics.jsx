@@ -135,6 +135,144 @@ function StatCard({ label, value, sub, highlight }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PipelineFlow
 // ─────────────────────────────────────────────────────────────────────────────
+function PersistedAnalyticsPanel({ analytics, error }) {
+  const conversion = analytics?.stage_conversion ?? 0;
+  const velocity = analytics?.velocity ?? 0;
+  const velocityWindow = analytics?.velocity_window_days ?? 7;
+  const conversionWindow = analytics?.stage_conversion_window_days ?? 14;
+  const appliedCount = analytics?.applied_count ?? 0;
+  const convertedCount = analytics?.converted_count ?? 0;
+
+  return (
+    <div
+      style={{
+        backgroundColor: "var(--bg-card,#fff)",
+        border: "1px solid var(--color-border-default,#e5e7eb)",
+        borderRadius: "12px",
+        padding: "28px",
+        boxShadow: "var(--shadow)",
+        marginBottom: "32px",
+      }}
+    >
+      <div style={{ marginBottom: "20px" }}>
+        <h2
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            color: "var(--color-heading,#003C78)",
+            marginTop: 0,
+            marginBottom: "6px",
+          }}
+        >
+          Persisted Stage Analytics
+        </h2>
+        <p style={{ fontSize: "13px", color: "var(--color-subtext,#6b7280)", margin: 0 }}>
+          Computed from saved stage-change events.
+        </p>
+      </div>
+
+      {error && (
+        <p style={{ color: "#B91C1C", fontSize: "13px", fontWeight: 700, marginBottom: "16px" }}>
+          {error}
+        </p>
+      )}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        <div
+          style={{
+            border: "1px solid var(--color-border-default,#e5e7eb)",
+            borderRadius: "10px",
+            padding: "18px",
+            backgroundColor: "#F8FAFC",
+          }}
+        >
+          <p
+            style={{
+              fontSize: "12px",
+              color: "var(--color-subtext,#6b7280)",
+              margin: "0 0 8px",
+              fontWeight: 700,
+              textTransform: "uppercase",
+            }}
+          >
+            Velocity
+          </p>
+          <p style={{ color: "#003C78", fontSize: "34px", fontWeight: 800, margin: 0 }}>
+            {velocity}
+          </p>
+          <p
+            style={{
+              color: "var(--color-subtext,#6b7280)",
+              fontSize: "13px",
+              margin: "8px 0 0",
+            }}
+          >
+            Interested to Applied transitions in the last {velocityWindow} days.
+          </p>
+        </div>
+
+        <div
+          style={{
+            border: "1px solid var(--color-border-default,#e5e7eb)",
+            borderRadius: "10px",
+            padding: "18px",
+            backgroundColor: "#F8FAFC",
+          }}
+        >
+          <p
+            style={{
+              fontSize: "12px",
+              color: "var(--color-subtext,#6b7280)",
+              margin: "0 0 8px",
+              fontWeight: 700,
+              textTransform: "uppercase",
+            }}
+          >
+            Stage Conversion
+          </p>
+          <p style={{ color: "#003C78", fontSize: "34px", fontWeight: 800, margin: 0 }}>
+            {conversion}%
+          </p>
+          <div
+            aria-hidden="true"
+            style={{
+              height: "10px",
+              backgroundColor: "var(--color-border-default,#e5e7eb)",
+              borderRadius: "999px",
+              overflow: "hidden",
+              marginTop: "12px",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.min(Math.max(conversion, 0), 100)}%`,
+                height: "100%",
+                backgroundColor: "#FF6138",
+              }}
+            />
+          </div>
+          <p
+            style={{
+              color: "var(--color-subtext,#6b7280)",
+              fontSize: "13px",
+              margin: "8px 0 0",
+            }}
+          >
+            {convertedCount} of {appliedCount} applied jobs reached interview within{" "}
+            {conversionWindow} days.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PipelineFlow({ counts, total }) {
   const funnelStages = STAGE_CONFIG.filter((s) =>
     ["interested", "applied", "interview", "offer"].includes(s.key)
@@ -575,26 +713,45 @@ function Analytics() {
   const navigate = useNavigate();
 
   const [jobs, setJobs] = useState([]);
+  const [persistedAnalytics, setPersistedAnalytics] = useState(null);
+  const [persistedAnalyticsError, setPersistedAnalyticsError] = useState("");
   const [loading, setLoading] = useState(true);
   const [activeStage, setActiveStage] = useState(null);
   const [listFilter, setListFilter] = useState("");
 
   useEffect(() => {
-    const fetchJobs = async () => {
+    const fetchAnalyticsData = async () => {
       try {
         const token = await getToken({ skipCache: true });
-        const res = await fetch(`${BASE}/jobs`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const data = await res.json();
+
+        const [jobsRes, analyticsRes] = await Promise.all([
+          fetch(`${BASE}/jobs`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${BASE}/jobs/analytics`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+
+        if (jobsRes.ok) {
+          const data = await jobsRes.json();
           setJobs(data.map(fromApi));
+        } else {
+          throw new Error("Failed to load jobs");
+        }
+
+        if (analyticsRes.ok) {
+          const data = await analyticsRes.json();
+          setPersistedAnalytics(data);
+          setPersistedAnalyticsError("");
+        } else {
+          setPersistedAnalytics(null);
+          setPersistedAnalyticsError("Could not load persisted analytics right now.");
         }
       } catch (err) {
         console.error("Failed to fetch jobs for analytics:", err);
+        setPersistedAnalyticsError("Could not load persisted analytics right now.");
       } finally {
         setLoading(false);
       }
     };
-    fetchJobs();
+    fetchAnalyticsData();
   }, [getToken]);
 
   const counts = useMemo(() => {
@@ -685,6 +842,8 @@ function Analytics() {
         />
         <StatCard label="Offer Rate" value={`${offerRate}%`} sub="Offers per interview" />
       </div>
+
+      <PersistedAnalyticsPanel analytics={persistedAnalytics} error={persistedAnalyticsError} />
 
       {/* Bar chart + Pipeline */}
       <div
