@@ -1909,15 +1909,10 @@ function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (res.status === 404) {
-        setResume(null);
-        return;
-      }
-
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.detail || "Failed to load resume");
 
-      setResume(data);
+      setResume(data ?? null);
     } catch (err) {
       console.error("Failed to load resume status:", err);
       setError("Could not check resume status.");
@@ -2045,6 +2040,15 @@ function ResumeStatusSection({ jobId, getToken, onOpenHelper }) {
             View Resume
           </button>
         )}
+        {hasResume && (
+          <button
+            type="button"
+            onClick={() => onOpenHelper(resumeDocument?.id)}
+            style={sectionButtonStyle({ primary: true })}
+          >
+            Edit Resume
+          </button>
+        )}
         <button
           onClick={() => setLinkModalOpen(true)}
           style={sectionButtonStyle({ primary: !hasResume })}
@@ -2108,15 +2112,10 @@ function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (res.status === 404) {
-        setCoverLetter(null);
-        return;
-      }
-
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.detail || "Failed to load cover letter");
 
-      setCoverLetter(data);
+      setCoverLetter(data ?? null);
     } catch (err) {
       console.error("Failed to load cover letter status:", err);
       setError("Could not check cover letter status.");
@@ -2246,6 +2245,15 @@ function CoverLetterStatusSection({ jobId, getToken, onOpenHelper }) {
         {hasDraft && (
           <button type="button" onClick={() => setViewModalOpen(true)} style={sectionButtonStyle()}>
             View Cover Letter
+          </button>
+        )}
+        {hasDraft && (
+          <button
+            type="button"
+            onClick={() => onOpenHelper(coverLetterDocument?.id)}
+            style={sectionButtonStyle({ primary: true })}
+          >
+            Edit Cover Letter
           </button>
         )}
         <button
@@ -2955,12 +2963,20 @@ function JobDetail() {
           <ResumeStatusSection
             jobId={id}
             getToken={getToken}
-            onOpenHelper={() => navigate("/resume-helper")}
+            onOpenHelper={(documentId) => {
+              const params = new URLSearchParams({ jobId: id });
+              if (documentId) params.set("documentId", documentId);
+              navigate(`/resume-helper?${params.toString()}`);
+            }}
           />
           <CoverLetterStatusSection
             jobId={id}
             getToken={getToken}
-            onOpenHelper={() => navigate("/cover-letter-helper")}
+            onOpenHelper={(documentId) => {
+              const params = new URLSearchParams({ jobId: id });
+              if (documentId) params.set("documentId", documentId);
+              navigate(`/cover-letter-helper?${params.toString()}`);
+            }}
           />
 
           {/* ── S2-014: Archive / Restore ─────────────────────────────────── */}

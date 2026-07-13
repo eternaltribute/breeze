@@ -80,5 +80,5 @@ def db_health(db: Session = Depends(get_db)):
         db.exec(text("SELECT 1"))
         return {"database": "connected"}
     except Exception as e:
-        logger.error("DB health check falied: %s", e, exc_info=True)  # S3-018
+        logger.error("DB health check failed: %s", e, exc_info=True)  # S3-018
         return {"database": "error", "detail": str(e)}

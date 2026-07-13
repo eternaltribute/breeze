@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useAuth } from "@clerk/clerk-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Brain,
   CheckCircle2,
@@ -381,6 +381,9 @@ function CoverLetterReviewPanel({ draft, sticky = false }) {
 
 function CoverLetterHelper() {
   const { getToken } = useAuth();
+  const [searchParams] = useSearchParams();
+  const editJobId = searchParams.get("jobId") || "";
+  const editDocumentId = searchParams.get("documentId") || "";
 
   const [profile, setProfile] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -441,37 +444,51 @@ function CoverLetterHelper() {
     fetchPageData();
   }, [getToken]);
 
-  const fetchSavedCoverLetter = async (jobId) => {
-    try {
-      setError("");
-      setDraft("");
-      setDraftFileName("");
-      setPreviousDraft("");
+  const fetchSavedCoverLetter = useCallback(
+    async (jobId, documentId = "") => {
+      try {
+        setError("");
+        setDraft("");
+        setDraftFileName("");
+        setPreviousDraft("");
 
-      const token = await getToken({ skipCache: true });
+        const token = await getToken({ skipCache: true });
 
-      const res = await fetch(`${BASE}/documents/cover-letter/job/${jobId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+        const endpoint = documentId
+          ? `${BASE}/documents/${documentId}`
+          : `${BASE}/documents/cover-letter/job/${jobId}`;
+        const res = await fetch(endpoint, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      if (res.status === 404) return;
+        const data = await res.json().catch(() => null);
 
-      const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.detail || "Failed to load saved cover letter");
+        }
+        if (!data) return;
 
-      if (!res.ok) {
-        throw new Error(data?.detail || "Failed to load saved cover letter");
+        setDraft(data?.cover_letter_text ?? data?.document_text ?? "");
+        setDraftFileName("Saved cover letter");
+        setSaveTitle(data?.title ?? "Cover Letter");
+        setSaveStatus(normalizeLibraryStatus(data?.status));
+        setSaveTags(data?.tags ?? "");
+      } catch (err) {
+        console.error("Failed to load saved cover letter:", err);
       }
+    },
+    [getToken]
+  );
 
-      setDraft(data?.cover_letter_text ?? "");
-      setDraftFileName("Saved cover letter");
-      setSaveTitle(data?.title ?? "Cover Letter");
-      setSaveStatus(normalizeLibraryStatus(data?.status));
-      setSaveTags(data?.tags ?? "");
-    } catch (err) {
-      console.error("Failed to load saved cover letter:", err);
-    }
-  };
+  useEffect(() => {
+    if (!editJobId) return;
 
+    const timer = window.setTimeout(() => {
+      setSelectedJobId(editJobId);
+      fetchSavedCoverLetter(editJobId, editDocumentId);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [editDocumentId, editJobId, fetchSavedCoverLetter]);
   const handleJobChange = (jobId) => {
     setSelectedJobId(jobId);
     setSaveSuccess(false);
