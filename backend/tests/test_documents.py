@@ -106,14 +106,16 @@ def test_get_document_by_id_no_token():
     assert response.status_code == 401
 
 
-def test_get_resume_for_job_without_link_returns_null(client):
-    response = client.get("/documents/resume/job/job-with-no-resume")
+def test_get_resume_for_job_without_link_returns_null(client, test_job_for_linking):
+    response = client.get(f"/documents/resume/job/{test_job_for_linking['id']}")
     assert response.status_code == 200
     assert response.json() is None
 
 
-def test_get_cover_letter_for_job_without_link_returns_null(client):
-    response = client.get("/documents/cover-letter/job/job-with-no-cover-letter")
+def test_get_cover_letter_for_job_without_link_returns_null(
+    client, test_job_for_linking
+):
+    response = client.get(f"/documents/cover-letter/job/{test_job_for_linking['id']}")
     assert response.status_code == 200
     assert response.json() is None
 

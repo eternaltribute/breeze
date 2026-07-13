@@ -136,6 +136,41 @@ Check demo-critical pages:
 - Production build completes.
 - Watch the browser console for repeated errors or failed API loops.
 
+## Latest S3-019 Verification - July 13, 2026
+
+### Fixes Completed
+
+- Removed a temporary Resume Helper debug `console.log` for auth-token readiness so demo/devtools output stays cleaner.
+- Fixed the backend `/health/db` failure log typo from `falied` to `failed`.
+- Tightened job-linked resume and cover-letter lookup ownership checks:
+  - Owned job with no linked document returns `200` with `null`, avoiding noisy empty-state 404s.
+  - Another user's job still returns `404`, preserving ownership/security behavior.
+- Kept existing centralized backend error handling/logging in place through `RequestContextMiddleware`, `http_exception_handler`, and `unhandled_exception_handler`.
+
+### Automated Verification Results
+
+Frontend commands run from `frontend`:
+
+- `npm run test:run` - passed: 9 test files, 115 tests.
+- `npm run lint` - passed.
+- `npm run build` - passed.
+
+Backend commands run from `backend`:
+
+- `.\venv\Scripts\python.exe -m pytest` - passed: 160 tests.
+- `.\venv\Scripts\python.exe -m ruff check .` - passed.
+- `.\venv\Scripts\python.exe -m black --check .` - passed.
+
+### Known Non-Blocking Warnings
+
+- Frontend build still reports the existing Vite large chunk warning for the main bundle. This does not block the demo, but future code-splitting would improve production loading.
+- Backend tests still report existing deprecation/dependency warnings, mostly `datetime.utcnow()`, FastAPI `on_event`, and the installed `fpdf` package warning. These do not block the S3-019 pass.
+
+### Manual Smoke-Test Status
+
+- Automated smoke coverage is complete for the current repo state.
+- Manual browser smoke testing should still be performed immediately before the demo using the checklist above, especially Dashboard, Job Detail, Library, Resume Helper, Cover Letter Helper, Settings, and Profile.
+
 ## Release Note
 
 For S3-019, attach the latest command output summary to the ticket:

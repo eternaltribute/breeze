@@ -719,8 +719,6 @@ function ResumeHelper() {
     if (!resumeText.trim()) return;
     setAnalyzing(true);
     try {
-      const token = await getToken({ skipCache: true });
-
       // ── Uncomment this block once Ronald's endpoint is ready ──────────────
       // const res = await fetch(`${BASE}/resume/analyze`, {
       //   method: "POST",
@@ -741,7 +739,6 @@ function ResumeHelper() {
 
       // ── TEMPORARY placeholder — remove once Ronald's endpoint is live ─────
       // This lets the UI be demonstrated and tested before the backend is ready
-      console.log("Auth token ready for POST /resume/analyze:", !!token);
       await new Promise((r) => setTimeout(r, 1200)); // simulate network delay
       setAiScore(72);
       setMetrics({
@@ -894,7 +891,6 @@ function ResumeHelper() {
         return;
       }
       // ── End mock save path ─────────────────────────────────────────────────
-
       const token = await getToken({ skipCache: true });
 
       const formData = new FormData();
