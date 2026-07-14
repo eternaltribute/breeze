@@ -378,6 +378,25 @@ function Library() {
       return;
     }
 
+    // Same-type, case-insensitive duplicate check against what's actually
+    // on screen right now (documents state) — not mockLibraryStore's
+    // isDuplicateTitle(), which only knows about documents from the
+    // original page load and never sees Duplicate/Rename actions taken
+    // during this session.
+    const normalizedNextTitle = nextTitle.toLowerCase();
+    const isDuplicate = documents.some(
+      (doc) =>
+        doc.id !== renameTarget.id &&
+        doc.type === renameTarget.type &&
+        (doc.title ?? "").trim().toLowerCase() === normalizedNextTitle
+    );
+    if (isDuplicate) {
+      setRenameError(
+        `A ${renameTarget.type === "resume" ? "resume" : "cover letter"} named "${nextTitle}" already exists.`
+      );
+      return;
+    }
+
     setRenameSaving(true);
     setRenameError("");
 
