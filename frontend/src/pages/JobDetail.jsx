@@ -55,7 +55,14 @@ function useUnsavedChangesWarning(hasUnsavedChanges) {
     };
 
     const handleDocumentClick = (event) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
         return;
       }
 
@@ -2692,15 +2699,15 @@ function JobDetail() {
   // ── Loading state ──────────────────────────────────────────────────────────
   const hasUnsavedJobDetailChanges = Boolean(
     job &&
-      (company !== job.company ||
-        title !== job.title ||
-        jobPostingBody !== job.jobPostingBody ||
-        location !== job.location ||
-        jobUrl !== job.jobUrl ||
-        salaryRange !== job.salaryRange ||
-        notes !== job.notes ||
-        deadline !== job.deadline ||
-        recruiterNotes !== job.recruiterNotes)
+    (company !== job.company ||
+      title !== job.title ||
+      jobPostingBody !== job.jobPostingBody ||
+      location !== job.location ||
+      jobUrl !== job.jobUrl ||
+      salaryRange !== job.salaryRange ||
+      notes !== job.notes ||
+      deadline !== job.deadline ||
+      recruiterNotes !== job.recruiterNotes)
   );
   const hasUnsavedInterviewNotes = interviewRoundNotes.trim().length > 0;
   const hasUnsavedSectionChanges = Object.values(unsavedSections).some(Boolean);
@@ -2729,8 +2736,8 @@ function JobDetail() {
         <p style={{ color: "#DC2626" }}>{pageError || "Job not found."}</p>
         <button
           onClick={() => {
-          if (confirmLeaveJobDetail()) navigate("/dashboard");
-        }}
+            if (confirmLeaveJobDetail()) navigate("/dashboard");
+          }}
           style={{
             marginTop: "16px",
             padding: "8px 16px",
@@ -3163,4 +3170,3 @@ function JobDetail() {
 }
 
 export default JobDetail;
-
