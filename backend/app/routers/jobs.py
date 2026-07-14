@@ -44,6 +44,8 @@ class JobUpdate(BaseModel):
     salary_range: Optional[str] = None
     notes: Optional[str] = None
     interview_round: Optional[int] = Field(default=None)
+    application_deadline: Optional[date] = None
+    recruiter_notes: Optional[str] = None
 
 
 class JobReminderCount(BaseModel):
