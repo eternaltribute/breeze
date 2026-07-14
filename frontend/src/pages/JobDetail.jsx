@@ -49,6 +49,55 @@ import { ChevronDown, ChevronUp, Search, Sparkles } from "lucide-react";
 import { EXPORT_FORMATS, exportDocument, exportFormatLabels } from "../utils/documentExport";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
+const UNSAVED_CHANGES_MESSAGE = "You have unsaved changes on this job. Leave without saving?";
+
+function useUnsavedChangesWarning(hasUnsavedChanges) {
+  const confirmLeave = useCallback(() => {
+    return !hasUnsavedChanges || window.confirm(UNSAVED_CHANGES_MESSAGE);
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return undefined;
+
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    const handleDocumentClick = (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const link = event.target.closest?.("a[href]");
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+
+      const nextUrl = new URL(link.href, window.location.href);
+      const currentUrl = new URL(window.location.href);
+      const isSamePage =
+        nextUrl.origin === currentUrl.origin &&
+        nextUrl.pathname === currentUrl.pathname &&
+        nextUrl.search === currentUrl.search &&
+        nextUrl.hash === currentUrl.hash;
+
+      if (nextUrl.origin !== currentUrl.origin || isSamePage) return;
+      if (window.confirm(UNSAVED_CHANGES_MESSAGE)) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("click", handleDocumentClick, true);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleDocumentClick, true);
+    };
+  }, [hasUnsavedChanges]);
+
+  return confirmLeave;
+}
 
 // ── Canonical stages (S2-BR-004) ─────────────────────────────────────────────
 const STAGES = ["Interested", "Applied", "Interview", "Offer", "Rejected", "Archived"];
@@ -419,7 +468,7 @@ function ArchiveRestoreSection({ jobId, stage, getToken, onStageChange }) {
 // FollowUpSection — S2-012
 // (Unchanged from before — included here only because it lives in this file.)
 // ─────────────────────────────────────────────────────────────────────────────
-function FollowUpSection({ jobId, getToken, onCreated }) {
+function FollowUpSection({ jobId, getToken, onCreated, onUnsavedChange }) {
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -472,6 +521,14 @@ function FollowUpSection({ jobId, getToken, onCreated }) {
   useEffect(() => {
     loadFollowUps();
   }, [loadFollowUps]);
+
+  useEffect(() => {
+    onUnsavedChange?.(Boolean(dueDate || notes.trim()));
+  }, [dueDate, notes, onUnsavedChange]);
+
+  useEffect(() => {
+    return () => onUnsavedChange?.(false);
+  }, [onUnsavedChange]);
 
   const handleToggleComplete = async (eventId, completed) => {
     try {
@@ -1012,10 +1069,19 @@ const RESEARCH_TOPICS = [
 // S3-011/S3-012: Company research prompt UX + persisted editable notes.
 // AI output is generated only after an explicit user action, then placed in an
 // editable notes field. The user controls when those notes are saved to the job.
-function CompanyResearchSection({ jobId, company, title, location, jobPostingBody, getToken }) {
+function CompanyResearchSection({
+  jobId,
+  company,
+  title,
+  location,
+  jobPostingBody,
+  getToken,
+  onUnsavedChange,
+}) {
   const [selectedTopics, setSelectedTopics] = useState(["Company overview", "Interview prep"]);
   const [context, setContext] = useState("");
   const [researchNotes, setResearchNotes] = useState("");
+  const [savedResearchNotes, setSavedResearchNotes] = useState("");
   const [notesUpdatedAt, setNotesUpdatedAt] = useState("");
   const [notesOpen, setNotesOpen] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(true);
@@ -1038,7 +1104,9 @@ function CompanyResearchSection({ jobId, company, title, location, jobPostingBod
 
         if (!res.ok) throw new Error(data?.detail || "Could not load company research notes.");
 
-        setResearchNotes(data?.company_research_notes ?? "");
+        const savedNotes = data?.company_research_notes ?? "";
+        setResearchNotes(savedNotes);
+        setSavedResearchNotes(savedNotes);
         setNotesUpdatedAt(data?.updated_at ?? "");
         setNotesOpen(false);
       } catch (err) {
@@ -1051,6 +1119,14 @@ function CompanyResearchSection({ jobId, company, title, location, jobPostingBod
 
     loadResearchNotes();
   }, [jobId, getToken]);
+
+  useEffect(() => {
+    onUnsavedChange?.(!loadingNotes && researchNotes !== savedResearchNotes);
+  }, [loadingNotes, onUnsavedChange, researchNotes, savedResearchNotes]);
+
+  useEffect(() => {
+    return () => onUnsavedChange?.(false);
+  }, [onUnsavedChange]);
 
   const toggleTopic = (topic) => {
     setSelectedTopics((current) =>
@@ -1122,7 +1198,9 @@ function CompanyResearchSection({ jobId, company, title, location, jobPostingBod
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.detail || "Could not save company research notes.");
 
-      setResearchNotes(data?.company_research_notes ?? researchNotes);
+      const savedNotes = data?.company_research_notes ?? researchNotes;
+      setResearchNotes(savedNotes);
+      setSavedResearchNotes(savedNotes);
       setNotesUpdatedAt(data?.updated_at ?? new Date().toISOString());
       setStatusMessage("Company research notes saved to this job.");
     } catch (err) {
@@ -2309,6 +2387,21 @@ function JobDetail() {
   const [pageError, setPageError] = useState(null); // error loading the job
 
   const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
+  const [unsavedSections, setUnsavedSections] = useState({});
+
+  const handleCompanyResearchUnsavedChange = useCallback((isDirty) => {
+    setUnsavedSections((current) => {
+      if (current.companyResearch === isDirty) return current;
+      return { ...current, companyResearch: isDirty };
+    });
+  }, []);
+
+  const handleFollowUpUnsavedChange = useCallback((isDirty) => {
+    setUnsavedSections((current) => {
+      if (current.followUp === isDirty) return current;
+      return { ...current, followUp: isDirty };
+    });
+  }, []);
 
   // ── Overview section state (S2-006) ───────────────────────────────────────
   // Each field mirrors a Job model field
@@ -2444,6 +2537,41 @@ function JobDetail() {
         throw new Error(msg || "Save failed");
       }
 
+      const savedCompany = company.trim();
+      const savedTitle = title.trim();
+      const savedJobPostingBody = jobPostingBody.trim();
+      const savedLocation = location.trim();
+      const savedJobUrl = jobUrl.trim();
+      const savedSalaryRange = salaryRange.trim();
+      const savedNotes = notes.trim();
+      const savedDeadline = deadline || "";
+      const savedRecruiterNotes = recruiterNotes.trim();
+
+      setJob((current) =>
+        current
+          ? {
+              ...current,
+              company: savedCompany,
+              title: savedTitle,
+              jobPostingBody: savedJobPostingBody,
+              location: savedLocation,
+              jobUrl: savedJobUrl,
+              salaryRange: savedSalaryRange,
+              notes: savedNotes,
+              deadline: savedDeadline,
+              recruiterNotes: savedRecruiterNotes,
+            }
+          : current
+      );
+      setCompany(savedCompany);
+      setTitle(savedTitle);
+      setJobPostingBody(savedJobPostingBody);
+      setLocation(savedLocation);
+      setJobUrl(savedJobUrl);
+      setSalaryRange(savedSalaryRange);
+      setNotes(savedNotes);
+      setDeadline(savedDeadline);
+      setRecruiterNotes(savedRecruiterNotes);
       setJobDetailSaved(true);
       setTimeout(() => setJobDetailSaved(false), 2000);
     } catch (err) {
@@ -2572,6 +2700,24 @@ function JobDetail() {
   };
 
   // ── Loading state ──────────────────────────────────────────────────────────
+  const hasUnsavedJobDetailChanges = Boolean(
+    job &&
+      (company !== job.company ||
+        title !== job.title ||
+        jobPostingBody !== job.jobPostingBody ||
+        location !== job.location ||
+        jobUrl !== job.jobUrl ||
+        salaryRange !== job.salaryRange ||
+        notes !== job.notes ||
+        deadline !== job.deadline ||
+        recruiterNotes !== job.recruiterNotes)
+  );
+  const hasUnsavedInterviewNotes = interviewRoundNotes.trim().length > 0;
+  const hasUnsavedSectionChanges = Object.values(unsavedSections).some(Boolean);
+
+  const confirmLeaveJobDetail = useUnsavedChangesWarning(
+    hasUnsavedJobDetailChanges || hasUnsavedInterviewNotes || hasUnsavedSectionChanges
+  );
   if (loading) {
     return (
       <div
@@ -2592,7 +2738,9 @@ function JobDetail() {
       <div style={{ padding: "40px 60px" }}>
         <p style={{ color: "#DC2626" }}>{pageError || "Job not found."}</p>
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => {
+          if (confirmLeaveJobDetail()) navigate("/dashboard");
+        }}
           style={{
             marginTop: "16px",
             padding: "8px 16px",
@@ -2627,7 +2775,9 @@ function JobDetail() {
       {/* ── Page header ────────────────────────────────────────────────────── */}
       {/* Back button — lets user return to dashboard without losing context */}
       <button
-        onClick={() => navigate("/dashboard")}
+        onClick={() => {
+          if (confirmLeaveJobDetail()) navigate("/dashboard");
+        }}
         style={{
           background: "transparent",
           border: "none",
@@ -2947,11 +3097,13 @@ function JobDetail() {
                 location={location}
                 jobPostingBody={jobPostingBody}
                 getToken={getToken}
+                onUnsavedChange={handleCompanyResearchUnsavedChange}
               />
               <FollowUpSection
                 jobId={id}
                 getToken={getToken}
                 onCreated={() => setTimelineRefreshKey((key) => key + 1)}
+                onUnsavedChange={handleFollowUpUnsavedChange}
               />
             </>
           )}
@@ -2966,7 +3118,7 @@ function JobDetail() {
             onOpenHelper={(documentId) => {
               const params = new URLSearchParams({ jobId: id });
               if (documentId) params.set("documentId", documentId);
-              navigate(`/resume-helper?${params.toString()}`);
+              if (confirmLeaveJobDetail()) navigate(`/resume-helper?${params.toString()}`);
             }}
           />
           <CoverLetterStatusSection
@@ -2975,7 +3127,7 @@ function JobDetail() {
             onOpenHelper={(documentId) => {
               const params = new URLSearchParams({ jobId: id });
               if (documentId) params.set("documentId", documentId);
-              navigate(`/cover-letter-helper?${params.toString()}`);
+              if (confirmLeaveJobDetail()) navigate(`/cover-letter-helper?${params.toString()}`);
             }}
           />
 
@@ -3021,3 +3173,4 @@ function JobDetail() {
 }
 
 export default JobDetail;
+

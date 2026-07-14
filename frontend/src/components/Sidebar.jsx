@@ -14,6 +14,7 @@ import {
   ChevronUp,
   Mail,
 } from "lucide-react";
+import breezeLogo from "../assets/breeze-logo-app.jpg";
 import { fetchProfilePhoto, PROFILE_PHOTO_UPDATED_EVENT } from "../utils/profilePhoto";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
@@ -91,27 +92,27 @@ function Sidebar() {
       }}
     >
       {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px 24px" }}>
-        <div
+      <Link
+        to="/"
+        aria-label="Breeze dashboard"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "8px 12px 24px",
+          textDecoration: "none",
+        }}
+      >
+        <img
+          src={breezeLogo}
+          alt="Breeze"
           style={{
-            width: "32px",
-            height: "32px",
-            borderRadius: "8px",
-            backgroundColor: "#003C78",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "white",
-            fontWeight: "800",
-            fontSize: "16px",
+            width: "148px",
+            maxWidth: "100%",
+            height: "auto",
+            display: "block",
           }}
-        >
-          B
-        </div>
-        <span style={{ fontWeight: "700", fontSize: "18px", color: "var(--text-h, #003C78)" }}>
-          Breeze
-        </span>
-      </div>
+        />
+      </Link>
 
       {/* Nav Groups */}
       <nav style={{ flex: 1 }}>

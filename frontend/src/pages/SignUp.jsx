@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSignUp } from "@clerk/clerk-react";
 import { useNavigate, Link } from "react-router-dom";
+import breezeLogo from "../assets/breeze-logo-app.jpg";
 
 function SignUp() {
   const { signUp, isLoaded, setActive } = useSignUp();
@@ -155,10 +156,14 @@ function SignUp() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex" style={{ backgroundColor: "#ffffff" }}>
       {/* Left Side */}
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-md">
+          <div className="mb-8">
+            <img src={breezeLogo} alt="Breeze" style={{ width: "190px", height: "auto" }} />
+          </div>
+
           <h1 className="text-4xl font-bold mb-2" style={{ color: "#003C78" }}>
             Create Account
           </h1>
@@ -259,8 +264,10 @@ function SignUp() {
         className="hidden lg:flex lg:w-1/2 items-center justify-center"
         style={{ background: "linear-gradient(135deg,#003C78,#046A97)" }}
       >
-        <div className="text-white max-w-md">
-          <h2 className="text-4xl font-bold mb-6">Start Your Career Journey</h2>
+        <div className="max-w-md" style={{ color: "white" }}>
+          <h2 className="text-4xl font-bold mb-6" style={{ color: "white" }}>
+            Start Your Career Journey
+          </h2>
           <p>
             Create an account to organize applications, resumes, and opportunities in one place.
           </p>
