@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSignUp } from "@clerk/clerk-react";
 import { useNavigate, Link } from "react-router-dom";
-import breezeLogo from "../assets/breeze-logo-app.jpg";
+import breezeLogo from "../assets/breeze-logo-icon.png";
 
 function SignUp() {
   const { signUp, isLoaded, setActive } = useSignUp();
@@ -160,8 +160,16 @@ function SignUp() {
       {/* Left Side */}
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-md">
-          <div className="mb-8">
-            <img src={breezeLogo} alt="Breeze" style={{ width: "190px", height: "auto" }} />
+          <div className="mb-8" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <img
+              src={breezeLogo}
+              alt=""
+              aria-hidden="true"
+              style={{ width: "58px", height: "58px", borderRadius: "14px", objectFit: "cover" }}
+            />
+            <span style={{ color: "#003C78", fontSize: "34px", fontWeight: 800, lineHeight: 1 }}>
+              Breeze
+            </span>
           </div>
 
           <h1 className="text-4xl font-bold mb-2" style={{ color: "#003C78" }}>
@@ -278,3 +286,4 @@ function SignUp() {
 }
 
 export default SignUp;
+

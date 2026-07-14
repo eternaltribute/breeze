@@ -14,7 +14,7 @@ import {
   ChevronUp,
   Mail,
 } from "lucide-react";
-import breezeLogo from "../assets/breeze-logo-app.jpg";
+import breezeLogo from "../assets/breeze-logo-icon.png";
 import { fetchProfilePhoto, PROFILE_PHOTO_UPDATED_EVENT } from "../utils/profilePhoto";
 
 const BASE = import.meta.env.VITE_API_BASE_URL;
@@ -98,20 +98,33 @@ function Sidebar() {
         style={{
           display: "flex",
           alignItems: "center",
+          gap: "10px",
           padding: "8px 12px 24px",
           textDecoration: "none",
         }}
       >
         <img
           src={breezeLogo}
-          alt="Breeze"
+          alt=""
+          aria-hidden="true"
           style={{
-            width: "148px",
-            maxWidth: "100%",
-            height: "auto",
+            width: "42px",
+            height: "42px",
+            borderRadius: "12px",
             display: "block",
+            objectFit: "cover",
           }}
         />
+        <span
+          style={{
+            color: "#003C78",
+            fontSize: "24px",
+            fontWeight: 800,
+            lineHeight: 1,
+          }}
+        >
+          Breeze
+        </span>
       </Link>
 
       {/* Nav Groups */}
@@ -378,3 +391,4 @@ function Sidebar() {
 }
 
 export default Sidebar;
+

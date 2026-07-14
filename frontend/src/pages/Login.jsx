@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSignIn } from "@clerk/clerk-react";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-import breezeLogo from "../assets/breeze-logo-app.jpg";
+import breezeLogo from "../assets/breeze-logo-icon.png";
 
 function Login() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -55,8 +55,16 @@ function Login() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           {/* Logo */}
-          <div className="mb-10">
-            <img src={breezeLogo} alt="Breeze" style={{ width: "190px", height: "auto" }} />
+          <div className="mb-10" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <img
+              src={breezeLogo}
+              alt=""
+              aria-hidden="true"
+              style={{ width: "58px", height: "58px", borderRadius: "14px", objectFit: "cover" }}
+            />
+            <span style={{ color: "#003C78", fontSize: "34px", fontWeight: 800, lineHeight: 1 }}>
+              Breeze
+            </span>
           </div>
 
           {/* Heading */}
@@ -234,3 +242,4 @@ function Login() {
 }
 
 export default Login;
+
