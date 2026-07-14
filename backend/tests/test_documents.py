@@ -834,3 +834,28 @@ def test_get_document_versions_no_token():
         test_client = TestClient(app)
         response = test_client.get("/documents/fake-id/versions")
     assert response.status_code == 401
+
+def test_unhandled_exception_returns_generic_500(client, db, monkeypatch):
+    """Regression: an unexpected server error (not an HTTPException) must
+    be caught by the global exception handler and return a generic
+    message, never leaking internal exception details to the client.
+
+    Uses raise_server_exceptions=False since TestClient re-raises the
+    original exception by default instead of returning the response the
+    handler produced, even though the handler runs correctly in a real
+    server (confirmed by the ERROR log line either way)."""
+
+    def broken_exec(*args, **kwargs):
+        raise RuntimeError("Simulated unexpected database failure")
+
+    monkeypatch.setattr(db, "exec", broken_exec)
+
+    non_raising_client = TestClient(app, raise_server_exceptions=False)
+    non_raising_client.app.dependency_overrides = client.app.dependency_overrides
+
+    response = non_raising_client.get("/documents")
+    assert response.status_code == 500
+    data = response.json()
+    assert data["error"] == "Something went wrong on our end. Please try again."
+    assert "request_id" in data
+    assert "RuntimeError" not in str(data)
