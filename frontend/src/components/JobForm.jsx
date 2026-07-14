@@ -8,6 +8,8 @@ function JobForm({ onSubmit, initialData }) {
     title: initialData?.title ?? "",
     jobPostingBody: initialData?.jobPostingBody ?? "",
     stage: initialData?.stage ?? "interested",
+    applicationDeadline: initialData?.applicationDeadline ?? "",
+    recruiterNotes: initialData?.recruiterNotes ?? "",
   }));
 
   const handleChange = (e) => {
@@ -96,6 +98,31 @@ function JobForm({ onSubmit, initialData }) {
           <option value="rejected">Rejected</option>
           <option value="archived">Archived</option>
         </select>
+      </div>
+
+      {/* Application Deadline */}
+      <div>
+        <label style={labelStyle}>Application Deadline</label>
+        <input
+          type="date"
+          name="applicationDeadline"
+          value={form.applicationDeadline}
+          onChange={handleChange}
+          className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 dark:bg-gray-800 dark:text-white dark:border-gray-700"
+        />
+      </div>
+
+      {/* Recruiter / Contact Notes */}
+      <div>
+        <label style={labelStyle}>Recruiter / Contact Notes</label>
+        <textarea
+          name="recruiterNotes"
+          value={form.recruiterNotes}
+          onChange={handleChange}
+          rows={4}
+          placeholder="Recruiter name, email, LinkedIn, phone, notes from calls..."
+          className="w-full px-3 py-2 rounded-md border bg-white text-gray-900 dark:bg-gray-800 dark:text-white dark:border-gray-700"
+        />
       </div>
 
       {/* Submit */}
