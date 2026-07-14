@@ -1601,9 +1601,13 @@ function sectionButtonStyle({ primary = false, danger = false } = {}) {
   return {
     padding: "10px 14px",
     borderRadius: "8px",
-    border: danger ? "1px solid #FCA5A5" : primary ? "none" : "1px solid #003C78",
+    border: danger
+      ? "1px solid #FCA5A5"
+      : primary
+        ? "none"
+        : "1px solid var(--color-heading, #003C78)",
     backgroundColor: primary ? "#003C78" : "transparent",
-    color: danger ? "#B91C1C" : primary ? "#fff" : "#003C78",
+    color: danger ? "#B91C1C" : primary ? "#fff" : "var(--color-heading, #003C78)",
     fontSize: "14px",
     fontWeight: 600,
     cursor: "pointer",
