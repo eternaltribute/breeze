@@ -835,6 +835,7 @@ def test_get_document_versions_no_token():
         response = test_client.get("/documents/fake-id/versions")
     assert response.status_code == 401
 
+
 def test_unhandled_exception_returns_generic_500(client, db, monkeypatch):
     """Regression: an unexpected server error (not an HTTPException) must
     be caught by the global exception handler and return a generic
