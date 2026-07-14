@@ -1,0 +1,41 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend (Render)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" | jq .
+
+      - name: Wait for deploy to start
+        run: sleep 30
+
+      - name: Health check (retry for up to 5 minutes)
+        run: |
+          HEALTH_URL="${{ secrets.RENDER_SERVICE_URL }}/health"
+          echo "Polling $HEALTH_URL..."
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i: got $STATUS — retrying in 30s..."
+            sleep 30
+          done
+          echo "Health check failed after 10 attempts"
+          exit 1
+
+  deploy-frontend:
+    name: Deploy Frontend (Vercel)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vercel auto-deploys on push to main
+        run: echo "Vercel deployment triggered automatically by this push"
