@@ -737,3 +737,100 @@ def test_export_no_token():
         test_client = TestClient(app)
         response = test_client.get("/documents/fake-id/export?format=txt")
     assert response.status_code == 401
+
+
+# --- S3-021: Document Versioning ---
+# Rules: S3-BR-007 (explicit action only), S3-BR-008 (version metadata)
+
+
+def test_get_document_versions_empty_for_new_document(client, test_document):
+    """Happy path: a freshly created document has no version history yet."""
+    response = client.get(f"/documents/{test_document.id}/versions")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_create_document_version_success(client, test_document):
+    """Happy path: creating a version snapshots current state and
+    advances the document's version pointer."""
+    response = client.post(
+        f"/documents/{test_document.id}/versions", json={"version_label": "v2"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["version_number"] == 2
+    assert data["version_label"] == "v2"
+    assert "version_id" in data
+    assert "created_at" in data
+
+
+def test_create_document_version_default_label(client, test_document):
+    """Edge case: no version_label provided should default to v{next}."""
+    response = client.post(f"/documents/{test_document.id}/versions", json={})
+    assert response.status_code == 200
+    assert response.json()["version_label"] == "v2"
+
+
+def test_create_document_version_advances_document_pointer(client, test_document, db):
+    """Regression: creating a version updates the parent document's own
+    version_number/version_label, not just the history table."""
+    client.post(f"/documents/{test_document.id}/versions", json={})
+    updated_doc = db.get(Document, test_document.id)
+    assert updated_doc.version_number == 2
+    assert updated_doc.version_label == "v2"
+
+
+def test_get_document_versions_returns_history_after_creation(client, test_document):
+    """Happy path: version history reflects created versions, newest first."""
+    client.post(f"/documents/{test_document.id}/versions", json={"version_label": "v2"})
+    client.post(f"/documents/{test_document.id}/versions", json={"version_label": "v3"})
+
+    response = client.get(f"/documents/{test_document.id}/versions")
+    assert response.status_code == 200
+    versions = response.json()
+    assert len(versions) == 2
+    # ordered descending by version_number
+    assert versions[0]["version_number"] == 3
+    assert versions[1]["version_number"] == 2
+
+
+def test_document_version_carries_ownership_and_timestamp(client, test_document):
+    """Regression: every version carries owner id and timestamp (S3-BR-008)."""
+    client.post(f"/documents/{test_document.id}/versions", json={})
+    response = client.get(f"/documents/{test_document.id}/versions")
+    version = response.json()[0]
+    assert version["owner_id"] == TEST_USER_ID
+    assert version["created_at"] is not None
+
+
+def test_create_document_version_preserves_original_content(client, test_document, db):
+    """Regression: creating a version does not alter the document's
+    current content, it only snapshots what was already there."""
+    original_text = test_document.document_text
+    client.post(f"/documents/{test_document.id}/versions", json={})
+    unchanged_doc = db.get(Document, test_document.id)
+    assert unchanged_doc.document_text == original_text
+
+
+def test_create_document_version_invalid_document(client):
+    response = client.post("/documents/non-existent-id/versions", json={})
+    assert response.status_code == 404
+
+
+def test_get_document_versions_invalid_document(client):
+    response = client.get("/documents/non-existent-id/versions")
+    assert response.status_code == 404
+
+
+def test_create_document_version_no_token():
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.post("/documents/fake-id/versions", json={})
+    assert response.status_code == 401
+
+
+def test_get_document_versions_no_token():
+    with patch("app.dependencies.get_jwks", return_value={"keys": []}):
+        test_client = TestClient(app)
+        response = test_client.get("/documents/fake-id/versions")
+    assert response.status_code == 401
