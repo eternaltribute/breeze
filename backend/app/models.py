@@ -73,6 +73,9 @@ class Job(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+    application_deadline: Optional[date] = Field(default=None, nullable=True)
+    recruiter_notes: Optional[str] = Field(default=None, nullable=True)
+
 
 class LocationType(str, enum.Enum):
     REMOTE = "Remote"

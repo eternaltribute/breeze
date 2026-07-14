@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -21,6 +21,8 @@ class JobCreate(BaseModel):
     job_url: Optional[str] = None
     salary_range: Optional[str] = None
     notes: Optional[str] = None
+    application_deadline: Optional[date] = None
+    recruiter_notes: Optional[str] = None
 
 
 # Quick fix: avoids N+1 GET .../resume/job/{id} and .../cover-letter/job/{id}
