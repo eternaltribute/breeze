@@ -135,6 +135,28 @@ function StatCard({ label, value, sub, highlight }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // PipelineFlow
 // ─────────────────────────────────────────────────────────────────────────────
+function formatDropOffLabel(dropOff) {
+  if (dropOff === null) return null;
+  if (dropOff === 0) {
+    return {
+      text: "0% from prev",
+      color: "#475569",
+      backgroundColor: "#F1F5F9",
+    };
+  }
+  if (dropOff > 0) {
+    return {
+      text: `${dropOff}% drop-off`,
+      color: "#DC2626",
+      backgroundColor: "#FEE2E2",
+    };
+  }
+  return {
+    text: `${Math.abs(dropOff)}% increase`,
+    color: "#166534",
+    backgroundColor: "#DCFCE7",
+  };
+}
 function PersistedAnalyticsPanel({ analytics, error }) {
   const conversion = analytics?.stage_conversion ?? 0;
   const velocity = analytics?.velocity ?? 0;
@@ -308,6 +330,7 @@ function PipelineFlow({ counts, total }) {
           const prev = i > 0 ? (counts[funnelStages[i - 1].key] ?? 0) : null;
           const dropOff =
             prev !== null && prev > 0 ? Math.round(((prev - count) / prev) * 100) : null;
+          const dropOffLabel = formatDropOffLabel(dropOff);
           return (
             <div key={stage.key}>
               <div
@@ -328,17 +351,18 @@ function PipelineFlow({ counts, total }) {
                   {stage.label}
                 </span>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  {dropOff !== null && (
+                  {" "}
+                  {dropOffLabel && (
                     <span
                       style={{
                         fontSize: "11px",
-                        color: "#DC2626",
-                        backgroundColor: "#FEE2E2",
+                        color: dropOffLabel.color,
+                        backgroundColor: dropOffLabel.backgroundColor,
                         borderRadius: "999px",
                         padding: "2px 8px",
                       }}
                     >
-                      -{dropOff}% from prev
+                      {dropOffLabel.text}
                     </span>
                   )}
                   <span
