@@ -34,7 +34,10 @@ app.add_middleware(RequestContextMiddleware)
 # CORS - allows frontend to talk to backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_origins=[
+        "http://localhost:5173",
+        "https://breeze-murex.vercel.app",
+    ],  # Vite dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
