@@ -161,7 +161,7 @@ function fromApi(data) {
     salaryRange: data.salary_range ?? "",
     notes: data.notes ?? "",
     // S2-007 fields — will be empty string until Ronald adds them to the model
-    deadline: data.deadline ?? "",
+    deadline: data.application_deadline ?? "",
     recruiterNotes: data.recruiter_notes ?? "",
     // S2-011 — will be null until Ronald adds interview_round to the model
     interviewRound: data.interview_round ?? null,
@@ -2528,7 +2528,7 @@ function JobDetail() {
           notes: notes.trim() || null,
           // TODO (Ronald): add deadline and recruiter_notes to JobUpdate model
           // and Job SQLModel table. Until then this PUT may silently ignore them.
-          deadline: deadline || null,
+          application_deadline: deadline || null,
           recruiter_notes: recruiterNotes.trim() || null,
         }),
       });
