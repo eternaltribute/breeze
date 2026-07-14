@@ -423,7 +423,7 @@ function ShortcutCard({ label, icon: Icon, onClick }) {
         textAlign: "center",
       }}
     >
-      <Icon size={20} color="#046A97" />
+      <Icon size={20} color="currentColor" />
       {label}
     </button>
   );
