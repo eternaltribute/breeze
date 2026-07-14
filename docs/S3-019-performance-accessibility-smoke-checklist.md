@@ -73,6 +73,7 @@ Use a clean browser session where possible.
 - User can sign in.
 - User can reach Dashboard after sign-in.
 - Protected pages do not show broken content while auth is loading.
+- Browser tab shows the Breeze favicon after refresh/deploy.
 
 ### Dashboard and Job Detail
 
@@ -84,6 +85,8 @@ Use a clean browser session where possible.
 - Interview stage shows the interview progress panel.
 - Interview round requires notes before advancing.
 - Activity timeline updates after stage/round changes.
+- Leaving Job Detail with unsaved edits shows a confirmation warning.
+- Unsaved job detail, company research, interview, and follow-up reminder notes trigger the leave warning.
 
 ### Company Research
 
@@ -125,6 +128,9 @@ Check demo-critical pages:
 - Modal actions can be completed using keyboard navigation.
 - Text has readable contrast on light backgrounds.
 - No important text overlaps or gets cut off at common laptop widths.
+- Text has readable contrast on light and dark backgrounds.
+- Dashboard shortcut icons remain readable in dark mode.
+- Job Detail document action buttons remain readable in dark mode.
 
 ## Performance Pass
 
@@ -144,6 +150,8 @@ Check demo-critical pages:
   - Owned job with no linked document returns `200` with `null`, avoiding noisy empty-state 404s.
   - Another user's job still returns `404`, preserving ownership/security behavior.
 - Kept existing centralized backend error handling/logging in place through `RequestContextMiddleware`, `http_exception_handler`, and `unhandled_exception_handler`.
+- Added Breeze branding polish for the app header/auth screens and browser favicon.
+- Added Job Detail unsaved-change protection for job edits, company research notes, interview notes, and follow-up reminder drafts.
 
 ### Automated Verification Results
 
@@ -164,4 +172,5 @@ Backend commands run from `backend`:
 
 - Automated smoke coverage is complete for the current repo state.
 - Manual browser smoke testing should still be performed immediately before the demo using the checklist above, especially Dashboard, Job Detail, Library, Resume Helper, Cover Letter Helper, Settings, and Profile.
+- Re-check dark mode before demo, especially Dashboard shortcut icons and Job Detail document action buttons after the latest contrast fix is applied.
 
