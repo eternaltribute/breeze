@@ -56,7 +56,7 @@ function fromApi(job) {
     location: job.location ?? "",
     stage,
     lastActivity: (job.updated_at ?? job.created_at)?.split("T")[0] ?? "",
-    deadline: job.deadline ?? "",
+    deadline: job.application_deadline ?? "",
     createdAt: job.created_at?.split("T")[0] ?? "",
     resumeCount: Number(job.resume_count ?? job.resumeCount ?? (job.has_resume ? 1 : 0)),
     coverLetterCount: Number(
