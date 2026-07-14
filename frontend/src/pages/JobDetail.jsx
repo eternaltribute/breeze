@@ -30,16 +30,6 @@
 //     Left  — Overview (S2-006)
 //     Right — Deadline + Recruiter Notes (S2-007)
 //
-// TODO (Ronald): backend Job model needs two new fields for S2-007 to fully
-//   persist:
-//     deadline: Optional[str]          (ISO date string "YYYY-MM-DD")
-//     recruiter_notes: Optional[str]   (free text)
-//   The PUT /jobs/:id endpoint already accepts extra fields via JobUpdate,
-//   so once the model and migration are added, this frontend will work as-is.
-//
-// Interview round progression is handled through PATCH /jobs/:id/stage with
-// `interview_round` and notes. The backend stores the current round and writes
-// an "interview" timeline event each time the user moves forward.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from "react";
