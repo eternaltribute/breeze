@@ -53,6 +53,8 @@ function EditJob() {
           title: data.title,
           jobPostingBody: data.job_posting_body,
           stage: normalizeStage(data.stage),
+          applicationDeadline: data.application_deadline || "",
+          recruiterNotes: data.recruiter_notes || "",
         });
       } catch (err) {
         console.error("Failed to fetch job:", err);
@@ -83,6 +85,8 @@ function EditJob() {
           title: formData.title,
           job_posting_body: formData.jobPostingBody,
           stage: formData.stage.toLowerCase(),
+          application_deadline: formData.applicationDeadline || null,
+          recruiter_notes: formData.recruiterNotes || null,
         }),
       });
 
