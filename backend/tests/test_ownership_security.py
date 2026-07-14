@@ -488,3 +488,23 @@ def test_interview_prep_notes_blocked_for_other_user(client, test_job):
     # Regression: owner's original notes are untouched
     response = client.get(f"/jobs/{test_job['id']}/interview-prep-notes")
     assert response.json()["interview_prep_questions"] == "Owner's private prep notes"
+
+
+def test_document_versions_blocked_for_other_user(client, db):
+    from app.models import DocType, Document
+
+    document = Document(
+        user_id=OWNER_ID,
+        title="Owner's Resume",
+        doc_type=DocType.RESUME,
+        document_text="Private content",
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    with as_attacker():
+        create_response = client.post(f"/documents/{document.id}/versions", json={})
+        get_response = client.get(f"/documents/{document.id}/versions")
+    assert create_response.status_code == 404
+    assert get_response.status_code == 404
