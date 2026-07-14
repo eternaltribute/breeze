@@ -42,6 +42,7 @@
 //   POST /documents/resume/save — accepts multipart form data with:
 //                            file, resume_text, job_id?, title?, status?, tags?
 //                            so saved resumes can appear in Library with metadata.
+//                            CONFIRMED LIVE — this is what handleSave calls below.
 //   POST /resume/parse-pdf — accepts multipart form with the PDF file
 //                            returns { text: string }
 //   POST /resume/generate-for-job — S2-021 — accepts { job_id: string }
@@ -51,6 +52,10 @@
 //                            calls Claude with both as context to draft a
 //                            resume tailored to that job.
 //                            returns { resume_text: string }
+//
+// NOTE: /resume/analyze is still NOT live on the backend. handleAnalyze()
+// below is intentionally still a placeholder — do not remove it, the
+// Analyze button would break with nothing real to call.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useCallback, useEffect } from "react";
@@ -70,7 +75,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import mammoth from "mammoth";
-import { addMockDocument, isDuplicateTitle } from "../lib/mockLibraryStore";
 
 // ── API base URL — same pattern used across all pages (Analytics, Dashboard, etc.) ──
 const BASE = import.meta.env.VITE_API_BASE_URL;
@@ -78,13 +82,6 @@ const BASE = import.meta.env.VITE_API_BASE_URL;
 function normalizeLibraryStatus(status) {
   return status === "archived" ? "archived" : "active";
 }
-
-// TODO (Ronald): flip this to false once POST /documents/resume/save is
-// live and confirmed working end-to-end. While true, Save writes to the
-// shared mock library (see lib/mockLibraryStore.js) instead of calling the
-// real backend, so the whole Resume Helper -> Library flow can be demoed
-// and tested without the backend being ready.
-const USE_MOCK_SAVE = true;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ScoreRing — circular SVG progress indicator showing the overall resume score
@@ -708,7 +705,10 @@ function ResumeHelper() {
   // Sends resume text to Ronald's backend → backend calls Anthropic → returns score + metrics + feedback
   // The Anthropic API key is NEVER here — it lives only in the backend environment variables
   //
-  // TODO (Ronald): implement POST /resume/analyze
+  // TODO (Ronald): implement POST /resume/analyze — NOT YET LIVE. This is
+  // still a real, pending backend dependency (unlike the old resume/save
+  // mock, which is now removed). Leave this placeholder in place until the
+  // real endpoint exists.
   //   Request:  { resume_text: string, job_id?: string }
   //   Response: {
   //     score: number,
@@ -778,13 +778,7 @@ function ResumeHelper() {
   // hand it the job_id and place the tailored draft straight into the editor
   // above, where it's editable just like an uploaded resume (S2-BR-020).
   //
-  // TODO (Ronald): implement POST /resume/generate-for-job
-  //   Request:  { job_id: string }
-  //   Behavior: look up the Job (by job_id + current_user for ownership) and
-  //             the current_user's Profile (experience, education, skills,
-  //             summary), then call Claude with both as context to draft a
-  //             tailored resume.
-  //   Response: { resume_text: string }
+  // Real endpoint, confirmed live.
   const handleGenerateForJob = async () => {
     if (!selectedJobId) return;
     setGeneratingForJob(true);
@@ -818,9 +812,7 @@ function ResumeHelper() {
   // Backend calls Anthropic, gets improved text, returns it here for the user to review.
   // User sees the result in the editor and can accept, edit, or discard it. (S2-BR-020)
   //
-  // TODO (Ronald): implement POST /resume/improve
-  //   Request:  { resume_text: string, instruction: string }
-  //   Response: { improved_text: string }
+  // Real endpoint, confirmed live.
   const handleImprove = async () => {
     if (!resumeText.trim() || !improveInstruction.trim()) return;
     setImproving(true);
@@ -851,48 +843,52 @@ function ResumeHelper() {
   // ── S2-024: Save resume as a document linked to a job ─────────────────────
   // Saves the current resume text as a Document record in the database,
   // optionally linked to a specific job application.
-  //   Request:  { resume_text: string, job_id?: string }
-  //   Response: { document_id: string }
+  //
+  // MOCK PATH REMOVED. This now always calls the real backend:
+  //   POST /documents/resume/save (multipart form) — confirmed live and
+  //   confirmed to match this exact field shape (file, resume_text, title,
+  //   status, tags, job_id).
+  //
+  // Duplicate-title check also now real: instead of checking the old
+  // temporary in-browser mock list, it checks your actual saved documents
+  // via GET /documents. Still a client-side UX guardrail, not a database
+  // constraint — true server-side uniqueness enforcement is still a
+  // follow-up item for Ronald/Sergio, same as before.
   const handleSave = async () => {
     if (!resumeText.trim()) return;
     const documentTitle =
       saveTitle.trim() || fileName.replace(/\.(pdf|docx|txt)$/i, "") || "Resume";
 
-    // ── Fail-safe: block saving a document with the same name as an
-    // existing resume (UX safeguard — real uniqueness enforcement still
-    // needs to happen server-side once Ronald's endpoint exists).
-    if (isDuplicateTitle(documentTitle, "resume")) {
-      setSaveError(
-        `A resume named "${documentTitle}" already exists. Rename this draft or edit the existing one instead.`
-      );
-      return;
-    }
-
     setSaving(true);
     setSaveError("");
+
     try {
-      // ── MOCK SAVE PATH — active while USE_MOCK_SAVE = true ────────────────
-      // Writes straight to the shared mock library (lib/mockLibraryStore.js)
-      // instead of calling the real backend below, so Save works today even
-      // though Ronald's endpoint isn't live yet. See the TODO near the
-      // USE_MOCK_SAVE declaration at the top of this file.
-      if (USE_MOCK_SAVE) {
-        // Simulates a brief save delay so the "Saving..." state is visible
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        addMockDocument({
-          type: "resume",
-          title: documentTitle,
-          documentText: resumeText,
-          jobId: selectedJobId || null,
-          tags: saveTags,
-        });
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-        return;
-      }
-      // ── End mock save path ─────────────────────────────────────────────────
       const token = await getToken({ skipCache: true });
 
+      // ── Duplicate-title check against real saved documents ────────────────
+      try {
+        const checkRes = await fetch(`${BASE}/documents`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const allDocs = await checkRes.json().catch(() => []);
+        const normalizedTitle = documentTitle.trim().toLowerCase();
+        const isDuplicate = (Array.isArray(allDocs) ? allDocs : []).some(
+          (doc) =>
+            doc.doc_type === "resume" && (doc.title ?? "").trim().toLowerCase() === normalizedTitle
+        );
+        if (isDuplicate) {
+          setSaveError(
+            `A resume named "${documentTitle}" already exists. Rename this draft or edit the existing one instead.`
+          );
+          setSaving(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Duplicate title check failed:", err);
+        // Fail open — don't block saving just because the check itself failed
+      }
+
+      // ── Real save ───────────────────────────────────────────────────────
       const formData = new FormData();
       if (uploadedFile) {
         formData.append("file", uploadedFile);
@@ -918,31 +914,6 @@ function ResumeHelper() {
       if (!res.ok) throw new Error("Save failed");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-
-      // ── Uncomment once Ronald's endpoint is ready ─────────────────────────
-      // const res = await fetch(`${BASE}/resume/save`, {
-      //   method: "POST",
-      //   headers: {
-      //     Authorization: `Bearer ${token}`,
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     resume_text: resumeText,
-      //     job_id: selectedJobId || null,
-      //   }),
-      // });
-      // if (res.ok) {
-      //   setSaveSuccess(true);
-      //   setTimeout(() => setSaveSuccess(false), 3000);
-      // }
-      // ── End real call ─────────────────────────────────────────────────────
-
-      // ── TEMPORARY placeholder ─────────────────────────────────────────────
-      //console.log("Auth token ready for POST /resume/save:", !!token);
-      //await new Promise((r) => setTimeout(r, 800));
-      //setSaveSuccess(true);
-      //setTimeout(() => setSaveSuccess(false), 3000);
-      // ── End placeholder ───────────────────────────────────────────────────
     } catch (err) {
       console.error("Resume save failed:", err);
       setSaveError("Could not save this resume. Please try again.");
